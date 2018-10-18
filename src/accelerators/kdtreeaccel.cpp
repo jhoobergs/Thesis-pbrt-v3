@@ -83,7 +83,7 @@ struct BoundEdge {
 // KdTreeAccel Method Definitions
 KdTreeAccel::KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
                          int isectCost, int traversalCost, Float emptyBonus,
-                         int maxPrims, int maxDepth)
+                         int maxPrims, int maxDepth, AxisHeuristic axisHeuristic)
     : isectCost(isectCost),
       traversalCost(traversalCost),
       maxPrims(maxPrims),
@@ -116,7 +116,7 @@ KdTreeAccel::KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
     for (size_t i = 0; i < primitives.size(); ++i) primNums[i] = i;
 
     // Start recursive construction of kd-tree
-    buildTree(0, bounds, primBounds, primNums.get(), primitives.size(),
+    buildTree(axisHeuristic, 0, bounds, primBounds, primNums.get(), primitives.size(),
               maxDepth, edges, prims0.get(), prims1.get());
 }
 
@@ -137,7 +137,7 @@ void KdAccelNode::InitLeaf(int *primNums, int np,
 
 KdTreeAccel::~KdTreeAccel() { FreeAligned(nodes); }
 
-void KdTreeAccel::buildTree(int nodeNum, const Bounds3f &nodeBounds,
+void KdTreeAccel::buildTree(AxisHeuristic axisHeuristic, int nodeNum, const Bounds3f &nodeBounds,
                             const std::vector<Bounds3f> &allPrimBounds,
                             int *primNums, int nPrimitives, int depth,
                             const std::unique_ptr<BoundEdge[]> edges[3],
@@ -173,67 +173,67 @@ void KdTreeAccel::buildTree(int nodeNum, const Bounds3f &nodeBounds,
     Vector3f d = nodeBounds.pMax - nodeBounds.pMin;
 
     // Choose which axis to split along
-    int axis = nodeBounds.MaximumExtent();
-    int retries = 0;
-retrySplit:
+    int axis = 0;
+    if(axisHeuristic == AxisHeuristic::Longest)
+        axis = nodeBounds.MaximumExtent();
+    int iterations = 0;
 
-    // Initialize edges for _axis_
-    for (int i = 0; i < nPrimitives; ++i) {
-        int pn = primNums[i];
-        const Bounds3f &bounds = allPrimBounds[pn];
-        edges[axis][2 * i] = BoundEdge(bounds.pMin[axis], pn, true);
-        edges[axis][2 * i + 1] = BoundEdge(bounds.pMax[axis], pn, false);
-    }
-
-    // Sort _edges_ for _axis_
-    std::sort(&edges[axis][0], &edges[axis][2 * nPrimitives],
-              [](const BoundEdge &e0, const BoundEdge &e1) -> bool {
-                  if (e0.t == e1.t)
-                      return (int)e0.type < (int)e1.type;
-                  else
-                      return e0.t < e1.t;
-              });
-
-    // Compute cost of all splits for _axis_ to find best
-    int nBelow = 0, nAbove = nPrimitives;
-    for (int i = 0; i < 2 * nPrimitives; ++i) {
-        if (edges[axis][i].type == EdgeType::End) --nAbove;
-        Float edgeT = edges[axis][i].t;
-        if (edgeT > nodeBounds.pMin[axis] && edgeT < nodeBounds.pMax[axis]) {
-            // Compute cost for split at _i_th edge
-
-            // Compute child surface areas for split at _edgeT_
-            int otherAxis0 = (axis + 1) % 3, otherAxis1 = (axis + 2) % 3;
-            Float belowSA = 2 * (d[otherAxis0] * d[otherAxis1] +
-                                 (edgeT - nodeBounds.pMin[axis]) *
-                                     (d[otherAxis0] + d[otherAxis1]));
-            Float aboveSA = 2 * (d[otherAxis0] * d[otherAxis1] +
-                                 (nodeBounds.pMax[axis] - edgeT) *
-                                     (d[otherAxis0] + d[otherAxis1]));
-            Float pBelow = belowSA * invTotalSA;
-            Float pAbove = aboveSA * invTotalSA;
-            Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
-            Float cost =
-                traversalCost +
-                isectCost * (1 - eb) * (pBelow * nBelow + pAbove * nAbove);
-
-            // Update best split if this is lowest cost so far
-            if (cost < bestCost) {
-                bestCost = cost;
-                bestAxis = axis;
-                bestOffset = i;
-            }
+    while(iterations < 3 && (axisHeuristic != AxisHeuristic::Longest || bestAxis == -1)) {
+        // Initialize edges for _axis_
+        for (int i = 0; i < nPrimitives; ++i) {
+            int pn = primNums[i];
+            const Bounds3f &bounds = allPrimBounds[pn];
+            edges[axis][2 * i] = BoundEdge(bounds.pMin[axis], pn, true);
+            edges[axis][2 * i + 1] = BoundEdge(bounds.pMax[axis], pn, false);
         }
-        if (edges[axis][i].type == EdgeType::Start) ++nBelow;
+
+        // Sort _edges_ for _axis_
+        std::sort(&edges[axis][0], &edges[axis][2 * nPrimitives],
+                  [](const BoundEdge &e0, const BoundEdge &e1) -> bool {
+                      if (e0.t == e1.t)
+                          return (int) e0.type < (int) e1.type;
+                      else
+                          return e0.t < e1.t;
+                  });
+
+        // Compute cost of all splits for _axis_ to find best
+        int nBelow = 0, nAbove = nPrimitives;
+        for (int i = 0; i < 2 * nPrimitives; ++i) {
+            if (edges[axis][i].type == EdgeType::End) --nAbove;
+            Float edgeT = edges[axis][i].t;
+            if (edgeT > nodeBounds.pMin[axis] && edgeT < nodeBounds.pMax[axis]) {
+                // Compute cost for split at _i_th edge
+
+                // Compute child surface areas for split at _edgeT_
+                int otherAxis0 = (axis + 1) % 3, otherAxis1 = (axis + 2) % 3;
+                Float belowSA = 2 * (d[otherAxis0] * d[otherAxis1] +
+                                     (edgeT - nodeBounds.pMin[axis]) *
+                                     (d[otherAxis0] + d[otherAxis1]));
+                Float aboveSA = 2 * (d[otherAxis0] * d[otherAxis1] +
+                                     (nodeBounds.pMax[axis] - edgeT) *
+                                     (d[otherAxis0] + d[otherAxis1]));
+                Float pBelow = belowSA * invTotalSA;
+                Float pAbove = aboveSA * invTotalSA;
+                Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
+                Float cost =
+                        traversalCost +
+                        isectCost * (1 - eb) * (pBelow * nBelow + pAbove * nAbove);
+
+                // Update best split if this is lowest cost so far
+                if (cost < bestCost) {
+                    bestCost = cost;
+                    bestAxis = axis;
+                    bestOffset = i;
+                }
+            }
+            if (edges[axis][i].type == EdgeType::Start) ++nBelow;
+        }
+        CHECK(nBelow == nPrimitives && nAbove == 0);
+        ++iterations;
+        axis = (axis + 1) % 3;
     }
-    CHECK(nBelow == nPrimitives && nAbove == 0);
 
     // Create leaf if no good splits were found
-    if (bestAxis == -1 && retries < 2) {
-        ++retries;
-        axis = (axis + 1) % 3;
-        goto retrySplit;
-    }
     if (bestCost > oldCost) ++badRefines;
     if ((bestCost > 4 * oldCost && nPrimitives < 16) || bestAxis == -1 ||
         badRefines == 3) {
@@ -254,11 +254,11 @@ retrySplit:
     Float tSplit = edges[bestAxis][bestOffset].t;
     Bounds3f bounds0 = nodeBounds, bounds1 = nodeBounds;
     bounds0.pMax[bestAxis] = bounds1.pMin[bestAxis] = tSplit;
-    buildTree(nodeNum + 1, bounds0, allPrimBounds, prims0, n0, depth - 1, edges,
+    buildTree(axisHeuristic, nodeNum + 1, bounds0, allPrimBounds, prims0, n0, depth - 1, edges,
               prims0, prims1 + nPrimitives, badRefines);
     int aboveChild = nextFreeNode;
     nodes[nodeNum].InitInterior(bestAxis, aboveChild, tSplit);
-    buildTree(aboveChild, bounds1, allPrimBounds, prims1, n1, depth - 1, edges,
+    buildTree(axisHeuristic, aboveChild, bounds1, allPrimBounds, prims1, n1, depth - 1, edges,
               prims0, prims1 + nPrimitives, badRefines);
 }
 
@@ -437,8 +437,22 @@ std::shared_ptr<KdTreeAccel> CreateKdTreeAccelerator(
     Float emptyBonus = ps.FindOneFloat("emptybonus", 0.5f);
     int maxPrims = ps.FindOneInt("maxprims", 1);
     int maxDepth = ps.FindOneInt("maxdepth", -1);
+    std::string axisHeuristicString = ps.FindOneString("axis", "longest"); // Options: "longest" && "all"
+    KdTreeAccel::AxisHeuristic axisHeuristic;
+    if(axisHeuristicString == "longest"){
+        axisHeuristic =  KdTreeAccel::AxisHeuristic::Longest;
+    }
+    else if(axisHeuristicString == "all"){
+        axisHeuristic =  KdTreeAccel::AxisHeuristic::All;
+    }
+    else {
+        Warning(R"(Kd-tr ee axis heuristiek "%s" unknown.  Using "longest".)",
+                axisHeuristicString.c_str());
+        axisHeuristic = KdTreeAccel::AxisHeuristic::Longest;
+    }
+
     return std::make_shared<KdTreeAccel>(std::move(prims), isectCost, travCost, emptyBonus,
-                                         maxPrims, maxDepth);
+                                         maxPrims, maxDepth, axisHeuristic);
 }
 
 }  // namespace pbrt

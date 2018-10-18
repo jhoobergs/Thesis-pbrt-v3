@@ -49,10 +49,13 @@ struct KdAccelNode;
 struct BoundEdge;
 class KdTreeAccel : public Aggregate {
   public:
+    // KdTreeAccel Public Types
+    enum class AxisHeuristic { Longest, All };
+
     // KdTreeAccel Public Methods
     KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
                 int isectCost = 80, int traversalCost = 1,
-                Float emptyBonus = 0.5, int maxPrims = 1, int maxDepth = -1);
+                Float emptyBonus = 0.5, int maxPrims = 1, int maxDepth = -1, AxisHeuristic axisHeuristic = AxisHeuristic::Longest);
     Bounds3f WorldBound() const { return bounds; }
     ~KdTreeAccel();
     bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
@@ -60,7 +63,7 @@ class KdTreeAccel : public Aggregate {
 
   private:
     // KdTreeAccel Private Methods
-    void buildTree(int nodeNum, const Bounds3f &bounds,
+    void buildTree(AxisHeuristic axisHeuristic, int nodeNum, const Bounds3f &bounds,
                    const std::vector<Bounds3f> &primBounds, int *primNums,
                    int nprims, int depth,
                    const std::unique_ptr<BoundEdge[]> edges[3], int *prims0,
