@@ -32,6 +32,7 @@
 
 
 // core/film.cpp*
+#include <fstream>
 #include "film.h"
 #include "paramset.h"
 #include "imageio.h"
@@ -126,6 +127,7 @@ void Film::MergeFilmTile(std::unique_ptr<FilmTile> tile) {
         tilePixel.contribSum.ToXYZ(xyz);
         for (int i = 0; i < 3; ++i) mergePixel.xyz[i] += xyz[i];
         mergePixel.filterWeightSum += tilePixel.filterWeightSum;
+        mergePixel.triangleIntersections += tilePixel.triangleIntersections;
     }
 }
 
@@ -164,6 +166,35 @@ void Film::AddSplat(const Point2f &p, Spectrum v) {
     v.ToXYZ(xyz);
     Pixel &pixel = GetPixel(pi);
     for (int i = 0; i < 3; ++i) pixel.splatXYZ[i].Add(xyz[i]);
+}
+
+bool replace(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
+
+void Film::WriteTriangleIntersections(){
+    int x = 0;
+    std::string textFile = filename;
+    replace(textFile, ".png", ".txt");
+    std::ofstream myfile;
+    myfile.open(textFile);
+
+    for (Point2i p : croppedPixelBounds) {
+        Pixel &pixel = GetPixel(p);
+        if(x > 0)
+            myfile << " ";
+        myfile << pixel.triangleIntersections;
+        x++;
+        if(x == croppedPixelBounds.Diagonal().x){
+            myfile << "\n";
+            x=0;
+        }
+    }
+    myfile.close();
 }
 
 void Film::WriteImage(Float splatScale) {

@@ -52,6 +52,7 @@ namespace pbrt {
 struct FilmTilePixel {
     Spectrum contribSum = 0.f;
     Float filterWeightSum = 0.f;
+    uint64_t triangleIntersections = 0;
 };
 
 // Film Declarations
@@ -69,6 +70,7 @@ class Film {
     void SetImage(const Spectrum *img) const;
     void AddSplat(const Point2f &p, Spectrum v);
     void WriteImage(Float splatScale = 1);
+    void WriteTriangleIntersections();
     void Clear();
 
     // Film Public Data
@@ -81,11 +83,12 @@ class Film {
   private:
     // Film Private Data
     struct Pixel {
-        Pixel() { xyz[0] = xyz[1] = xyz[2] = filterWeightSum = 0; }
+        Pixel() { xyz[0] = xyz[1] = xyz[2] = filterWeightSum = 0; triangleIntersections = 0;}
         Float xyz[3];
         Float filterWeightSum;
         AtomicFloat splatXYZ[3];
         Float pad;
+        uint64_t triangleIntersections;
     };
     std::unique_ptr<Pixel[]> pixels;
     static PBRT_CONSTEXPR int filterTableWidth = 16;

@@ -189,6 +189,8 @@ bool Triangle::Intersect(const Ray &ray, Float *tHit, SurfaceInteraction *isect,
                          bool testAlphaTexture) const {
     ProfilePhase p(Prof::TriIntersect);
     ++nTests;
+    ray.triangleIntersections++;
+
     // Get triangle vertices in _p0_, _p1_, and _p2_
     const Point3f &p0 = mesh->p[v[0]];
     const Point3f &p1 = mesh->p[v[1]];
@@ -426,6 +428,7 @@ bool Triangle::Intersect(const Ray &ray, Float *tHit, SurfaceInteraction *isect,
 bool Triangle::IntersectP(const Ray &ray, bool testAlphaTexture) const {
     ProfilePhase p(Prof::TriIntersectP);
     ++nTests;
+    ray.triangleIntersections++;
     // Get triangle vertices in _p0_, _p1_, and _p2_
     const Point3f &p0 = mesh->p[v[0]];
     const Point3f &p1 = mesh->p[v[1]];
