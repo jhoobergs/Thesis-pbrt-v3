@@ -177,8 +177,8 @@ bool replace(std::string& str, const std::string& from, const std::string& to) {
 
 void Film::WriteTriangleIntersections(){
     int x = 0;
-    std::string textFile = filename;
-    replace(textFile, ".png", ".txt");
+    std::string textFile = filename.substr(0, filename.find('.')).append((".txt"));
+
     std::ofstream myfile;
     myfile.open(textFile);
 
