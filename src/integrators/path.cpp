@@ -86,6 +86,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         // Intersect _ray_ with scene and store intersection in _isect_
         SurfaceInteraction isect;
         bool foundIntersection = scene.Intersect(ray, &isect);
+        r.triangleIntersections += ray.triangleIntersections;
 
         // Possibly add emitted light at intersection
         if (bounces == 0 || specularBounce) {
