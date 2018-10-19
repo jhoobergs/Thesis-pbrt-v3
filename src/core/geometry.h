@@ -887,6 +887,7 @@ class Ray {
     mutable Float tMax;
     Float time;
     const Medium *medium;
+    mutable uint64_t triangleIntersections = 0;
 };
 
 class RayDifferential : public Ray {
