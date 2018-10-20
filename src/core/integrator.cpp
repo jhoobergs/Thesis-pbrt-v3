@@ -318,7 +318,7 @@ void SamplerIntegrator::Render(const Scene &scene) {
 
                     // Add camera ray's contribution to image
                     filmTile->AddSample(cameraSample.pFilm, L, rayWeight);
-                    filmTile->GetPixel(pixel).triangleIntersections += ray.triangleIntersections;
+                    filmTile->GetPixel(pixel).stats += ray.stats;
 
                     // Free _MemoryArena_ memory from computing image sample
                     // value
@@ -337,7 +337,7 @@ void SamplerIntegrator::Render(const Scene &scene) {
 
     // Save final image after rendering
     camera->film->WriteImage();
-    camera->film->WriteTriangleIntersections();
+    camera->film->WriteGeneralStats();
 }
 
 Spectrum SamplerIntegrator::SpecularReflect(

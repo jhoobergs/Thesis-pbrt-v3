@@ -865,6 +865,27 @@ class Bounds2iIterator : public std::forward_iterator_tag {
     const Bounds2i *bounds;
 };
 
+// FilmTilePixel Declarations
+class GeneralStats{
+    public:
+        GeneralStats(): triangleIntersections(0), triangleIntersectionsP(0) {};
+        GeneralStats(uint64_t triangleIntersections, uint64_t triangleIntersectionsP):
+            triangleIntersections(triangleIntersections), triangleIntersectionsP(triangleIntersectionsP) {}
+        friend GeneralStats operator+(const GeneralStats& a, const GeneralStats& b){
+            return GeneralStats(a.triangleIntersections + b.triangleIntersections,
+                                a.triangleIntersectionsP + b.triangleIntersectionsP);
+        }
+        GeneralStats& operator+=(const GeneralStats& rhs){
+
+            this->triangleIntersections += rhs.triangleIntersections;
+            this->triangleIntersectionsP += rhs.triangleIntersectionsP;
+            return *this;
+        }
+
+        uint64_t triangleIntersections;
+        uint64_t triangleIntersectionsP;
+};
+
 // Ray Declarations
 class Ray {
   public:
@@ -887,7 +908,8 @@ class Ray {
     mutable Float tMax;
     Float time;
     const Medium *medium;
-    mutable uint64_t triangleIntersections = 0;
+
+    mutable GeneralStats stats = GeneralStats();
 };
 
 class RayDifferential : public Ray {

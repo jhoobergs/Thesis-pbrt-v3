@@ -43,6 +43,7 @@
 namespace pbrt {
 
 STAT_PERCENT("Intersections/Ray-triangle intersection tests", nHits, nTests);
+STAT_PERCENT("Intersections/Ray-triangle intersectionP tests", nHitsP, nTestsP);
 
 // Triangle Local Definitions
 static void PlyErrorCallback(p_ply, const char *message) {
@@ -189,7 +190,7 @@ bool Triangle::Intersect(const Ray &ray, Float *tHit, SurfaceInteraction *isect,
                          bool testAlphaTexture) const {
     ProfilePhase p(Prof::TriIntersect);
     ++nTests;
-    ray.triangleIntersections++;
+    ray.stats.triangleIntersections++;
 
     // Get triangle vertices in _p0_, _p1_, and _p2_
     const Point3f &p0 = mesh->p[v[0]];
@@ -427,8 +428,8 @@ bool Triangle::Intersect(const Ray &ray, Float *tHit, SurfaceInteraction *isect,
 
 bool Triangle::IntersectP(const Ray &ray, bool testAlphaTexture) const {
     ProfilePhase p(Prof::TriIntersectP);
-    ++nTests;
-    ray.triangleIntersections++;
+    ++nTestsP;
+    ray.stats.triangleIntersectionsP++;
     // Get triangle vertices in _p0_, _p1_, and _p2_
     const Point3f &p0 = mesh->p[v[0]];
     const Point3f &p1 = mesh->p[v[1]];
@@ -570,7 +571,7 @@ bool Triangle::IntersectP(const Ray &ray, bool testAlphaTexture) const {
             mesh->shadowAlphaMask->Evaluate(isectLocal) == 0)
             return false;
     }
-    ++nHits;
+    ++nHitsP;
     return true;
 }
 

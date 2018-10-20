@@ -127,7 +127,7 @@ void Film::MergeFilmTile(std::unique_ptr<FilmTile> tile) {
         tilePixel.contribSum.ToXYZ(xyz);
         for (int i = 0; i < 3; ++i) mergePixel.xyz[i] += xyz[i];
         mergePixel.filterWeightSum += tilePixel.filterWeightSum;
-        mergePixel.triangleIntersections += tilePixel.triangleIntersections;
+        mergePixel.stats += tilePixel.stats;
     }
 }
 
@@ -176,10 +176,15 @@ bool replace(std::string& str, const std::string& from, const std::string& to) {
     return true;
 }
 
-void Film::WriteTriangleIntersections(){
-    int x = 0;
-    std::string textFile = filename.substr(0, filename.find('.')).append((".txt"));
+void Film::WriteGeneralStats(){
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.triangleIntersections; },"triangleIntersections");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.triangleIntersectionsP; },"triangleIntersectionsP");
+}
 
+void Film::WriteGeneralStatMatrix(std::function<uint64_t (GeneralStats &g)> f, std::string name){
+    int x = 0;
+    std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(".txt");
+    // Warning("%s", textFile.c_str());
     std::ofstream myfile;
     myfile.open(textFile);
 
@@ -187,7 +192,7 @@ void Film::WriteTriangleIntersections(){
         Pixel &pixel = GetPixel(p);
         if(x > 0)
             myfile << " ";
-        myfile << pixel.triangleIntersections;
+        myfile << f(pixel.stats);
         x++;
         if(x == croppedPixelBounds.Diagonal().x){
             myfile << "\n";
