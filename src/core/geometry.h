@@ -868,22 +868,32 @@ class Bounds2iIterator : public std::forward_iterator_tag {
 // FilmTilePixel Declarations
 class GeneralStats{
     public:
-        GeneralStats(): triangleIntersections(0), triangleIntersectionsP(0) {};
-        GeneralStats(uint64_t triangleIntersections, uint64_t triangleIntersectionsP):
-            triangleIntersections(triangleIntersections), triangleIntersectionsP(triangleIntersectionsP) {}
+        GeneralStats(int rays, uint64_t triangleIntersections, uint64_t triangleIntersectionsP, uint64_t kdTreeNodeTraversals, uint64_t kdTreeNodeTraversalsP):
+            rays(rays), triangleIntersections(triangleIntersections), triangleIntersectionsP(triangleIntersectionsP),
+            kdTreeNodeTraversals(kdTreeNodeTraversals), kdTreeNodeTraversalsP(kdTreeNodeTraversalsP) {}
+        GeneralStats(): GeneralStats(0, 0,0,0,0) {}
+
         friend GeneralStats operator+(const GeneralStats& a, const GeneralStats& b){
-            return GeneralStats(a.triangleIntersections + b.triangleIntersections,
-                                a.triangleIntersectionsP + b.triangleIntersectionsP);
+            return GeneralStats(a.rays + b.rays,
+                    a.triangleIntersections + b.triangleIntersections,
+                    a.triangleIntersectionsP + b.triangleIntersectionsP,
+                    a.kdTreeNodeTraversals + b.kdTreeNodeTraversals,
+                    a.kdTreeNodeTraversalsP + b.kdTreeNodeTraversalsP);
         }
         GeneralStats& operator+=(const GeneralStats& rhs){
-
+            this->rays += rhs.rays;
             this->triangleIntersections += rhs.triangleIntersections;
             this->triangleIntersectionsP += rhs.triangleIntersectionsP;
+            this->kdTreeNodeTraversals += rhs.kdTreeNodeTraversals;
+            this->kdTreeNodeTraversalsP += rhs.kdTreeNodeTraversalsP;
             return *this;
         }
 
+        int rays;
         uint64_t triangleIntersections;
         uint64_t triangleIntersectionsP;
+        uint64_t kdTreeNodeTraversals;
+        uint64_t kdTreeNodeTraversalsP;
 };
 
 // Ray Declarations
