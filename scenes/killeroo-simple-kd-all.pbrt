@@ -13,7 +13,7 @@ Film "image"
 Sampler "halton" "integer pixelsamples" [8]
 Accelerator "kdtree" "string axis" "all"
 
-Integrator "path"
+Integrator "path" "integer maxdepth" [0]
 
 WorldBegin
 
