@@ -318,6 +318,7 @@ void SamplerIntegrator::Render(const Scene &scene) {
 
                     // Add camera ray's contribution to image
                     filmTile->AddSample(cameraSample.pFilm, L, rayWeight);
+                    ray.stats.rays = 1;
                     filmTile->GetPixel(pixel).stats += ray.stats;
 
                     // Free _MemoryArena_ memory from computing image sample

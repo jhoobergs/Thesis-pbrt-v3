@@ -286,6 +286,7 @@ bool KdTreeAccel::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
         // Bail out if we found a hit closer than the current node
         if (ray.tMax < tMin) break;
         nbNodeTraversals++;
+        ray.stats.kdTreeNodeTraversals++;
         if (!node->IsLeaf()) {
             // Process kd-tree interior node
 
@@ -367,6 +368,7 @@ bool KdTreeAccel::IntersectP(const Ray &ray) const {
     const KdAccelNode *node = &nodes[0];
     while (node != nullptr) {
         nbNodeTraversalsP++;
+        ray.stats.kdTreeNodeTraversalsP++;
         if (node->IsLeaf()) {
             // Check for shadow ray intersections inside leaf node
             int nPrimitives = node->nPrimitives();

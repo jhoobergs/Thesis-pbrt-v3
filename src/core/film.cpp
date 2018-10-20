@@ -177,8 +177,11 @@ bool replace(std::string& str, const std::string& from, const std::string& to) {
 }
 
 void Film::WriteGeneralStats(){
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rays; },"rays");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.triangleIntersections; },"triangleIntersections");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.triangleIntersectionsP; },"triangleIntersectionsP");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.kdTreeNodeTraversals; },"kdTreeNodeTraversals");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.kdTreeNodeTraversalsP; },"kdTreeNodeTraversalsP");
 }
 
 void Film::WriteGeneralStatMatrix(std::function<uint64_t (GeneralStats &g)> f, std::string name){
