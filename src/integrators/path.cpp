@@ -77,6 +77,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
     // avoid terminating refracted rays that are about to be refracted back
     // out of a medium and thus have their beta value increased.
     Float etaScale = 1;
+    bool first = true;
 
     for (bounces = 0;; ++bounces) {
         // Find next path vertex and accumulate contribution
@@ -86,7 +87,11 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         // Intersect _ray_ with scene and store intersection in _isect_
         SurfaceInteraction isect;
         bool foundIntersection = scene.Intersect(ray, &isect);
-        r.stats += ray.stats;
+
+        if(first) {
+            r.stats += ray.stats;
+            first = false;
+        }
 
         // Possibly add emitted light at intersection
         if (bounces == 0 || specularBounce) {
