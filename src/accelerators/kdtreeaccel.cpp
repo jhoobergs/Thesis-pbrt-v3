@@ -40,6 +40,9 @@
 
 namespace pbrt {
 
+STAT_COUNTER("Accelerator/Kd-tree node traversals during intersect", nbNodeTraversals);
+STAT_COUNTER("Accelerator/Kd-tree node traversals during intersectP", nbNodeTraversalsP);
+
 // KdTreeAccel Local Declarations
 struct KdAccelNode {
     // KdAccelNode Methods
@@ -282,6 +285,7 @@ bool KdTreeAccel::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
     while (node != nullptr) {
         // Bail out if we found a hit closer than the current node
         if (ray.tMax < tMin) break;
+        nbNodeTraversals++;
         if (!node->IsLeaf()) {
             // Process kd-tree interior node
 
@@ -362,6 +366,7 @@ bool KdTreeAccel::IntersectP(const Ray &ray) const {
     int todoPos = 0;
     const KdAccelNode *node = &nodes[0];
     while (node != nullptr) {
+        nbNodeTraversalsP++;
         if (node->IsLeaf()) {
             // Check for shadow ray intersections inside leaf node
             int nPrimitives = node->nPrimitives();
