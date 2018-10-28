@@ -865,7 +865,7 @@ class Bounds2iIterator : public std::forward_iterator_tag {
     const Bounds2i *bounds;
 };
 
-// FilmTilePixel Declarations
+// GeneralStats Declarations
 class GeneralStats{
     public:
         GeneralStats(int rays, uint64_t triangleIntersections, uint64_t triangleIntersectionsP, uint64_t kdTreeNodeTraversals, uint64_t kdTreeNodeTraversalsP):
