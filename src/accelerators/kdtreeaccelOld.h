@@ -35,61 +35,60 @@
 #pragma once
 #endif
 
-#ifndef PBRT_ACCELERATORS_KDTREEACCEL_H
-#define PBRT_ACCELERATORS_KDTREEACCEL_H
+#ifndef PBRT_ACCELERATORS_KDTREEACCELOLD_H
+#define PBRT_ACCELERATORS_KDTREEACCELOLD_H
 
-// accelerators/kdtreeaccelall.h*
+// accelerators/kdtreeaccel.h*
 #include "pbrt.h"
 #include "primitive.h"
 
 namespace pbrt {
 
-    // KdTreeAccel Declarations
-    struct KdAccelNode;
-    struct BoundEdge;
+// KdTreeAccelOld Declarations
+    struct KdAccelNodeOld;
+    struct BoundEdgeOld;
 
-    class KdTreeAccel : public Aggregate {
+    class KdTreeAccelOld : public Aggregate {
     public:
-
-        // KdTreeAccel Public Methods
-        KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
-                    int isectCost = 80, int traversalCost = 1,
-                    Float emptyBonus = 0.5, int maxPrims = 1, int maxDepth = -1);
+        // KdTreeAccelOld Public Methods
+        KdTreeAccelOld(std::vector<std::shared_ptr<Primitive>> p,
+                       int isectCost = 80, int traversalCost = 1,
+                       Float emptyBonus = 0.5, int maxPrims = 1, int maxDepth = -1);
 
         Bounds3f WorldBound() const { return bounds; }
 
-        ~KdTreeAccel();
+        ~KdTreeAccelOld();
 
         bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
 
         bool IntersectP(const Ray &ray) const;
 
     private:
-        // KdTreeAccel Private Methods
+        // KdTreeAccelOld Private Methods
         void buildTree(int nodeNum, const Bounds3f &bounds,
                        const std::vector<Bounds3f> &primBounds, int *primNums,
                        int nprims, int depth,
-                       const std::unique_ptr<BoundEdge[]> edges[3], int *prims0,
+                       const std::unique_ptr<BoundEdgeOld[]> edges[3], int *prims0,
                        int *prims1, int badRefines = 0);
 
-        // KdTreeAccel Private Data
+        // KdTreeAccelOld Private Data
         const int isectCost, traversalCost, maxPrims;
         const Float emptyBonus;
         std::vector<std::shared_ptr<Primitive>> primitives;
         std::vector<int> primitiveIndices;
-        KdAccelNode *nodes;
+        KdAccelNodeOld *nodes;
         int nAllocedNodes, nextFreeNode;
         Bounds3f bounds;
     };
 
-    struct KdToDo {
-        const KdAccelNode *node;
+    struct KdToDoOld {
+        const KdAccelNodeOld *node;
         Float tMin, tMax;
     };
 
-    std::shared_ptr<KdTreeAccel> CreateKdTreeAccelerator(
+    std::shared_ptr<KdTreeAccelOld> CreateKdTreeAcceleratorOld(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps);
 
 }  // namespace pbrt
 
-#endif  // PBRT_ACCELERATORS_KDTREEACCELALL_H
+#endif  // PBRT_ACCELERATORS_KDTREEACCEL_H
