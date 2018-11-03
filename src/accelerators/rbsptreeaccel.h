@@ -15,6 +15,7 @@ namespace pbrt {
     // RBSPTreeAccel Declarations
     struct RBSPAccelNode;
     struct BoundEdge;
+    struct EdgeSoup;
     struct EdgeSoupEdge;
     class RBSPTreeAccel : public Aggregate {
     public:

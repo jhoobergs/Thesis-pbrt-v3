@@ -21,8 +21,8 @@ namespace pbrt {
         }
         Float SplitPos() const { return split; }
         int nPrimitives() const { return nPrims >> 2; }
-        int SplitAxis() const { return flags & RBSPTreeAccel::nbOfDirections }
-        bool IsLeaf() const { return (flags & RBSPTreeAccel::nbOfDirections) == RBSPTreeAccel::nbOfDirections; }
+        int SplitAxis() const { return flags & RBSPTreeAccel::directions.size() }
+        bool IsLeaf() const { return (flags & RBSPTreeAccel::directions.size()) == RBSPTreeAccel::directions.size(); }
         int AboveChild() const { return aboveChild >> 2; }
         union {
             Float split;                 // Interior
@@ -50,6 +50,15 @@ namespace pbrt {
         EdgeType type;
     };
 
+    struct EdgeSoup {
+        EdgeSoup(std::vector<EdgeSoupEdge> &edges){
+            edgeSoupEdges = edges;
+        }
+        Float SA();
+
+        std::vector<EdgeSoupEdge> edgeSoupEdges;
+    };
+
     struct EdgeSoupEdge {
         EdgeSoupEdge();
         EdgeSoupEdge(const Vector3f &v1, const Vector3f &v2, int faceIdentifier1, int faceIdentifier2) {
@@ -61,6 +70,25 @@ namespace pbrt {
         Vector3f vertices[2];
         int faceIdentifiers[2]; // A faceIdentifier is an int, the last bit is 0 for min faces and 1 for max faces. the other bits represent the index in list of directions
     };
+
+    Float EdgeSoup::SA() {
+        const int nbOfFaces = 2*RBSPTreeAccel::directions.size();
+        int faces[nbOfFaces] = {0};
+        bool faceAlreadySeen[nbOfFaces] = { false };
+        EdgeSoupEdge vertices[nbOfFaces];
+        for(auto const &edge: edgeSoupEdges) {
+            for(int i = 0; i < 2; i++){
+                if(faceAlreadySeen[edge.faceIdentifiers[i]]){
+                    Vector3f direction = RBSPTreeAccel::directions[edge.faceIdentifiers[i]];
+                    if(direction.x == std::max(direction.x, std::fmax(direction.y, direction.z)))
+                        faces[edge.faceIdentifiers[i]] +=
+                    faces[edge.faceIdentifiers[i]] +
+                }
+                faceAlreadySeen[edge.faceIdentifiers[i]] = true;
+                vertices[edge.faceIdentifiers[i]] = edge;
+            }
+        }
+    }
 
     const Vector3f RBSPTreeAccel::directions[] = { Vector3f(1,0,0),  Vector3f(0,1,0), Vector3f(0,0,1)};
 
