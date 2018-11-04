@@ -160,7 +160,6 @@ namespace pbrt {
     void KdTreeAccel::buildTree(Bounds3f &rootNodeBounds,
                                 const std::vector<Bounds3f> &allPrimBounds,
                                 int maxDepth) {
-        int totalPrimsOffset = 0;
         int nodeNum = 0;
         // Allocate working memory for kd-tree construction
         BoundEdge edges[3][2 * primitives.size()];
@@ -168,7 +167,7 @@ namespace pbrt {
 
         // Initialize _primNums_ for kd-tree construction
         for (size_t i = 0; i < primitives.size(); ++i) prims[i] = i;
-        totalPrimsOffset += primitives.size();
+        int maxPrimsOffset = 0;
 
         std::vector<KdBuildNode> stack;
         stack.emplace_back(KdBuildNode(maxDepth, (int) primitives.size(), 0, rootNodeBounds, prims));
@@ -182,7 +181,7 @@ namespace pbrt {
             if (currentBuildNode.parentNum != -1)
                 nodes[currentBuildNode.parentNum].setAboveChild(nodeNum);
 
-            totalPrimsOffset = std::max(totalPrimsOffset, (int) (currentBuildNode.primNums - prims));
+            maxPrimsOffset = std::max(maxPrimsOffset, (int) (currentBuildNode.primNums - prims));
 
             // Get next free node from _nodes_ array
             if (nextFreeNode == nAllocedNodes) {
@@ -235,7 +234,6 @@ namespace pbrt {
                                   return e0.t < e1.t;
                           });
 
-                // Warning("nbPrimitives %d at axis %d", currentBuildNode.nPrimitives, axis);
                 // Compute cost of all splits for _axis_ to find best
                 int nBelow = 0, nAbove = currentBuildNode.nPrimitives;
                 for (int i = 0; i < 2 * currentBuildNode.nPrimitives; ++i) {
@@ -263,7 +261,6 @@ namespace pbrt {
 
                         // Update best split if this is lowest cost so far
                         if (cost < bestCost) {
-                            //Warning("Updating");
                             bestCost = cost;
                             bestAxis = axis;
                             bestOffset = i;
@@ -309,7 +306,7 @@ namespace pbrt {
                     KdBuildNode(currentBuildNode.depth - 1, n0, currentBuildNode.badRefines, bounds0, prims0));
             ++nodeNum;
         }
-        Warning("TotalPrimsOffset %d", totalPrimsOffset);
+        Warning("TotalPrimsOffset %d", maxPrimsOffset);
         Warning("Triangles %d", primitives.size());
     }
 

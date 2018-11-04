@@ -38,7 +38,7 @@
 #ifndef PBRT_ACCELERATORS_KDTREEACCELOLD_H
 #define PBRT_ACCELERATORS_KDTREEACCELOLD_H
 
-// accelerators/kdtreeaccel.h*
+// accelerators/kdtreeaccelOld.h*
 #include "pbrt.h"
 #include "primitive.h"
 
@@ -91,4 +91,4 @@ namespace pbrt {
 
 }  // namespace pbrt
 
-#endif  // PBRT_ACCELERATORS_KDTREEACCEL_H
+#endif  // PBRT_ACCELERATORS_KDTREEACCELOLD_H
