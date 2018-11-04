@@ -66,11 +66,8 @@ namespace pbrt {
 
     private:
         // KdTreeAccel Private Methods
-        void buildTree(int nodeNum, const Bounds3f &bounds,
-                       const std::vector<Bounds3f> &primBounds, int *primNums,
-                       int nprims, int depth,
-                       const std::unique_ptr<BoundEdge[]> edges[3], int *prims0,
-                       int *prims1, int badRefines = 0);
+        void buildTree(Bounds3f &rootNodeBounds,
+                       const std::vector<Bounds3f> &allPrimBounds, int maxDepth);
 
         // KdTreeAccel Private Data
         const int isectCost, traversalCost, maxPrims;
@@ -81,6 +78,8 @@ namespace pbrt {
         int nAllocedNodes, nextFreeNode;
         Bounds3f bounds;
     };
+
+    struct KdBuildNode;
 
     struct KdToDo {
         const KdAccelNode *node;
