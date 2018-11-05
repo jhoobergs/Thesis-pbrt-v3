@@ -163,7 +163,7 @@ namespace pbrt {
         int nodeNum = 0;
         // Allocate working memory for kd-tree construction
         BoundEdge edges[3][2 * primitives.size()];
-        int *prims = new int[2 * primitives.size()]; // TODO: how large should this be?
+        int prims[2 * primitives.size()]; // TODO: how large should this be?
 
         // Initialize _primNums_ for kd-tree construction
         for (size_t i = 0; i < primitives.size(); ++i) prims[i] = i;
