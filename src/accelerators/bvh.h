@@ -46,6 +46,7 @@
 namespace pbrt {
     struct BVHBuildNode;
     struct BVHBuildToDo;
+    struct BVHBuildCentroid;
 
     // BVHAccel Forward Declarations
     struct BVHPrimitiveInfo;
@@ -56,7 +57,7 @@ namespace pbrt {
     public:
 
         // BVHAccel Public Methods
-        BVHAccel(std::vector<std::shared_ptr<Primitive>> p,
+        BVHAccel(std::vector<std::shared_ptr<Primitive>> p, int isectCost = 8, int traversalCost = 1,
                  int maxPrimsInNode = 1);
 
         Bounds3f WorldBound() const;
@@ -76,6 +77,8 @@ namespace pbrt {
 
         // BVHAccel Private Data
         const int maxPrimsInNode;
+        const int isectCost;
+        const int traversalCost;
         std::vector<std::shared_ptr<Primitive>> primitives;
         LinearBVHNode *nodes = nullptr;
     };
