@@ -228,8 +228,8 @@ namespace pbrt {
                               });
 
                     Bounds3f currentRightToLeftBounds;
-                    Bounds3f rightToLeftBounds[nPrimitives];
-                    for (int i = nPrimitives - 2; i >= 0; i--) {
+                    Bounds3f rightToLeftBounds[nPrimitives]; // rightToLeftBound[i] equals the bounds of all triangle to the right of triangle i, including triangle i
+                    for (int i = nPrimitives - 1; i > 0; i--) {
                         int primOffset = centroids[dim][i].primOffset;
                         currentRightToLeftBounds = Union(currentRightToLeftBounds, primitiveInfo[primOffset].bounds);
                         rightToLeftBounds[i] = currentRightToLeftBounds;
@@ -241,7 +241,7 @@ namespace pbrt {
                         currentLeftToRightBounds = Union(currentLeftToRightBounds, primitiveInfo[primOffset].bounds);
                         float cost = traversalCost + isectCost *
                                                      ((i + 1) * currentLeftToRightBounds.SurfaceArea() +
-                                                      (nPrimitives - i - 1) * rightToLeftBounds[i].SurfaceArea()) *
+                                                      (nPrimitives - i - 1) * rightToLeftBounds[i + 1].SurfaceArea()) *
                                                      invTotalSA;
 
                         if (cost < bestCost) {
@@ -259,7 +259,7 @@ namespace pbrt {
                     BVHBuildNode *c0 = arena.Alloc<BVHBuildNode>();
                     BVHBuildNode *c1 = arena.Alloc<BVHBuildNode>();
                     CHECK_EQ(primitiveInfo[bestOffset].primitiveNumber, bestPrimNum);
-                    /* BVHPrimitiveInfo *pmid = std::partition(
+                    /*BVHPrimitiveInfo *pmid = std::partition(
                             &primitiveInfo[currentBuildNode.start],
                             &primitiveInfo[currentBuildNode.end-1]+1,
                             [=](const BVHPrimitiveInfo &pi) {
@@ -267,7 +267,7 @@ namespace pbrt {
                                        (pi.centroid[bestAxis] == primitiveInfo[bestOffset].centroid[bestAxis] &&
                                         pi.primitiveNumber <= bestPrimNum);
                             });
-                    int mid = pmid - &primitiveInfo[0]; */
+                    int mid = pmid - &primitiveInfo[0];*/
                     int mid = currentBuildNode.start;
                     for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
                         if (primitiveInfo[i].centroid[bestAxis] < primitiveInfo[bestOffset].centroid[bestAxis] ||
