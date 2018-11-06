@@ -212,11 +212,7 @@ namespace pbrt {
             Float invTotalSA = 1 / totalSA;
             Vector3f d = currentBuildNode.nodeBounds.pMax - currentBuildNode.nodeBounds.pMin;
 
-            // Choose which axis to split along
-            int axis = 0;
-            int iterations = 0;
-
-            while (iterations < 3) {
+            for(int axis = 0; axis < 3; ++axis){
                 // Initialize edges for _axis_
                 for (int i = 0; i < currentBuildNode.nPrimitives; ++i) {
                     int pn = currentBuildNode.primNums[i];
@@ -269,8 +265,6 @@ namespace pbrt {
                     if (edges[axis][i].type == EdgeType::Start) ++nBelow;
                 }
                 CHECK(nBelow == currentBuildNode.nPrimitives && nAbove == 0);
-                ++iterations;
-                axis = (axis + 1) % 3;
             }
 
             // Create leaf if no good splits were found
