@@ -98,9 +98,26 @@ namespace pbrt {
             }
         }
 
+        int depth(){
+            if(nPrimitives > 0)
+                return 1;
+            return 1 + std::max(children[0]->depth(), children[1]->depth());
+        }
+
         Bounds3f bounds;
         BVHBuildNode *children[2];
         int splitAxis, firstPrimOffset, nPrimitives;
+    };
+
+    struct BVHBuildCentroid {
+        // Centroid Public Methods
+        BVHBuildCentroid() {}
+
+        BVHBuildCentroid(Float t, int primOffset, int primNum) : t(t), primOffset(primOffset), primNum(primNum) {}
+
+        Float t;
+        int primOffset;
+        int primNum;
     };
 
     struct LinearBVHNode {
@@ -115,10 +132,13 @@ namespace pbrt {
     };
 
     // BVHAccel Method Definitions
-    BVHAccel::BVHAccel(std::vector<std::shared_ptr<Primitive>> p,
+    BVHAccel::BVHAccel(std::vector<std::shared_ptr<Primitive>> p, int isectCost, int traversalCost,
                        int maxPrimsInNode)
             : maxPrimsInNode(std::min(255, maxPrimsInNode)),
+              traversalCost(traversalCost),
+              isectCost(isectCost),
               primitives(std::move(p)) {
+        Warning("%d %d", traversalCost, isectCost);
         ProfilePhase _(Prof::AccelConstruction);
         if (primitives.empty()) return;
         // Build BVH from _primitives_
@@ -157,6 +177,7 @@ namespace pbrt {
         for (size_t i = 0; i < primitives.size(); ++i)
             primitiveInfo[i] = {i, primitives[i]->WorldBound()};
 
+        BVHBuildCentroid centroids[3][primitives.size()];
 
         BVHBuildNode *root = arena.Alloc<BVHBuildNode>();
         std::vector<BVHBuildToDo> stack;
@@ -169,9 +190,10 @@ namespace pbrt {
 
             (*totalNodes)++;
             // Compute bounds of all primitives in BVH node
-            Bounds3f bounds;
+            Bounds3f bounds = Bounds3f();
             for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i)
                 bounds = Union(bounds, primitiveInfo[i].bounds);
+
             int nPrimitives = currentBuildNode.end - currentBuildNode.start;
             if (nPrimitives == 1) {
                 // Create leaf _BVHBuildNode_
@@ -182,122 +204,84 @@ namespace pbrt {
                 }
                 currentBuildNode.node->InitLeaf(firstPrimOffset, nPrimitives, bounds);
             } else {
-                // Compute bound of primitive centroids, choose split dimension _dim_
-                Bounds3f centroidBounds;
-                for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i)
-                    centroidBounds = Union(centroidBounds, primitiveInfo[i].centroid);
-                int dim = centroidBounds.MaximumExtent();
+                // Choose split axis position for interior node
+                int bestAxis = -1, bestOffset = -1, bestPrimNum = -1;
+                Float bestCost = Infinity;
+                Float oldCost = isectCost * Float(nPrimitives);
+                Float totalSA = bounds.SurfaceArea();
+                Float invTotalSA = 1 / totalSA;
 
-                // Partition primitives into two sets and build children
-                int mid = (currentBuildNode.start + currentBuildNode.end) / 2;
-                if (centroidBounds.pMax[dim] == centroidBounds.pMin[dim]) {
-                    // Create leaf _BVHBuildNode_
+                for (int dim = 0; dim < 3; dim++) {
+                    for (int i = 0; i < nPrimitives; ++i) {
+                        int pn = primitiveInfo[currentBuildNode.start +  i].primitiveNumber;
+                        centroids[dim][i] = BVHBuildCentroid(primitiveInfo[currentBuildNode.start + i].centroid[dim], currentBuildNode.start + i, pn);
+                    }
+
+                    // Sort _edges_ for _axis_
+                    std::sort(&centroids[dim][0], &centroids[dim][nPrimitives],
+                              [](const BVHBuildCentroid &e0, const BVHBuildCentroid &e1) -> bool {
+                                  if (e0.t == e1.t)
+                                      return (int) e0.primNum < (int) e1.primNum;
+                                  else
+                                      return e0.t < e1.t;
+                              });
+
+                    Bounds3f currentRightToLeftBounds;
+                    Bounds3f rightToLeftBounds[nPrimitives];
+                    for (int i = nPrimitives - 2; i >= 0; i--) {
+                        int primOffset = centroids[dim][i].primOffset;
+                        currentRightToLeftBounds = Union(currentRightToLeftBounds, primitiveInfo[primOffset].bounds);
+                        rightToLeftBounds[i] = currentRightToLeftBounds;
+                    }
+
+                    Bounds3f currentLeftToRightBounds;
+                    for (int i = 0; i < nPrimitives-1; ++i) {
+                        int primOffset = centroids[dim][i].primOffset;
+                        currentLeftToRightBounds = Union(currentLeftToRightBounds, primitiveInfo[primOffset].bounds);
+                        float cost = traversalCost + isectCost *
+                                                     ((i+1) * currentLeftToRightBounds.SurfaceArea() +
+                                                      (nPrimitives - i - 1) * rightToLeftBounds[i].SurfaceArea()) *
+                                                     invTotalSA;
+
+                        if (cost < bestCost) {
+                            bestCost = cost;
+                            bestAxis = dim;
+                            bestOffset = primOffset;
+                            bestPrimNum = centroids[dim][i].primNum;
+                        }
+
+                    }
+
+                }
+
+                if (bestAxis != -1 && (bestCost < oldCost || nPrimitives > maxPrimsInNode)) {
+                    BVHBuildNode *c0 = arena.Alloc<BVHBuildNode>();
+                    BVHBuildNode *c1 = arena.Alloc<BVHBuildNode>();
+                    CHECK_EQ(primitiveInfo[bestOffset].primitiveNumber, bestPrimNum);
+                    BVHPrimitiveInfo *pmid = std::partition(
+                            &primitiveInfo[currentBuildNode.start],
+                            &primitiveInfo[currentBuildNode.end],
+                            [=](const BVHPrimitiveInfo &pi) {
+                                return pi.centroid[bestAxis] < primitiveInfo[bestOffset].centroid[bestAxis] ||
+                                       (pi.centroid[bestAxis] == primitiveInfo[bestOffset].centroid[bestAxis] &&
+                                        pi.primitiveNumber <= bestPrimNum);
+                            });
+                    int mid = pmid - &primitiveInfo[0];
+
+                    currentBuildNode.node->InitInterior(bestAxis, c0, c1);
+                    stack.emplace_back(BVHBuildToDo(c0, currentBuildNode.start, mid, currentBuildNode.node));
+                    stack.emplace_back(BVHBuildToDo(c1, mid, currentBuildNode.end, currentBuildNode.node));
+                } else {
+                    //Create leaf
                     int firstPrimOffset = orderedPrims.size();
                     for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
                         int primNum = primitiveInfo[i].primitiveNumber;
                         orderedPrims.push_back(primitives[primNum]);
                     }
                     currentBuildNode.node->InitLeaf(firstPrimOffset, nPrimitives, bounds);
-                } else {
-
-                    // Partition primitives using approximate SAH
-                    if (nPrimitives <= 2) {
-                        // Partition primitives into equally-sized subsets
-                        mid = (currentBuildNode.start + currentBuildNode.end) / 2;
-                        std::nth_element(&primitiveInfo[currentBuildNode.start], &primitiveInfo[mid],
-                                         &primitiveInfo[currentBuildNode.end - 1] + 1,
-                                         [dim](const BVHPrimitiveInfo &a,
-                                               const BVHPrimitiveInfo &b) {
-                                             return a.centroid[dim] <
-                                                    b.centroid[dim];
-                                         });
-                    } else {
-                        // Allocate _BucketInfo_ for SAH partition buckets
-                        PBRT_CONSTEXPR int nBuckets = 12;
-                        BucketInfo buckets[nBuckets];
-
-                        // Initialize _BucketInfo_ for SAH partition buckets
-                        for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
-                            int b = nBuckets *
-                                    centroidBounds.Offset(
-                                            primitiveInfo[i].centroid)[dim];
-                            if (b == nBuckets) b = nBuckets - 1;
-                            CHECK_GE(b, 0);
-                            CHECK_LT(b, nBuckets);
-                            buckets[b].count++;
-                            buckets[b].bounds =
-                                    Union(buckets[b].bounds, primitiveInfo[i].bounds);
-                        }
-
-                        // Compute costs for splitting after each bucket
-                        Float cost[nBuckets - 1];
-                        for (int i = 0; i < nBuckets - 1; ++i) {
-                            Bounds3f b0, b1;
-                            int count0 = 0, count1 = 0;
-                            for (int j = 0; j <= i; ++j) {
-                                b0 = Union(b0, buckets[j].bounds);
-                                count0 += buckets[j].count;
-                            }
-                            for (int j = i + 1; j < nBuckets; ++j) {
-                                b1 = Union(b1, buckets[j].bounds);
-                                count1 += buckets[j].count;
-                            }
-                            cost[i] = 1 +
-                                      (count0 * b0.SurfaceArea() +
-                                       count1 * b1.SurfaceArea()) /
-                                      bounds.SurfaceArea();
-                        }
-
-                        // Find bucket to split at that minimizes SAH metric
-                        Float minCost = cost[0];
-                        int minCostSplitBucket = 0;
-                        for (int i = 1; i < nBuckets - 1; ++i) {
-                            if (cost[i] < minCost) {
-                                minCost = cost[i];
-                                minCostSplitBucket = i;
-                            }
-                        }
-
-                        // Either create leaf or split primitives at selected SAH
-                        // bucket
-                        Float leafCost = nPrimitives;
-                        if (nPrimitives > maxPrimsInNode || minCost < leafCost) {
-                            BVHPrimitiveInfo *pmid = std::partition(
-                                    &primitiveInfo[currentBuildNode.start],
-                                    &primitiveInfo[currentBuildNode.end - 1] + 1,
-                                    [=](const BVHPrimitiveInfo &pi) {
-                                        int b = nBuckets *
-                                                centroidBounds.Offset(pi.centroid)[dim];
-                                        if (b == nBuckets) b = nBuckets - 1;
-                                        CHECK_GE(b, 0);
-                                        CHECK_LT(b, nBuckets);
-                                        return b <= minCostSplitBucket;
-                                    });
-                            mid = pmid - &primitiveInfo[0];
-                        } else {
-                            // Create leaf _BVHBuildNode_
-                            int firstPrimOffset = orderedPrims.size();
-                            for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
-                                int primNum = primitiveInfo[i].primitiveNumber;
-                                orderedPrims.push_back(primitives[primNum]);
-                            }
-                            currentBuildNode.node->InitLeaf(firstPrimOffset, nPrimitives, bounds);
-                            continue;
-                        }
-                    }
-
-                    BVHBuildNode *c0 = arena.Alloc<BVHBuildNode>();
-                    BVHBuildNode *c1 = arena.Alloc<BVHBuildNode>();
-
-                    currentBuildNode.node->InitInterior(dim, c0, c1);
-                    stack.emplace_back(BVHBuildToDo(c0, currentBuildNode.start, mid, currentBuildNode.node));
-                    stack.emplace_back(BVHBuildToDo(c1, mid, currentBuildNode.end, currentBuildNode.node));
                 }
-
             }
-
         }
-
         primitiveInfo.resize(0);
         LOG(INFO) << StringPrintf("BVH created with %d nodes for %d "
                                   "primitives (%.2f MB), arena allocated %.2f MB",
@@ -308,6 +292,7 @@ namespace pbrt {
                                   (1024.f * 1024.f));
 
         root->calculateBounds();
+        Warning("Depth %d", root->depth());
 
         return root;
     }
@@ -416,7 +401,9 @@ namespace pbrt {
     std::shared_ptr<BVHAccel> CreateBVHAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps) {
         int maxPrimsInNode = ps.FindOneInt("maxnodeprims", 4);
-        return std::make_shared<BVHAccel>(std::move(prims), maxPrimsInNode);
+        int isectCost = ps.FindOneInt("intersectcost", 8);
+        int travCost = ps.FindOneInt("traversalcost", 1);
+        return std::make_shared<BVHAccel>(std::move(prims), isectCost, travCost, maxPrimsInNode);
     }
 
 }  // namespace pbrt
