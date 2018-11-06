@@ -212,7 +212,7 @@ namespace pbrt {
             Float invTotalSA = 1 / totalSA;
             Vector3f d = currentBuildNode.nodeBounds.pMax - currentBuildNode.nodeBounds.pMin;
 
-            for(int axis = 0; axis < 3; ++axis){
+            for (int axis = 0; axis < 3; ++axis) {
                 // Initialize edges for _axis_
                 for (int i = 0; i < currentBuildNode.nPrimitives; ++i) {
                     int pn = currentBuildNode.primNums[i];
