@@ -98,8 +98,8 @@ namespace pbrt {
             }
         }
 
-        int depth(){
-            if(nPrimitives > 0)
+        int depth() {
+            if (nPrimitives > 0)
                 return 1;
             return 1 + std::max(children[0]->depth(), children[1]->depth());
         }
@@ -213,8 +213,9 @@ namespace pbrt {
 
                 for (int dim = 0; dim < 3; dim++) {
                     for (int i = 0; i < nPrimitives; ++i) {
-                        int pn = primitiveInfo[currentBuildNode.start +  i].primitiveNumber;
-                        centroids[dim][i] = BVHBuildCentroid(primitiveInfo[currentBuildNode.start + i].centroid[dim], currentBuildNode.start + i, pn);
+                        int pn = primitiveInfo[currentBuildNode.start + i].primitiveNumber;
+                        centroids[dim][i] = BVHBuildCentroid(primitiveInfo[currentBuildNode.start + i].centroid[dim],
+                                                             currentBuildNode.start + i, pn);
                     }
 
                     // Sort _edges_ for _axis_
@@ -235,11 +236,11 @@ namespace pbrt {
                     }
 
                     Bounds3f currentLeftToRightBounds;
-                    for (int i = 0; i < nPrimitives-1; ++i) {
+                    for (int i = 0; i < nPrimitives - 1; ++i) {
                         int primOffset = centroids[dim][i].primOffset;
                         currentLeftToRightBounds = Union(currentLeftToRightBounds, primitiveInfo[primOffset].bounds);
                         float cost = traversalCost + isectCost *
-                                                     ((i+1) * currentLeftToRightBounds.SurfaceArea() +
+                                                     ((i + 1) * currentLeftToRightBounds.SurfaceArea() +
                                                       (nPrimitives - i - 1) * rightToLeftBounds[i].SurfaceArea()) *
                                                      invTotalSA;
 
@@ -268,10 +269,11 @@ namespace pbrt {
                             });
                     int mid = pmid - &primitiveInfo[0]; */
                     int mid = currentBuildNode.start;
-                    for(int i=currentBuildNode.start;i<currentBuildNode.end;++i) {
-                        if(primitiveInfo[i].centroid[bestAxis] < primitiveInfo[bestOffset].centroid[bestAxis] ||
-                        (primitiveInfo[i].centroid[bestAxis] == primitiveInfo[bestOffset].centroid[bestAxis] && primitiveInfo[i].primitiveNumber <= bestPrimNum)) {
-                            std::swap( primitiveInfo[i], primitiveInfo[mid]);
+                    for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
+                        if (primitiveInfo[i].centroid[bestAxis] < primitiveInfo[bestOffset].centroid[bestAxis] ||
+                            (primitiveInfo[i].centroid[bestAxis] == primitiveInfo[bestOffset].centroid[bestAxis] &&
+                             primitiveInfo[i].primitiveNumber <= bestPrimNum)) {
+                            std::swap(primitiveInfo[i], primitiveInfo[mid]);
                             ++mid;
                         }
                     }
