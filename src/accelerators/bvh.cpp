@@ -259,16 +259,16 @@ namespace pbrt {
                     BVHBuildNode *c0 = arena.Alloc<BVHBuildNode>();
                     BVHBuildNode *c1 = arena.Alloc<BVHBuildNode>();
                     CHECK_EQ(primitiveInfo[bestOffset].primitiveNumber, bestPrimNum);
-                    /*BVHPrimitiveInfo *pmid = std::partition(
+                    BVHPrimitiveInfo *pmid = std::partition(
                             &primitiveInfo[currentBuildNode.start],
-                            &primitiveInfo[currentBuildNode.end-1]+1,
-                            [=](const BVHPrimitiveInfo &pi) {
+                            &primitiveInfo[currentBuildNode.end - 1] + 1,
+                            [&](const BVHPrimitiveInfo &pi) {
                                 return pi.centroid[bestAxis] < primitiveInfo[bestOffset].centroid[bestAxis] ||
                                        (pi.centroid[bestAxis] == primitiveInfo[bestOffset].centroid[bestAxis] &&
                                         pi.primitiveNumber <= bestPrimNum);
                             });
-                    int mid = pmid - &primitiveInfo[0];*/
-                    int mid = currentBuildNode.start;
+                    int mid = pmid - &primitiveInfo[0];
+                    /*int mid = currentBuildNode.start;
                     for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
                         if (primitiveInfo[i].centroid[bestAxis] < primitiveInfo[bestOffset].centroid[bestAxis] ||
                             (primitiveInfo[i].centroid[bestAxis] == primitiveInfo[bestOffset].centroid[bestAxis] &&
@@ -276,7 +276,7 @@ namespace pbrt {
                             std::swap(primitiveInfo[i], primitiveInfo[mid]);
                             ++mid;
                         }
-                    }
+                    }*/
 
                     currentBuildNode.node->InitInterior(bestAxis, c0, c1);
                     stack.emplace_back(BVHBuildToDo(c0, currentBuildNode.start, mid, currentBuildNode.node));
