@@ -140,10 +140,11 @@ namespace pbrt {
         buildTree(bounds, primBounds, maxDepth);
     }
 
+    // TODO uint32 -> u32 type
     void KdAccelNode::InitLeaf(int *primNums, int np,
                                std::vector<int> *primitiveIndices) {
         flags = 3;
-        nPrims |= (np << 2);
+        nPrims |= (np << 2u);
         // Store primitive ids for leaf node
         if (np == 0)
             onePrimitive = 0;
@@ -162,11 +163,16 @@ namespace pbrt {
                                 int maxDepth) {
         int nodeNum = 0;
         // Allocate working memory for kd-tree construction
-        BoundEdge edges[3][2 * primitives.size()];
-        int prims[2 * primitives.size()]; // TODO: how large should this be?
-
+        std::unique_ptr<BoundEdge[]> edges[3];
+        for (int i = 0; i < 3; ++i)
+            edges[i].reset(new BoundEdge[2 * primitives.size()]);
+        std::unique_ptr<int> prims_p(
+                new int[(maxDepth + 1) * primitives.size()]);
+        int *prims = prims_p.get();
         // Initialize _primNums_ for kd-tree construction
-        for (size_t i = 0; i < primitives.size(); ++i) prims[i] = i;
+        for (size_t i = 0; i < primitives.size(); ++i) {
+            prims[i] = i;
+        }
         int maxPrimsOffset = 0;
 
         std::vector<KdBuildNode> stack;
@@ -209,13 +215,13 @@ namespace pbrt {
             Float bestCost = Infinity;
             Float oldCost = isectCost * Float(currentBuildNode.nPrimitives);
             Float totalSA = currentBuildNode.nodeBounds.SurfaceArea();
-            Float invTotalSA = 1 / totalSA;
-            Vector3f d = currentBuildNode.nodeBounds.pMax - currentBuildNode.nodeBounds.pMin;
+            const Float invTotalSA = 1 / totalSA;
+            const Vector3f d = currentBuildNode.nodeBounds.pMax - currentBuildNode.nodeBounds.pMin;
 
             for (int axis = 0; axis < 3; ++axis) {
                 // Initialize edges for _axis_
                 for (int i = 0; i < currentBuildNode.nPrimitives; ++i) {
-                    int pn = currentBuildNode.primNums[i];
+                    const int pn = currentBuildNode.primNums[i];
                     const Bounds3f &bounds = allPrimBounds[pn];
                     edges[axis][2 * i] = BoundEdge(bounds.pMin[axis], pn, true);
                     edges[axis][2 * i + 1] = BoundEdge(bounds.pMax[axis], pn, false);
@@ -234,24 +240,24 @@ namespace pbrt {
                 int nBelow = 0, nAbove = currentBuildNode.nPrimitives;
                 for (int i = 0; i < 2 * currentBuildNode.nPrimitives; ++i) {
                     if (edges[axis][i].type == EdgeType::End) --nAbove;
-                    Float edgeT = edges[axis][i].t;
+                    const Float edgeT = edges[axis][i].t;
 
                     if (edgeT > currentBuildNode.nodeBounds.pMin[axis] &&
                         edgeT < currentBuildNode.nodeBounds.pMax[axis]) {
                         // Compute cost for split at _i_th edge
 
                         // Compute child surface areas for split at _edgeT_
-                        int otherAxis0 = (axis + 1) % 3, otherAxis1 = (axis + 2) % 3;
-                        Float belowSA = 2 * (d[otherAxis0] * d[otherAxis1] +
+                        const int otherAxis0 = (axis + 1) % 3, otherAxis1 = (axis + 2) % 3;
+                        const Float belowSA = 2 * (d[otherAxis0] * d[otherAxis1] +
                                              (edgeT - currentBuildNode.nodeBounds.pMin[axis]) *
                                              (d[otherAxis0] + d[otherAxis1]));
-                        Float aboveSA = 2 * (d[otherAxis0] * d[otherAxis1] +
+                        const Float aboveSA = 2 * (d[otherAxis0] * d[otherAxis1] +
                                              (currentBuildNode.nodeBounds.pMax[axis] - edgeT) *
                                              (d[otherAxis0] + d[otherAxis1]));
-                        Float pBelow = belowSA * invTotalSA;
-                        Float pAbove = aboveSA * invTotalSA;
-                        Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
-                        Float cost =
+                        const Float pBelow = belowSA * invTotalSA;
+                        const Float pAbove = aboveSA * invTotalSA;
+                        const Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
+                        const Float cost =
                                 traversalCost +
                                 isectCost * (1 - eb) * (pBelow * nBelow + pAbove * nAbove);
 
@@ -288,7 +294,7 @@ namespace pbrt {
                     prims0[n0++] = edges[bestAxis][i].primNum;
 
             // Add child nodes to stack
-            Float tSplit = edges[bestAxis][bestOffset].t;
+            const Float tSplit = edges[bestAxis][bestOffset].t;
             Bounds3f bounds0 = currentBuildNode.nodeBounds, bounds1 = currentBuildNode.nodeBounds;
             bounds0.pMax[bestAxis] = bounds1.pMin[bestAxis] = tSplit;
 

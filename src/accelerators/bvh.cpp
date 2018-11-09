@@ -177,7 +177,11 @@ namespace pbrt {
         for (size_t i = 0; i < primitives.size(); ++i)
             primitiveInfo[i] = {i, primitives[i]->WorldBound()};
 
-        BVHBuildCentroid centroids[3][primitives.size()];
+        std::unique_ptr<BVHBuildCentroid[]> centroids[3];
+        for (int i = 0; i < 3; ++i)
+            centroids[i].reset(new BVHBuildCentroid[primitives.size()]);
+        std::unique_ptr<Bounds3f[]> rightToLeftBounds(
+                new Bounds3f[primitives.size()]); // rightToLeftBound[i] equals the bounds of all triangle to the right of triangle i, including triangle i
 
         BVHBuildNode *root = arena.Alloc<BVHBuildNode>();
         std::vector<BVHBuildToDo> stack;
@@ -228,7 +232,7 @@ namespace pbrt {
                               });
 
                     Bounds3f currentRightToLeftBounds;
-                    Bounds3f rightToLeftBounds[nPrimitives]; // rightToLeftBound[i] equals the bounds of all triangle to the right of triangle i, including triangle i
+                    //TODO also leftToRight bijhouden
                     for (int i = nPrimitives - 1; i > 0; i--) {
                         int primOffset = centroids[dim][i].primOffset;
                         currentRightToLeftBounds = Union(currentRightToLeftBounds, primitiveInfo[primOffset].bounds);
@@ -258,25 +262,18 @@ namespace pbrt {
                 if (bestAxis != -1 && (bestCost < oldCost || nPrimitives > maxPrimsInNode)) {
                     BVHBuildNode *c0 = arena.Alloc<BVHBuildNode>();
                     BVHBuildNode *c1 = arena.Alloc<BVHBuildNode>();
-                    CHECK_EQ(primitiveInfo[bestOffset].primitiveNumber, bestPrimNum);
+                    const BVHPrimitiveInfo bestPrimitive = primitiveInfo[bestOffset];
+                    const float bestCentroid = bestPrimitive.centroid[bestAxis];
+                    CHECK_EQ(bestPrimitive.primitiveNumber, bestPrimNum);
                     BVHPrimitiveInfo *pmid = std::partition(
                             &primitiveInfo[currentBuildNode.start],
                             &primitiveInfo[currentBuildNode.end - 1] + 1,
                             [&](const BVHPrimitiveInfo &pi) {
-                                return pi.centroid[bestAxis] < primitiveInfo[bestOffset].centroid[bestAxis] ||
-                                       (pi.centroid[bestAxis] == primitiveInfo[bestOffset].centroid[bestAxis] &&
+                                return pi.centroid[bestAxis] < bestCentroid ||
+                                       (pi.centroid[bestAxis] == bestCentroid &&
                                         pi.primitiveNumber <= bestPrimNum);
                             });
                     int mid = pmid - &primitiveInfo[0];
-                    /*int mid = currentBuildNode.start;
-                    for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
-                        if (primitiveInfo[i].centroid[bestAxis] < primitiveInfo[bestOffset].centroid[bestAxis] ||
-                            (primitiveInfo[i].centroid[bestAxis] == primitiveInfo[bestOffset].centroid[bestAxis] &&
-                             primitiveInfo[i].primitiveNumber <= bestPrimNum)) {
-                            std::swap(primitiveInfo[i], primitiveInfo[mid]);
-                            ++mid;
-                        }
-                    }*/
 
                     currentBuildNode.node->InitInterior(bestAxis, c0, c1);
                     stack.emplace_back(BVHBuildToDo(c0, currentBuildNode.start, mid, currentBuildNode.node));
@@ -292,7 +289,6 @@ namespace pbrt {
                 }
             }
         }
-        primitiveInfo.resize(0);
         LOG(INFO) << StringPrintf("BVH created with %d nodes for %d "
                                   "primitives (%.2f MB), arena allocated %.2f MB",
                                   *totalNodes, (int) primitives.size(),
