@@ -306,8 +306,6 @@ namespace pbrt {
                     KdBuildNode(currentBuildNode.depth - 1, n0, currentBuildNode.badRefines, bounds0, prims0));
             ++nodeNum;
         }
-        Warning("TotalPrimsOffset %d", maxPrimsOffset);
-        Warning("Triangles %d", primitives.size());
     }
 
     bool KdTreeAccel::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
