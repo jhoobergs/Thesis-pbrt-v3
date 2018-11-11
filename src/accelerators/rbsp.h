@@ -28,8 +28,8 @@ namespace pbrt {
 
     private:
         // RBSP Private Methods
-        void buildTree(Bounds3f &rootNodeBounds,
-                       const std::vector<Bounds3f> &allPrimBounds, uint32_t maxDepth);
+        void buildTree(BoundsMf &rootNodeMBounds,
+                       const std::vector<BoundsMf> &allPrimBounds, uint32_t M, uint32_t maxDepth);
 
         // KdTreeAccel Private Data
         const uint32_t isectCost, traversalCost, maxPrims;
@@ -39,6 +39,20 @@ namespace pbrt {
         RBSPNode *nodes;
         uint32_t nAllocedNodes, nextFreeNode;
         Bounds3f bounds;
+    };
+
+    struct RBSPBuildNode{
+        RBSPBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines, BoundsMf nodeBounds, uint32_t *primNums, uint32_t parentNum = -1)
+                : depth(depth),
+                  nPrimitives(nPrimitives), badRefines(badRefines), nodeBounds(std::move(nodeBounds)),
+                  primNums(primNums), parentNum(parentNum) {}
+
+        uint32_t depth;
+        uint32_t nPrimitives;
+        uint32_t badRefines;
+        BoundsMf nodeBounds;
+        uint32_t *primNums;
+        uint32_t parentNum;
     };
 
     struct RBSPToDo {
