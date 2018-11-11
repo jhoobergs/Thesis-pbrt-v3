@@ -82,20 +82,13 @@ namespace pbrt {
             totalPrimitives += n;
         }
 
-        void InitInterior(int axis, BVHBuildNode *c0, BVHBuildNode *c1) {
+        void InitInterior(int axis, BVHBuildNode *c0, BVHBuildNode *c1, const Bounds3f &b) {
             children[0] = c0;
             children[1] = c1;
             splitAxis = axis;
             nPrimitives = 0;
+            bounds = b;
             ++interiorNodes;
-        }
-
-        void calculateBounds() {
-            if (nPrimitives == 0) {
-                children[0]->calculateBounds();
-                children[1]->calculateBounds();
-                bounds = Union(children[0]->bounds, children[1]->bounds);
-            }
         }
 
         int depth() {
@@ -181,7 +174,9 @@ namespace pbrt {
         for (int i = 0; i < 3; ++i)
             centroids[i].reset(new BVHBuildCentroid[primitives.size()]);
         std::unique_ptr<Bounds3f[]> rightToLeftBounds(
-                new Bounds3f[primitives.size()]); // rightToLeftBound[i] equals the bounds of all triangle to the right of triangle i, including triangle i
+                new Bounds3f[primitives.size()]); // rightToLeftBounds[i] equals the bounds of all triangle to the right of triangle i, including triangle i
+        std::unique_ptr<Bounds3f[]> leftToRightBounds(
+                new Bounds3f[primitives.size()]); // leftToRightBounds[i] equals the bounds of all triangle to the left of triangle i, including triangle i
 
         BVHBuildNode *root = arena.Alloc<BVHBuildNode>();
         std::vector<BVHBuildToDo> stack;
@@ -210,6 +205,7 @@ namespace pbrt {
             } else {
                 // Choose split axis position for interior node
                 int bestAxis = -1, bestOffset = -1, bestPrimNum = -1;
+                Bounds3f bestBounds;
                 Float bestCost = Infinity;
                 Float oldCost = isectCost * Float(nPrimitives);
                 Float totalSA = bounds.SurfaceArea();
@@ -232,8 +228,7 @@ namespace pbrt {
                               });
 
                     Bounds3f currentRightToLeftBounds;
-                    //TODO also leftToRight bijhouden
-                    for (int i = nPrimitives - 1; i > 0; i--) {
+                    for (int i = nPrimitives - 1; i >= 0; i--) {
                         int primOffset = centroids[dim][i].primOffset;
                         currentRightToLeftBounds = Union(currentRightToLeftBounds, primitiveInfo[primOffset].bounds);
                         rightToLeftBounds[i] = currentRightToLeftBounds;
@@ -243,8 +238,14 @@ namespace pbrt {
                     for (int i = 0; i < nPrimitives - 1; ++i) {
                         int primOffset = centroids[dim][i].primOffset;
                         currentLeftToRightBounds = Union(currentLeftToRightBounds, primitiveInfo[primOffset].bounds);
+                        leftToRightBounds[i] = currentLeftToRightBounds;
+                    }
+
+
+                    for (int i = 0; i < nPrimitives - 1; ++i) {
+                        int primOffset = centroids[dim][i].primOffset;
                         float cost = traversalCost + isectCost *
-                                                     ((i + 1) * currentLeftToRightBounds.SurfaceArea() +
+                                                     ((i + 1) * leftToRightBounds[i].SurfaceArea() +
                                                       (nPrimitives - i - 1) * rightToLeftBounds[i + 1].SurfaceArea()) *
                                                      invTotalSA;
 
@@ -253,15 +254,14 @@ namespace pbrt {
                             bestAxis = dim;
                             bestOffset = primOffset;
                             bestPrimNum = centroids[dim][i].primNum;
+                            bestBounds = rightToLeftBounds[0];
                         }
-
                     }
-
                 }
 
                 if (bestAxis != -1 && (bestCost < oldCost || nPrimitives > maxPrimsInNode)) {
-                    BVHBuildNode *c0 = arena.Alloc<BVHBuildNode>();
-                    BVHBuildNode *c1 = arena.Alloc<BVHBuildNode>();
+                    auto *c0 = arena.Alloc<BVHBuildNode>();
+                    auto *c1 = arena.Alloc<BVHBuildNode>();
                     const BVHPrimitiveInfo bestPrimitive = primitiveInfo[bestOffset];
                     const float bestCentroid = bestPrimitive.centroid[bestAxis];
                     CHECK_EQ(bestPrimitive.primitiveNumber, bestPrimNum);
@@ -275,7 +275,7 @@ namespace pbrt {
                             });
                     int mid = pmid - &primitiveInfo[0];
 
-                    currentBuildNode.node->InitInterior(bestAxis, c0, c1);
+                    currentBuildNode.node->InitInterior(bestAxis, c0, c1, bestBounds);
                     stack.emplace_back(BVHBuildToDo(c0, currentBuildNode.start, mid, currentBuildNode.node));
                     stack.emplace_back(BVHBuildToDo(c1, mid, currentBuildNode.end, currentBuildNode.node));
                 } else {
@@ -297,7 +297,6 @@ namespace pbrt {
                                   float(arena.TotalAllocated()) /
                                   (1024.f * 1024.f));
 
-        root->calculateBounds();
         Warning("Depth %d", root->depth());
 
         return root;
