@@ -46,7 +46,23 @@ namespace pbrt {
 
     // KdTreeAccel Declarations
     struct KdAccelNode;
-    struct BoundEdge;
+
+
+    enum class EdgeType {
+        Start, End
+    };
+    struct BoundEdge {
+        // BoundEdge Public Methods
+        BoundEdge() {}
+
+        BoundEdge(Float t, uint32_t primNum, bool starting) : t(t), primNum(primNum) {
+            type = starting ? EdgeType::Start : EdgeType::End;
+        }
+
+        Float t;
+        uint32_t primNum;
+        EdgeType type;
+    };
 
     class KdTreeAccel : public Aggregate {
     public:
@@ -79,7 +95,19 @@ namespace pbrt {
         Bounds3f bounds;
     };
 
-    struct KdBuildNode;
+    struct KdBuildNode{
+        KdBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines, Bounds3f nodeBounds, uint32_t *primNums, uint32_t parentNum = -1)
+                : depth(depth),
+                  nPrimitives(nPrimitives), badRefines(badRefines), nodeBounds(std::move(nodeBounds)),
+                  primNums(primNums), parentNum(parentNum) {}
+
+        uint32_t depth;
+        uint32_t nPrimitives;
+        uint32_t badRefines;
+        Bounds3f nodeBounds;
+        uint32_t *primNums;
+        uint32_t parentNum;
+    };
 
     struct KdToDo {
         const KdAccelNode *node;
