@@ -131,7 +131,6 @@ namespace pbrt {
               traversalCost(traversalCost),
               isectCost(isectCost),
               primitives(std::move(p)) {
-        Warning("%d %d", traversalCost, isectCost);
         ProfilePhase _(Prof::AccelConstruction);
         if (primitives.empty()) return;
         // Build BVH from _primitives_
