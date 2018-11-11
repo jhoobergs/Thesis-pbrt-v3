@@ -30,7 +30,6 @@
 
  */
 
-
 // accelerators/kdtreeaccel.cpp*
 #include "accelerators/kdtreeaccel.h"
 #include "paramset.h"
@@ -86,37 +85,6 @@ namespace pbrt {
             uint32_t nPrims;      // Leaf
             uint32_t aboveChild;  // Interior
         };
-    };
-
-    enum class EdgeType {
-        Start, End
-    };
-
-    struct BoundEdge {
-        // BoundEdge Public Methods
-        BoundEdge() {}
-
-        BoundEdge(Float t, uint32_t primNum, bool starting) : t(t), primNum(primNum) {
-            type = starting ? EdgeType::Start : EdgeType::End;
-        }
-
-        Float t;
-        uint32_t primNum;
-        EdgeType type;
-    };
-
-    struct KdBuildNode {
-        KdBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines, Bounds3f nodeBounds, uint32_t *primNums, uint32_t parentNum = -1)
-                : depth(depth),
-                  nPrimitives(nPrimitives), badRefines(badRefines), nodeBounds(std::move(nodeBounds)),
-                  primNums(primNums), parentNum(parentNum) {}
-
-        uint32_t depth;
-        uint32_t nPrimitives;
-        uint32_t badRefines;
-        Bounds3f nodeBounds;
-        uint32_t *primNums;
-        uint32_t parentNum;
     };
 
     // KdTreeAccel Method Definitions
