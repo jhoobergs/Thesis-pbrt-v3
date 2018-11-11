@@ -67,6 +67,13 @@ namespace pbrt {
 
         int AboveChild() const { return aboveChild >> 2; }
 
+        uint32_t depth(KdAccelNode *nodes, int id=0) {
+            if(IsLeaf())
+                return 0;
+            else
+                return 1 + std::max(nodes[AboveChild()].depth(nodes, AboveChild()), nodes[id+1].depth(nodes, id+1));
+        }
+
         union {
             Float split;                 // Interior
             int onePrimitive;            // Leaf
@@ -306,6 +313,8 @@ namespace pbrt {
                     KdBuildNode(currentBuildNode.depth - 1, n0, currentBuildNode.badRefines, bounds0, prims0));
             ++nodeNum;
         }
+
+        Warning("Depth %d", nodes[0].depth(nodes, 0));
     }
 
     bool KdTreeAccel::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
