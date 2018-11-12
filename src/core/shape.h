@@ -91,7 +91,17 @@ namespace pbrt {
         // used in this case.
         virtual Float SolidAngle(const Point3f &p, int nSamples = 512) const;
 
-        virtual Boundsf getBounds(Vector3f direction) const = 0;
+        Boundsf getBounds(Vector3f direction) const {
+            Boundsf bounds = Boundsf();
+            for(int i = 0; i < 8; i++) {
+                float projection = direction.dot(WorldBound().Corner(i));
+                if(projection < bounds.min)
+                    bounds.min = projection;
+                else if(projection > bounds.max)
+                    bounds.max = projection;
+            }
+            return bounds;
+        }
 
         // Shape Public Data
         const Transform *ObjectToWorld, *WorldToObject;

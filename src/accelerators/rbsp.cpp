@@ -112,13 +112,37 @@ namespace pbrt {
             primBounds.emplace_back(mBounds);
         }
 
+        KDOPMesh kDOPMesh;
+        Point3f v1 = Point3f(bounds.pMin);
+        Point3f v2 = Point3f(bounds.pMin.x, bounds.pMin.y, bounds.pMax.z);
+        Point3f v3 = Point3f(bounds.pMin.x, bounds.pMax.y, bounds.pMin.z);
+        Point3f v4 = Point3f(bounds.pMax.x, bounds.pMin.y, bounds.pMin.z);
+        Point3f v5 = Point3f(bounds.pMin.x, bounds.pMax.y, bounds.pMax.z);
+        Point3f v6 = Point3f(bounds.pMax.x, bounds.pMin.y, bounds.pMax.z);
+        Point3f v7 = Point3f(bounds.pMax.x, bounds.pMax.y, bounds.pMin.z);
+        Point3f v8 = Point3f(bounds.pMax);
+
+        kDOPMesh.addEdge(KDOPEdge(&v1, &v2, 1, 3));
+        kDOPMesh.addEdge(KDOPEdge(&v1, &v3, 1, 5));
+        kDOPMesh.addEdge(KDOPEdge(&v1, &v4, 3, 5));
+        kDOPMesh.addEdge(KDOPEdge(&v2, &v5, 1, 4));
+        kDOPMesh.addEdge(KDOPEdge(&v2, &v6, 3, 4));
+        kDOPMesh.addEdge(KDOPEdge(&v3, &v5, 1, 2));
+        kDOPMesh.addEdge(KDOPEdge(&v3, &v7, 2, 5));
+        kDOPMesh.addEdge(KDOPEdge(&v4, &v6, 0, 3));
+        kDOPMesh.addEdge(KDOPEdge(&v4, &v7, 0, 5));
+        kDOPMesh.addEdge(KDOPEdge(&v5, &v8, 2, 4));
+        kDOPMesh.addEdge(KDOPEdge(&v6, &v8, 0, 4));
+        kDOPMesh.addEdge(KDOPEdge(&v7, &v8, 0, 2));
+
         // Start recursive construction of RBSP-tree
-        buildTree(rootNodeMBounds, primBounds, M, maxDepth);
+        buildTree(rootNodeMBounds, kDOPMesh, primBounds, directions, maxDepth);
     }
 
     void
-    RBSP::buildTree(pbrt::BoundsMf &rootNodeMBounds, const std::vector<BoundsMf> &allPrimBounds, uint32_t M,
+    RBSP::buildTree(pbrt::BoundsMf &rootNodeMBounds, pbrt::KDOPMesh &kDOPMesh, const std::vector<BoundsMf> &allPrimBounds, const std::vector<Vector3f> &directions,
                     uint32_t maxDepth) {
+        uint32_t M = (uint32_t) directions.size();
         uint32_t nodeNum = 0;
         // Allocate working memory for kd-tree construction
         std::vector<std::unique_ptr<BoundEdge[]>> edges;
@@ -134,7 +158,7 @@ namespace pbrt {
         uint32_t maxPrimsOffset = 0;
 
         std::vector<RBSPBuildNode> stack;
-        stack.emplace_back(RBSPBuildNode(maxDepth, (uint32_t) primitives.size(), 0u, rootNodeMBounds, prims));
+        stack.emplace_back(RBSPBuildNode(maxDepth, (uint32_t) primitives.size(), 0u, rootNodeMBounds, kDOPMesh, prims));
 
         while (!stack.empty()) {
 
@@ -166,13 +190,14 @@ namespace pbrt {
                 continue;
             }
 
+
             // Choose split axis position for interior node
             uint32_t bestD = -1, bestOffset = -1;
             Float bestCost = Infinity;
             Float oldCost = isectCost * Float(currentBuildNode.nPrimitives);
-            Float totalSA = currentBuildNode.nodeBounds.SurfaceArea();
+            Float totalSA = currentBuildNode.kDOPMesh.SurfaceArea(directions);
             const Float invTotalSA = 1 / totalSA;
-
+            /*
             for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
                 const uint32_t pn = currentBuildNode.primNums[i];
                 const std::vector<Boundsf> &bounds = allPrimBounds[pn];
@@ -228,7 +253,7 @@ namespace pbrt {
                     if (edges[d][i].type == EdgeType::Start) ++nBelow;
                 }
                 CHECK(nBelow == currentBuildNode.nPrimitives && nAbove == 0);
-            }
+            }*/
 
             // Create leaf if no good splits were found
             if (bestCost > oldCost) ++currentBuildNode.badRefines;
@@ -257,10 +282,12 @@ namespace pbrt {
 
             nodes[nodeNum].InitInterior(bestD, tSplit);
 
+            /*
             stack.emplace_back(
                     RBSPBuildNode(currentBuildNode.depth - 1, n1, currentBuildNode.badRefines, bounds1, prims1, nodeNum));
             stack.emplace_back(
                     RBSPBuildNode(currentBuildNode.depth - 1, n0, currentBuildNode.badRefines, bounds0, prims0));
+                    */
             ++nodeNum;
         }
 
@@ -269,7 +296,7 @@ namespace pbrt {
 
     bool RBSP::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
         ProfilePhase p(Prof::AccelIntersect);
-        return true
+        return true;
     }
 
     bool RBSP::IntersectP(const Ray &ray) const {

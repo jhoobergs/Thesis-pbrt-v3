@@ -67,7 +67,6 @@ namespace pbrt {
         bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
 
         bool IntersectP(const Ray &ray) const;
-
     private:
         // BVHAccel Private Methods
         BVHBuildNode *iterativeBuild(MemoryArena &arena, int *totalNodes,
