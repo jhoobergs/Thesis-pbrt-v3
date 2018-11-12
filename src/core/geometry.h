@@ -301,7 +301,7 @@ namespace pbrt {
         explicit Vector3(const Normal3<T> &n);
 
         template<typename U>
-        Float dot(U f) {
+        Float dot(U f) const {
             return x * f.x + y * f.y + z * f.z;
         };
 
@@ -1708,8 +1708,8 @@ namespace pbrt {
     template<typename T>
     Bounds<T> Union(const Bounds<T> &b1, const Bounds<T> &b2) {
         Bounds<T> ret;
-        ret.min = Min(b1.min, b2.min);
-        ret.max = Max(b1.max, b2.max);
+        ret.min = std::min(b1.min, b2.min);
+        ret.max = std::max(b1.max, b2.max);
         return ret;
     }
 
