@@ -68,7 +68,17 @@ namespace pbrt {
                                                 TransportMode mode,
                                                 bool allowMultipleLobes) const = 0;
 
-        virtual Boundsf getBounds(Vector3f direction) const = 0;
+        virtual Boundsf getBounds(Vector3f direction) const {
+            Boundsf bounds = Boundsf();
+            for(int i = 0; i < 8; i++) {
+                float projection = direction.dot(WorldBound().Corner(i));
+                if(projection < bounds.min)
+                    bounds.min = projection;
+                else if(projection > bounds.max)
+                    bounds.max = projection;
+            }
+            return bounds;
+        }
     };
 
 // GeometricPrimitive Declarations
@@ -148,6 +158,7 @@ namespace pbrt {
         void ComputeScatteringFunctions(SurfaceInteraction *isect,
                                         MemoryArena &arena, TransportMode mode,
                                         bool allowMultipleLobes) const;
+
     };
 
 }  // namespace pbrt
