@@ -779,8 +779,8 @@ namespace pbrt {
     public:
         // Bounds Public Methods
         Bounds() {
-            min = std::numeric_limits<T>::lowest();
-            max = std::numeric_limits<T>::max();
+            min = std::numeric_limits<T>::max();
+            max = std::numeric_limits<T>::min();
         }
 
         explicit Bounds(T min, T max) : min(min), max(max) {}
