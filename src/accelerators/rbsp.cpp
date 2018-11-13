@@ -104,7 +104,7 @@ namespace pbrt {
             bounds = Union(bounds, b);
             pbrt::BoundsMf mBounds;
             for (size_t i = 0; i < directions.size(); ++i) {
-                auto &d= directions[i];
+                auto &d = directions[i];
                 Boundsf b = prim->getBounds(d);
                 mBounds.emplace_back(b);
                 Union(rootNodeMBounds[i], b);
@@ -140,7 +140,8 @@ namespace pbrt {
     }
 
     void
-    RBSP::buildTree(pbrt::BoundsMf &rootNodeMBounds, pbrt::KDOPMesh &kDOPMesh, const std::vector<BoundsMf> &allPrimBounds, const std::vector<Vector3f> &directions,
+    RBSP::buildTree(pbrt::BoundsMf &rootNodeMBounds, pbrt::KDOPMesh &kDOPMesh,
+                    const std::vector<BoundsMf> &allPrimBounds, const std::vector<Vector3f> &directions,
                     uint32_t maxDepth) {
         uint32_t M = (uint32_t) directions.size();
         uint32_t nodeNum = 0;
@@ -291,7 +292,7 @@ namespace pbrt {
             ++nodeNum;
         }
 
-        Warning("Depth %d", nodes[0].depth(nodes, 0));
+        Warning("RBSP Depth %d", nodes[0].depth(nodes, 0));
     }
 
     bool RBSP::Intersect(const Ray &ray, SurfaceInteraction *isect) const {

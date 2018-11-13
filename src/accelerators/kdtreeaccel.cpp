@@ -66,11 +66,11 @@ namespace pbrt {
 
         uint32_t AboveChild() const { return aboveChild >> 2u; }
 
-        uint32_t depth(KdAccelNode *nodes, int id=0) {
-            if(IsLeaf())
+        uint32_t depth(KdAccelNode *nodes, int id = 0) {
+            if (IsLeaf())
                 return 0;
             else
-                return 1 + std::max(nodes[AboveChild()].depth(nodes, AboveChild()), nodes[id+1].depth(nodes, id+1));
+                return 1 + std::max(nodes[AboveChild()].depth(nodes, AboveChild()), nodes[id + 1].depth(nodes, id + 1));
         }
 
         union {
@@ -220,11 +220,11 @@ namespace pbrt {
                         // Compute child surface areas for split at _edgeT_
                         const uint32_t otherAxis0 = (axis + 1) % 3, otherAxis1 = (axis + 2) % 3;
                         const Float belowSA = 2 * (d[otherAxis0] * d[otherAxis1] +
-                                             (edgeT - currentBuildNode.nodeBounds.pMin[axis]) *
-                                             (d[otherAxis0] + d[otherAxis1]));
+                                                   (edgeT - currentBuildNode.nodeBounds.pMin[axis]) *
+                                                   (d[otherAxis0] + d[otherAxis1]));
                         const Float aboveSA = 2 * (d[otherAxis0] * d[otherAxis1] +
-                                             (currentBuildNode.nodeBounds.pMax[axis] - edgeT) *
-                                             (d[otherAxis0] + d[otherAxis1]));
+                                                   (currentBuildNode.nodeBounds.pMax[axis] - edgeT) *
+                                                   (d[otherAxis0] + d[otherAxis1]));
                         const Float pBelow = belowSA * invTotalSA;
                         const Float pAbove = aboveSA * invTotalSA;
                         const Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
@@ -278,7 +278,7 @@ namespace pbrt {
             ++nodeNum;
         }
 
-        Warning("Depth %d", nodes[0].depth(nodes, 0));
+        Warning("Kd Depth %d", nodes[0].depth(nodes, 0));
     }
 
     bool KdTreeAccel::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
