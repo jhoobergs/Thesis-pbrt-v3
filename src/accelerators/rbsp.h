@@ -7,7 +7,7 @@
 
 #include <core/geometry.h>
 #include "kdtreeaccel.h"
-#include <set>
+#include <algorithm>
 
 namespace pbrt {
     struct RBSPNode;
@@ -26,6 +26,15 @@ namespace pbrt {
         KDOPMesh() {};
 
         void addEdge(KDOPEdge edge) {
+            edges.emplace_back(edge);
+        }
+
+        void addEdgeIfNeeded(KDOPEdge edge) {
+            for(auto &e: edges){
+                if((e.v1 == edge.v2 && e.v2 == edge.v1) || (e.v1 == edge.v1 && e.v2 == edge.v2)){
+                    return;
+                }
+            }
             edges.emplace_back(edge);
         }
 
@@ -69,18 +78,29 @@ namespace pbrt {
             return SA / 2.0f;
         }
 
+        void helper(std::vector<Point3f *> *points, Point3f * point){
+            if(std::find(points->begin(), points->end(), point) == points->end()){
+                points->push_back(point);
+            }
+        }
+
         std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, float t, const Vector3f &direction, const uint32_t directionId) {
+            //Warning("t %f", t);
             KDOPMesh left;
             KDOPMesh right;
             std::vector<std::vector<Point3f *>> faceVertices;
             for (size_t i = 0; i < 2 * M; ++i) {
                 faceVertices.emplace_back(std::vector<Point3f *>());
             }
-            std::vector<std::pair<Point3f *, std::vector<uint32_t> > > vertexFaces;
+            std::vector<KDOPEdge> coincidentEdges;
 
             for (auto &edge: edges) {
                 float t1 = direction.dot(*edge.v1);
                 float t2 = direction.dot(*edge.v2);
+                if(t1 > t2) {
+                    std::swap(edge.v1, edge.v2);
+                    std::swap(t1,t2);
+                }
                 Vector3f d = edge.v2->operator-(*edge.v1);
                 if (t1 < t && t2 < t) {
                     left.addEdge(edge);
@@ -88,98 +108,80 @@ namespace pbrt {
                     right.addEdge(edge);
                 } else if (t1 < t && t == t2) {
                     left.addEdge(edge);
-                    faceVertices[edge.faceId1].emplace_back(edge.v2);
-                    faceVertices[edge.faceId2].emplace_back(edge.v2);
-                    //Warning("Added (%f,%f,%f) to %d and %d", edge.v2->x, edge.v2->y, edge.v2->z, edge.faceId1, edge.faceId2);
-                    //Warning("2 Added (%f,%f,%f) to %d and %d", faceVertices[edge.faceId1].back()->x, faceVertices[edge.faceId1].back()->y, faceVertices[edge.faceId1].back()->z, edge.faceId1, edge.faceId2);
-                    /*std::vector<int> faces;
-                    faces.emplace_back(edge.faceId1);
-                    faces.emplace_back(edge.faceId2);
-                    vertexFaces.emplace_back(std::make_pair(edge.v2, faces));*/
+                    helper(&faceVertices[edge.faceId1], edge.v2);
+                    helper(&faceVertices[edge.faceId2], edge.v2);
                 } else if (t1 == t && t < t2) {
                     right.addEdge(edge);
-                    faceVertices[edge.faceId1].emplace_back(edge.v1);
-                    faceVertices[edge.faceId2].emplace_back(edge.v1);
-                    //Warning("Added (%f,%f,%f) to %d and %d", edge.v1->x, edge.v1->y, edge.v1->z, edge.faceId1, edge.faceId2);
-                    //Warning("2 Added (%f,%f,%f) to %d and %d", faceVertices[edge.faceId1].back()->x, faceVertices[edge.faceId1].back()->y, faceVertices[edge.faceId1].back()->z, edge.faceId1, edge.faceId2);
-
-                    /*std::vector<int> faces;
-                    faces.emplace_back(edge.faceId1);
-                    faces.emplace_back(edge.faceId2);
-                    vertexFaces.emplace_back(std::make_pair(edge.v1, faces));*/
+                    helper(&faceVertices[edge.faceId1],edge.v1);
+                    helper(&faceVertices[edge.faceId2],edge.v1);
                 } else if (t1 < t && t < t2) {
                     float tAlongEdge = (-(t1 - t) * d.Length()) / (t2 - t1);
                     Point3f *vs = new Point3f(*edge.v1 + tAlongEdge * d / d.Length());
                     left.addEdge(KDOPEdge(edge.v1, vs, edge.faceId1, edge.faceId2));
                     right.addEdge(KDOPEdge(vs, edge.v2, edge.faceId1, edge.faceId2));
 
-                    faceVertices[edge.faceId1].emplace_back(vs);
-                    faceVertices[edge.faceId2].emplace_back(vs);
-                    //Warning("Added (%f,%f,%f) to %d and %d", vs->x, vs->y, vs->z, edge.faceId1, edge.faceId2);
-                    //Warning("2 Added (%f,%f,%f) to %d and %d", faceVertices[edge.faceId1].back()->x, faceVertices[edge.faceId1].back()->y, faceVertices[edge.faceId1].back()->z, edge.faceId1, edge.faceId2);
-
-                    /*std::vector<int> faces;
-                    faces.emplace_back(edge.faceId1);
-                    faces.emplace_back(edge.faceId2);
-                    vertexFaces.emplace_back(std::make_pair(vs.get(), faces));*/
+                    helper(&faceVertices[edge.faceId1],vs);
+                    helper(&faceVertices[edge.faceId2],vs);
                 } else if (t1 == t && t == t2) {
-                    left.addEdge(edge);
-                    right.addEdge(edge);
+                    coincidentEdges.push_back(edge);
+                } else{
+                    Warning("Strange: %f %f %f", t1, t, t2);
                 }
-                /*for(size_t i = 0; i < 2 * M; ++i){
-                    if(faceVertices[i].size() > 0)
-                        Warning("E %d (%f,%f,%f)", i, faceVertices[i].back()->x, faceVertices[i].back()->y, faceVertices[i].back()->z);
+            }
 
+            //Warning("Left %d", left.edges.size());
+            //Warning("Right %d", right.edges.size());
+
+            //Warning("Coincident size: %d", coincidentEdges.size());
+            for(auto &edge: coincidentEdges){
+                bool found = false;
+                for(auto &leftEdge: left.edges){
+                    if(leftEdge.faceId1 == edge.faceId1 || leftEdge.faceId2 == edge.faceId1){
+                        left.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId1, 2*directionId));
+                        right.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId2, 2*directionId+1));
+                        found = true;
+                        break;
+                    }
+                    else if(leftEdge.faceId1 == edge.faceId2 || leftEdge.faceId2 == edge.faceId2){
+                        left.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId2, 2*directionId));
+                        right.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId1, 2*directionId+1));
+                        found = true;
+                        break;
+                    }
+                }
+                /*if(!found)
+                    Warning("Can't add edge from (%f,%f,%f) to (%f,%f,%f) with faces %d and %d",
+                        edge.v1->x, edge.v1->y, edge.v1->z, edge.v2->x, edge.v2->y, edge.v2->z,
+                        edge.faceId1, edge.faceId2);
+                else{
+                    Warning("Added edge from (%f,%f,%f) to (%f,%f,%f)",
+                            edge.v1->x, edge.v1->y, edge.v1->z, edge.v2->x, edge.v2->y, edge.v2->z);
                 }*/
             }
 
-            /*for(size_t i = 0; i < 2 * M; ++i){
+            for(size_t i = 0; i < 2 * M; ++i){
                 Warning("%d %d", i, faceVertices[i].size());
-                if(faceVertices[i].size() > 0)
-                    Warning("E (%f,%f,%f)", faceVertices[i].back()->x, faceVertices[i].back()->y, faceVertices[i].back()->z);
+                for(uint32_t j = 0; j < faceVertices[i].size(); ++j) {
+                    Warning("E %d (%f,%f,%f)", j, faceVertices[i][j]->x, faceVertices[i][j]->y,
+                            faceVertices[i][j]->z);
+                }
 
-            }*/
-            Warning("Left %d", left.edges.size());
-            Warning("Right %d", right.edges.size());
+            }
+            //Warning("Left %d", left.edges.size());
+            //Warning("Right %d", right.edges.size());
 
             std::vector<Point3f *> pairedVertex;
             for (size_t i = 0; i < 2 * M; ++i) {
                 pairedVertex.emplace_back(nullptr);
             }
 
-            /*
-            int vertexId = 0;
-            auto &p = vertexFaces[vertexId];
-            int f = p.second[0];
-            do{
-                if(faceVertices[f].size() == 2){
-                    Warning("Creating edge from (%f,%f,%f) to (%f,%f,%f)", faceVertices[f][0]->x, faceVertices[f][0]->y, faceVertices[f][0]->z, faceVertices[f][1]->x, faceVertices[f][1]->y, faceVertices[f][1]->z);
-                    for(auto &p2: vertexFaces){
-                        if(p2.first != p.first){
-                            f = p2.second
-                        }
-                    }
-                }
-            } while(f != p.second[0]);
-
-            for(auto &p : vertexFaces){
-                for(int f: p.second){
-                    if(pairedVertex[f]){
-
-                    }
-                    else{
-                        pairedVertex[f] = p.first;
-                    }
-                }
-            }*/
-
             for (size_t i = 0; i < 2 * M; ++i) {
                 if (faceVertices[i].size() == 2) {
-                    Warning("Creating edge for %d from (%f,%f,%f) to (%f,%f,%f)", i, faceVertices[i][0]->x,
+                    Warning("Creating edge for %d from (%f,%f,%f) to (%f,%f,%f), left %d, right %d", i, faceVertices[i][0]->x,
                             faceVertices[i][0]->y, faceVertices[i][0]->z, faceVertices[i][1]->x, faceVertices[i][1]->y,
-                            faceVertices[i][1]->z);
-                    left.addEdge(KDOPEdge(faceVertices[i][0], faceVertices[i][1], i, 2 * directionId));
-                    right.addEdge(KDOPEdge(faceVertices[i][0], faceVertices[i][1], i, 2 * directionId + 1));
+                            faceVertices[i][1]->z, 2 * directionId, 2* directionId +1);
+                    left.addEdgeIfNeeded(KDOPEdge(faceVertices[i][0], faceVertices[i][1], i, 2 * directionId));
+                    right.addEdgeIfNeeded(KDOPEdge(faceVertices[i][0], faceVertices[i][1], i, 2 * directionId + 1));
                 }
             }
 
