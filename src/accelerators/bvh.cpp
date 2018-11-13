@@ -296,7 +296,7 @@ namespace pbrt {
                                   float(arena.TotalAllocated()) /
                                   (1024.f * 1024.f));
 
-        Warning("Depth %d", root->depth());
+        Warning("BVH Depth %d", root->depth());
 
         return root;
     }
