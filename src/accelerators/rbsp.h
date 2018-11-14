@@ -30,8 +30,8 @@ namespace pbrt {
         }
 
         void addEdgeIfNeeded(KDOPEdge edge) {
-            for(auto &e: edges){
-                if((e.v1 == edge.v2 && e.v2 == edge.v1) || (e.v1 == edge.v1 && e.v2 == edge.v2)){
+            for (auto &e: edges) {
+                if ((e.v1 == edge.v2 && e.v2 == edge.v1) || (e.v1 == edge.v1 && e.v2 == edge.v2)) {
                     return;
                 }
             }
@@ -78,8 +78,8 @@ namespace pbrt {
             return SA / 2.0f;
         }
 
-        void helper(std::vector<Point3f *> *points, Point3f * point){
-            if(std::find(points->begin(), points->end(), point) == points->end()){
+        void helper(std::vector<Point3f *> *points, Point3f *point) {
+            if (std::find(points->begin(), points->end(), point) == points->end()) {
                 points->push_back(point);
             }
         }
@@ -97,9 +97,9 @@ namespace pbrt {
             for (auto &edge: edges) {
                 float t1 = direction.dot(*edge.v1);
                 float t2 = direction.dot(*edge.v2);
-                if(t1 > t2) {
+                if (t1 > t2) {
                     std::swap(edge.v1, edge.v2);
-                    std::swap(t1,t2);
+                    std::swap(t1, t2);
                 }
                 Vector3f d = edge.v2->operator-(*edge.v1);
                 if (t1 < t && t2 < t) {
@@ -112,39 +112,38 @@ namespace pbrt {
                     helper(&faceVertices[edge.faceId2], edge.v2);
                 } else if (t1 == t && t < t2) {
                     right.addEdge(edge);
-                    helper(&faceVertices[edge.faceId1],edge.v1);
-                    helper(&faceVertices[edge.faceId2],edge.v1);
+                    helper(&faceVertices[edge.faceId1], edge.v1);
+                    helper(&faceVertices[edge.faceId2], edge.v1);
                 } else if (t1 < t && t < t2) {
-                    float tAlongEdge = (-(t1 - t) * d.Length()) / (t2 - t1);
-                    Point3f *vs = new Point3f(*edge.v1 + tAlongEdge * d / d.Length());
+                    float tAlongEdge = (-(t1 - t)) / (t2 - t1);
+                    Point3f *vs = new Point3f(*edge.v1 + tAlongEdge * d);
                     left.addEdge(KDOPEdge(edge.v1, vs, edge.faceId1, edge.faceId2));
                     right.addEdge(KDOPEdge(vs, edge.v2, edge.faceId1, edge.faceId2));
 
-                    helper(&faceVertices[edge.faceId1],vs);
-                    helper(&faceVertices[edge.faceId2],vs);
+                    helper(&faceVertices[edge.faceId1], vs);
+                    helper(&faceVertices[edge.faceId2], vs);
                 } else if (t1 == t && t == t2) {
                     coincidentEdges.push_back(edge);
-                } else{
+                } /*else{
                     Warning("Strange: %f %f %f", t1, t, t2);
-                }
+                }*/
             }
 
             //Warning("Left %d", left.edges.size());
             //Warning("Right %d", right.edges.size());
 
             //Warning("Coincident size: %d", coincidentEdges.size());
-            for(auto &edge: coincidentEdges){
+            for (auto &edge: coincidentEdges) {
                 bool found = false;
-                for(auto &leftEdge: left.edges){
-                    if(leftEdge.faceId1 == edge.faceId1 || leftEdge.faceId2 == edge.faceId1){
-                        left.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId1, 2*directionId));
-                        right.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId2, 2*directionId+1));
+                for (auto &leftEdge: left.edges) {
+                    if (leftEdge.faceId1 == edge.faceId1 || leftEdge.faceId2 == edge.faceId1) {
+                        left.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId1, 2 * directionId));
+                        right.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId2, 2 * directionId + 1));
                         found = true;
                         break;
-                    }
-                    else if(leftEdge.faceId1 == edge.faceId2 || leftEdge.faceId2 == edge.faceId2){
-                        left.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId2, 2*directionId));
-                        right.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId1, 2*directionId+1));
+                    } else if (leftEdge.faceId1 == edge.faceId2 || leftEdge.faceId2 == edge.faceId2) {
+                        left.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId2, 2 * directionId));
+                        right.addEdge(KDOPEdge(edge.v1, edge.v2, edge.faceId1, 2 * directionId + 1));
                         found = true;
                         break;
                     }
@@ -159,14 +158,14 @@ namespace pbrt {
                 }*/
             }
 
-            for(size_t i = 0; i < 2 * M; ++i){
+            /*for(size_t i = 0; i < 2 * M; ++i){
                 Warning("%d %d", i, faceVertices[i].size());
                 for(uint32_t j = 0; j < faceVertices[i].size(); ++j) {
                     Warning("E %d (%f,%f,%f)", j, faceVertices[i][j]->x, faceVertices[i][j]->y,
                             faceVertices[i][j]->z);
                 }
 
-            }
+            }*/
             //Warning("Left %d", left.edges.size());
             //Warning("Right %d", right.edges.size());
 
@@ -177,9 +176,9 @@ namespace pbrt {
 
             for (size_t i = 0; i < 2 * M; ++i) {
                 if (faceVertices[i].size() == 2) {
-                    Warning("Creating edge for %d from (%f,%f,%f) to (%f,%f,%f), left %d, right %d", i, faceVertices[i][0]->x,
+                    /* Warning("Creating edge for %d from (%f,%f,%f) to (%f,%f,%f), left %d, right %d", i, faceVertices[i][0]->x,
                             faceVertices[i][0]->y, faceVertices[i][0]->z, faceVertices[i][1]->x, faceVertices[i][1]->y,
-                            faceVertices[i][1]->z, 2 * directionId, 2* directionId +1);
+                            faceVertices[i][1]->z, 2 * directionId, 2* directionId +1); */
                     left.addEdgeIfNeeded(KDOPEdge(faceVertices[i][0], faceVertices[i][1], i, 2 * directionId));
                     right.addEdgeIfNeeded(KDOPEdge(faceVertices[i][0], faceVertices[i][1], i, 2 * directionId + 1));
                 }
@@ -210,7 +209,7 @@ namespace pbrt {
     private:
         // RBSP Private Methods
         void buildTree(BoundsMf &rootNodeMBounds, KDOPMesh &kDOPMesh,
-                       const std::vector<BoundsMf> &allPrimBounds, const std::vector<Vector3f> &directions,
+                       const std::vector<BoundsMf> &allPrimBounds,
                        uint32_t maxDepth);
 
         // KdTreeAccel Private Data
@@ -221,6 +220,7 @@ namespace pbrt {
         RBSPNode *nodes;
         uint32_t nAllocedNodes, nextFreeNode;
         Bounds3f bounds;
+        std::vector<Vector3f> directions;
     };
 
     struct RBSPBuildNode {
