@@ -1049,20 +1049,23 @@ namespace pbrt {
 // GeneralStats Declarations
     class GeneralStats {
     public:
-        GeneralStats(int rays, uint64_t triangleIntersections, uint64_t triangleIntersectionsP,
-                     uint64_t kdTreeNodeTraversals, uint64_t kdTreeNodeTraversalsP) :
+        GeneralStats(uint64_t rays, uint64_t triangleIntersections, uint64_t triangleIntersectionsP,
+                     uint64_t kdTreeNodeTraversals, uint64_t kdTreeNodeTraversalsP, uint64_t rBSPTreeNodeTraversals, uint64_t rBSPTreeNodeTraversalsP) :
                 rays(rays), triangleIntersections(triangleIntersections),
                 triangleIntersectionsP(triangleIntersectionsP),
-                kdTreeNodeTraversals(kdTreeNodeTraversals), kdTreeNodeTraversalsP(kdTreeNodeTraversalsP) {}
+                kdTreeNodeTraversals(kdTreeNodeTraversals), kdTreeNodeTraversalsP(kdTreeNodeTraversalsP),
+                rBSPTreeNodeTraversals(rBSPTreeNodeTraversals), rBSPTreeNodeTraversalsP(rBSPTreeNodeTraversalsP) {}
 
-        GeneralStats() : GeneralStats(0, 0, 0, 0, 0) {}
+        GeneralStats() : GeneralStats(0, 0, 0, 0, 0, 0, 0) {}
 
         friend GeneralStats operator+(const GeneralStats &a, const GeneralStats &b) {
             return GeneralStats(a.rays + b.rays,
                                 a.triangleIntersections + b.triangleIntersections,
                                 a.triangleIntersectionsP + b.triangleIntersectionsP,
                                 a.kdTreeNodeTraversals + b.kdTreeNodeTraversals,
-                                a.kdTreeNodeTraversalsP + b.kdTreeNodeTraversalsP);
+                                a.kdTreeNodeTraversalsP + b.kdTreeNodeTraversalsP,
+                                a.rBSPTreeNodeTraversals + b.rBSPTreeNodeTraversals,
+                                a.rBSPTreeNodeTraversalsP + b.rBSPTreeNodeTraversalsP);
         }
 
         GeneralStats &operator+=(const GeneralStats &rhs) {
@@ -1071,14 +1074,18 @@ namespace pbrt {
             this->triangleIntersectionsP += rhs.triangleIntersectionsP;
             this->kdTreeNodeTraversals += rhs.kdTreeNodeTraversals;
             this->kdTreeNodeTraversalsP += rhs.kdTreeNodeTraversalsP;
+            this->rBSPTreeNodeTraversals += rhs.rBSPTreeNodeTraversals;
+            this->rBSPTreeNodeTraversalsP += rhs.rBSPTreeNodeTraversalsP;
             return *this;
         }
 
-        int rays;
+        uint64_t rays;
         uint64_t triangleIntersections;
         uint64_t triangleIntersectionsP;
         uint64_t kdTreeNodeTraversals;
         uint64_t kdTreeNodeTraversalsP;
+        uint64_t rBSPTreeNodeTraversals;
+        uint64_t rBSPTreeNodeTraversalsP;
     };
 
 // Ray Declarations

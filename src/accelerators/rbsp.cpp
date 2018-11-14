@@ -83,10 +83,10 @@ namespace pbrt {
               emptyBonus(emptyBonus),
               primitives(std::move(p)) {
         ProfilePhase _(Prof::AccelConstruction);
+        nextFreeNode = nAllocedNodes = 0;
         if (maxDepth == -1)
             maxDepth = (uint32_t) std::round(8 + 1.3f * Log2Int(int64_t(primitives.size())));
-        const uint32_t M = 3;
-        std::vector<Vector3f> directions;
+
         directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
         directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
         directions.emplace_back(Vector3f(0.0, 0.0, 1.0));
@@ -96,7 +96,7 @@ namespace pbrt {
             rootNodeMBounds.emplace_back(Boundsf());
         }
 
-        // Compute bounds for kd-tree construction
+        // Compute bounds for rbsp-tree construction
         std::vector<BoundsMf> primBounds;
         primBounds.reserve(primitives.size());
         for (const std::shared_ptr<Primitive> &prim : primitives) {
@@ -107,7 +107,7 @@ namespace pbrt {
                 auto &d = directions[i];
                 Boundsf b = prim->getBounds(d);
                 mBounds.emplace_back(b);
-                Union(rootNodeMBounds[i], b);
+                rootNodeMBounds[i] = Union(rootNodeMBounds[i], b);
             }
             primBounds.emplace_back(mBounds);
         }
@@ -136,23 +136,25 @@ namespace pbrt {
         kDOPMesh.addEdge(KDOPEdge(&v7, &v8, 0, 2));
 
         // Start recursive construction of RBSP-tree
-        buildTree(rootNodeMBounds, kDOPMesh, primBounds, directions, maxDepth);
+        buildTree(rootNodeMBounds, kDOPMesh, primBounds, maxDepth);
     }
 
     void
     RBSP::buildTree(pbrt::BoundsMf &rootNodeMBounds, pbrt::KDOPMesh &kDOPMesh,
-                    const std::vector<BoundsMf> &allPrimBounds, const std::vector<Vector3f> &directions,
+                    const std::vector<BoundsMf> &allPrimBounds,
                     uint32_t maxDepth) {
+        Warning("Building RBSP");
         uint32_t M = (uint32_t) directions.size();
         uint32_t nodeNum = 0;
-        // Allocate working memory for kd-tree construction
+        // Allocate working memory for rbsp-tree construction
         std::vector<std::unique_ptr<BoundEdge[]>> edges;
         for (uint32_t i = 0; i < M; ++i)
-            edges[i].reset(new BoundEdge[2 * primitives.size()]);
+            edges.emplace_back(std::unique_ptr<BoundEdge[]>(new BoundEdge[2 * primitives.size()]));
+        //Warning("Let's create prims");
         std::unique_ptr<uint32_t> prims_p(
                 new uint32_t[(maxDepth + 1) * primitives.size()]);
         uint32_t *prims = prims_p.get();
-        // Initialize _primNums_ for kd-tree construction
+        // Initialize _primNums_ for rbsp-tree construction
         for (uint32_t i = 0; i < primitives.size(); ++i) {
             prims[i] = i;
         }
@@ -160,9 +162,8 @@ namespace pbrt {
 
         std::vector<RBSPBuildNode> stack;
         stack.emplace_back(RBSPBuildNode(maxDepth, (uint32_t) primitives.size(), 0u, rootNodeMBounds, kDOPMesh, prims));
-
+        Warning("Building RBSP: Lets loop");
         while (!stack.empty()) {
-
             RBSPBuildNode currentBuildNode = stack.back();
             stack.pop_back();
             CHECK_EQ(nodeNum, nextFreeNode);
@@ -194,11 +195,12 @@ namespace pbrt {
 
             // Choose split axis position for interior node
             uint32_t bestD = -1, bestOffset = -1;
+            std::pair<KDOPMesh, KDOPMesh> bestSplittedKDOPs;
             Float bestCost = Infinity;
             Float oldCost = isectCost * Float(currentBuildNode.nPrimitives);
             Float totalSA = currentBuildNode.kDOPMesh.SurfaceArea(directions);
             const Float invTotalSA = 1 / totalSA;
-            /*
+
             for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
                 const uint32_t pn = currentBuildNode.primNums[i];
                 const std::vector<Boundsf> &bounds = allPrimBounds[pn];
@@ -230,15 +232,10 @@ namespace pbrt {
                         // Compute cost for split at _i_th edge
 
                         // Compute child surface areas for split at _edgeT_
-                        const uint32_t otherAxis0 = (axis + 1) % 3, otherAxis1 = (axis + 2) % 3;
-                        const Float belowSA = 2 * (d[otherAxis0] * d[otherAxis1] +
-                                                   (edgeT - currentBuildNode.nodeBounds.pMin[axis]) *
-                                                   (d[otherAxis0] + d[otherAxis1]));
-                        const Float aboveSA = 2 * (d[otherAxis0] * d[otherAxis1] +
-                                                   (currentBuildNode.nodeBounds.pMax[axis] - edgeT) *
-                                                   (d[otherAxis0] + d[otherAxis1]));
-                        const Float pBelow = belowSA * invTotalSA;
-                        const Float pAbove = aboveSA * invTotalSA;
+                        std::pair<KDOPMesh, KDOPMesh> splittedKDOPs = currentBuildNode.kDOPMesh.cut(
+                                (uint32_t) directions.size(), edgeT, directions[d], d);
+                        const Float pBelow = splittedKDOPs.first.SurfaceArea(directions) * invTotalSA;
+                        const Float pAbove = splittedKDOPs.second.SurfaceArea(directions) * invTotalSA;
                         const Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
                         const Float cost =
                                 traversalCost +
@@ -249,12 +246,13 @@ namespace pbrt {
                             bestCost = cost;
                             bestD = d;
                             bestOffset = i;
+                            bestSplittedKDOPs = splittedKDOPs;
                         }
                     }
                     if (edges[d][i].type == EdgeType::Start) ++nBelow;
                 }
                 CHECK(nBelow == currentBuildNode.nPrimitives && nAbove == 0);
-            }*/
+            }
 
             // Create leaf if no good splits were found
             if (bestCost > oldCost) ++currentBuildNode.badRefines;
@@ -283,12 +281,14 @@ namespace pbrt {
 
             nodes[nodeNum].InitInterior(bestD, tSplit);
 
-            /*
+
             stack.emplace_back(
-                    RBSPBuildNode(currentBuildNode.depth - 1, n1, currentBuildNode.badRefines, bounds1, prims1, nodeNum));
+                    RBSPBuildNode(currentBuildNode.depth - 1, n1, currentBuildNode.badRefines, bounds1,
+                                  bestSplittedKDOPs.second, prims1, nodeNum));
             stack.emplace_back(
-                    RBSPBuildNode(currentBuildNode.depth - 1, n0, currentBuildNode.badRefines, bounds0, prims0));
-                    */
+                    RBSPBuildNode(currentBuildNode.depth - 1, n0, currentBuildNode.badRefines, bounds0,
+                                  bestSplittedKDOPs.first, prims0));
+
             ++nodeNum;
         }
 
@@ -297,12 +297,194 @@ namespace pbrt {
 
     bool RBSP::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
         ProfilePhase p(Prof::AccelIntersect);
-        return true;
+        // Compute initial parametric range of ray inside rbsp-tree extent
+        Float tMin, tMax;
+        if (!bounds.IntersectP(ray, &tMin, &tMax)) {
+            return false;
+        }
+
+        // Prepare to traverse rbsp-tree for ray
+        PBRT_CONSTEXPR uint32_t maxTodo = 64u;
+        RBSPToDo todo[maxTodo];
+        uint32_t todoPos = 0;
+
+        // Traverse rbsp-tree nodes in order for ray
+        bool hit = false;
+        const RBSPNode *node = &nodes[0];
+        while (node != nullptr) {
+            // Bail out if we found a hit closer than the current node
+            if (ray.tMax < tMin) break;
+            nbNodeTraversals++;
+            ray.stats.rBSPTreeNodeTraversals++;
+            if (!node->IsLeaf()) {
+                //Warning("Checking Interior");
+                // Process rbsp-tree interior node
+
+                // Compute parametric distance along ray to split plane
+                uint32_t axis = node->SplitAxis();
+
+                float projectedO = directions[axis].dot(ray.o);
+                float inverseProjectedD = 1 / directions[axis].dot(ray.d);
+                Float tPlane = (node->SplitPos() - projectedO) * inverseProjectedD;
+
+                // Get node children pointers for ray
+                const RBSPNode *firstChild, *secondChild;
+                bool belowFirst =
+                        (projectedO < node->SplitPos()) ||
+                        (projectedO == node->SplitPos() && inverseProjectedD <= 0);
+                //Warning("Checking Interior: before if");
+                if (belowFirst) {
+                    firstChild = node + 1;
+                    secondChild = &nodes[node->AboveChild()];
+                } else {
+                    firstChild = &nodes[node->AboveChild()];
+                    secondChild = node + 1;
+                }
+                //Warning("Checking Interior after if");
+
+                // Advance to next child node, possibly enqueue other child
+                if (tPlane > tMax || tPlane <= 0)
+                    node = firstChild;
+                else if (tPlane < tMin)
+                    node = secondChild;
+                else {
+                    // Enqueue _secondChild_ in todo list
+                    todo[todoPos].node = secondChild;
+                    todo[todoPos].tMin = tPlane;
+                    todo[todoPos].tMax = tMax;
+                    ++todoPos;
+                    node = firstChild;
+                    tMax = tPlane;
+                }
+                //Warning("Checking Interior end");
+            } else {
+                // Check for intersections inside leaf node
+                uint32_t nPrimitives = node->nPrimitives();
+                //Warning("Checking Leaf %d", nPrimitives);
+                if (nPrimitives == 1) {
+                    const std::shared_ptr<Primitive> &p =
+                            primitives[node->onePrimitive];
+                    // Check one primitive inside leaf node
+                    if (p->Intersect(ray, isect)) hit = true;
+                } else {
+                    for (uint32_t i = 0; i < nPrimitives; ++i) {
+                        uint32_t index =
+                                primitiveIndices[node->primitiveIndicesOffset + i];
+                        const std::shared_ptr<Primitive> &p = primitives[index];
+                        // Check one primitive inside leaf node
+                        if (p->Intersect(ray, isect)) hit = true;
+                    }
+                }
+                //Warning("Checking Leaf finding new");
+
+
+                // Grab next node to process from todo list
+                if (todoPos > 0) {
+                    --todoPos;
+                    node = todo[todoPos].node;
+                    tMin = todo[todoPos].tMin;
+                    tMax = todo[todoPos].tMax;
+                } else
+                    break;
+            }
+        }
+        return hit;
     }
 
     bool RBSP::IntersectP(const Ray &ray) const {
         ProfilePhase p(Prof::AccelIntersectP);
+        // Compute initial parametric range of ray inside rbsp-tree extent
+        Float tMin, tMax;
+        if (!bounds.IntersectP(ray, &tMin, &tMax)) {
+            return false;
+        }
 
+        // Prepare to traverse rbsp-tree for ray
+        PBRT_CONSTEXPR uint32_t maxTodo = 64;
+        RBSPToDo todo[maxTodo];
+        uint32_t todoPos = 0;
+        const RBSPNode *node = &nodes[0];
+        while (node != nullptr) {
+            nbNodeTraversalsP++;
+            ray.stats.rBSPTreeNodeTraversalsP++;
+            if (node->IsLeaf()) {
+                //Warning("Checking Leaf");
+                // Check for shadow ray intersections inside leaf node
+                uint32_t nPrimitives = node->nPrimitives();
+                //Warning("Checking Leaf %d", nPrimitives);
+                if (nPrimitives == 1) {
+                    const std::shared_ptr<Primitive> &p =
+                            primitives[node->onePrimitive];
+                    //Warning("Checking Leaf %d = 1", nPrimitives);
+                    if (p->IntersectP(ray)) {
+                        //Warning("Checking Leaf %d = 1 hit", nPrimitives);
+                        return true;
+                    }
+                    //Warning("Checking Leaf %d = 1 mis", nPrimitives);
+                } else {
+                    for (uint32_t i = 0; i < nPrimitives; ++i) {
+                        uint32_t primitiveIndex =
+                                primitiveIndices[node->primitiveIndicesOffset + i];
+                        const std::shared_ptr<Primitive> &prim =
+                                primitives[primitiveIndex];
+                        if (prim->IntersectP(ray)) {
+                            return true;
+                        }
+                    }
+                }
+
+                // Grab next node to process from todo list
+                if (todoPos > 0) {
+                    //Warning("Checking Leaf %d mis, todos %d", nPrimitives, todoPos);
+                    --todoPos;
+                    node = todo[todoPos].node;
+                    tMin = todo[todoPos].tMin;
+                    tMax = todo[todoPos].tMax;
+                } else {
+                    //Warning("breaking Out of Leaf");
+                    break;
+                }
+                //Warning("Out of Leaf");
+            } else {
+                //Warning("Checking Interior");
+                // Process rbsp-tree interior node
+
+                // Compute parametric distance along ray to split plane
+                uint32_t axis = node->SplitAxis();
+                float projectedO = directions[axis].dot(ray.o);
+                float inverseProjectedD = 1 / directions[axis].dot(ray.d);
+                Float tPlane = (node->SplitPos() - projectedO) * inverseProjectedD;
+
+                // Get node children pointers for ray
+                const RBSPNode *firstChild, *secondChild;
+                bool belowFirst =
+                        (projectedO < node->SplitPos()) ||
+                        (projectedO == node->SplitPos() && inverseProjectedD <= 0);
+                if (belowFirst) {
+                    firstChild = node + 1;
+                    secondChild = &nodes[node->AboveChild()];
+                } else {
+                    firstChild = &nodes[node->AboveChild()];
+                    secondChild = node + 1;
+                }
+
+                // Advance to next child node, possibly enqueue other child
+                if (tPlane > tMax || tPlane <= 0)
+                    node = firstChild;
+                else if (tPlane < tMin)
+                    node = secondChild;
+                else {
+                    // Enqueue _secondChild_ in todo list
+                    todo[todoPos].node = secondChild;
+                    todo[todoPos].tMin = tPlane;
+                    todo[todoPos].tMax = tMax;
+                    ++todoPos;
+                    node = firstChild;
+                    tMax = tPlane;
+                }
+                //Warning("Out of Interior");
+            }
+        }
         return false;
     }
 
