@@ -173,6 +173,8 @@ void Film::WriteGeneralStats(){
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.triangleIntersectionsP; },"triangleIntersectionsP");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.kdTreeNodeTraversals; },"kdTreeNodeTraversals");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.kdTreeNodeTraversalsP; },"kdTreeNodeTraversalsP");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rBSPTreeNodeTraversals; },"rBSPTreeNodeTraversals");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rBSPTreeNodeTraversalsP; },"rBSPTreeNodeTraversalsP");
 }
 
 void Film::WriteGeneralStatMatrix(std::function<uint64_t (GeneralStats &g)> f, std::string name){
