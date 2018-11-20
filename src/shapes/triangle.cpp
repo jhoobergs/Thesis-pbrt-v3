@@ -191,7 +191,6 @@ namespace pbrt {
                              bool testAlphaTexture) const {
         ProfilePhase p(Prof::TriIntersect);
         ++nTests;
-        ray.stats.triangleIntersections++;
 
         // Get triangle vertices in _p0_, _p1_, and _p2_
         const Point3f &p0 = mesh->p[v[0]];
@@ -429,7 +428,6 @@ namespace pbrt {
     bool Triangle::IntersectP(const Ray &ray, bool testAlphaTexture) const {
         ProfilePhase p(Prof::TriIntersectP);
         ++nTestsP;
-        ray.stats.triangleIntersectionsP++;
         // Get triangle vertices in _p0_, _p1_, and _p2_
         const Point3f &p0 = mesh->p[v[0]];
         const Point3f &p1 = mesh->p[v[1]];
@@ -651,11 +649,11 @@ namespace pbrt {
     Boundsf Triangle::getBounds(pbrt::Vector3f direction) const {
         Point3f &p = mesh->p[v[0]];
 
-        Float t = direction.dot(p);
+        Float t = Dot(direction, p);
         Float min = t, max = t;
         for (int i = 1; i < 3; i++) {
             p = mesh->p[v[i]];
-            t = direction.dot(p);
+            t = Dot(direction, p);
             if (t > max)
                 max = t;
             else

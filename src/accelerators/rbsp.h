@@ -38,7 +38,7 @@ namespace pbrt {
             edges.emplace_back(edge);
         }
 
-        float SurfaceArea(const std::vector<Vector3f> &directions) {
+        /*float SurfaceArea(const std::vector<Vector3f> &directions) {
             std::vector<std::vector<KDOPEdge *>> faces;
             for (size_t i = 0; i < 2 * directions.size(); ++i) {
                 faces.emplace_back(std::vector<KDOPEdge *>());
@@ -76,6 +76,93 @@ namespace pbrt {
                 SA += std::abs(directions[i / 2].dot(FSA));
             }
             return SA / 2.0f;
+        }*/
+
+        float SurfaceArea(const std::vector<Vector3f> &directions) {
+            std::vector<std::vector<KDOPEdge>> faces;
+            for (size_t i = 0; i < 2 * directions.size(); ++i) {
+                faces.emplace_back(std::vector<KDOPEdge>());
+            }
+
+            for (auto &edge: edges) {
+                faces[edge.faceId1].emplace_back(edge);
+                faces[edge.faceId2].emplace_back(edge);
+            }
+
+            float SA = 0;
+            for (uint32_t d = 0; d < 2 * directions.size(); ++d) {
+                const Vector3f &N = directions[d / 2];
+                std::vector<KDOPEdge> &face = faces[d];
+                if (!face.empty()) {
+                    // std::unique_ptr<const Point3f*[]> vertices_p = std::unique_ptr<const Point3f*[]>(new const Point3f*[face.size() + 1]);
+                    // auto vertices = vertices_p.get();
+                    //Point3f** vertices = new Point3f*[face.size() + 1];
+                    Point3f *vertices[face.size() + 1];
+                    uint32_t vertexId = 0;
+                    KDOPEdge firstEdge = face[0];
+                    vertices[vertexId++] = firstEdge.v1;
+                    vertices[vertexId++] = firstEdge.v2;
+
+                    while (vertexId < face.size() + 1) {
+                        for (uint32_t j = 1; j < face.size(); ++j) {
+                            if (face[j].v2 == vertices[vertexId - 1]) {
+                                std::swap(face[j].v1, face[j].v2);
+                            }
+                            if (face[j].v1 == vertices[vertexId - 1] && face[j].v2 != vertices[vertexId - 2]) {
+                                vertices[vertexId++] = face[j].v2;
+                                break;
+                            }
+                        }
+                    }
+                    vertices[vertexId] = vertices[0];
+
+                    // THIS PART IS ADAPTED FROM area3D_Polygon at http://geomalgorithms.com/a01-_area.html
+                    float area = 0;
+                    float an, ax, ay, az; // abs value of normal and its coords
+                    int coord;           // coord to ignore: 1=x, 2=y, 3=z
+                    int i, j, k;         // loop indices
+
+                    if (vertexId > 3) {
+                        // select largest abs coordinate to ignore for projection
+                        ax = std::abs(N.x);    // abs x-coord
+                        ay = std::abs(N.y);    // abs y-coord
+                        az = std::abs(N.z);    // abs z-coord
+
+                        coord = 3;                    // ignore z-coord
+                        if (ax > ay) {
+                            if (ax > az) coord = 1;   // ignore x-coord
+                        } else if (ay > az) coord = 2;  // ignore y-coord
+
+                        an = (float) std::sqrt(ax * ax + ay * ay + az * az); // length of normal vector
+                        switch (coord) {
+                            case 1:
+                                // compute area of the 2D projection
+                                for (i = 1, j = 2, k = 0; i < vertexId; i++, j++, k++)
+                                    area += (vertices[i]->y * (vertices[j]->z - vertices[k]->z));
+                                // wrap-around term
+                                area += (vertices[vertexId]->y * (vertices[1]->z - vertices[vertexId - 1]->z));
+                                // scale to get area before projection
+                                area *= (an / (2 * N.x));
+                                break;
+                            case 2:
+                                for (i = 1, j = 2, k = 0; i < vertexId; i++, j++, k++)
+                                    area += (vertices[i]->z * (vertices[j]->x - vertices[k]->x));
+                                area += (vertices[vertexId]->z * (vertices[1]->x - vertices[vertexId - 1]->x));
+                                area *= (an / (2 * N.y));
+                                break;
+                            case 3:
+                                for (i = 1, j = 2, k = 0; i < vertexId; i++, j++, k++)
+                                    area += (vertices[i]->x * (vertices[j]->y - vertices[k]->y));
+                                area += (vertices[vertexId]->x * (vertices[1]->y - vertices[vertexId - 1]->y));
+                                area *= (an / (2 * N.z));
+                                break;
+                        }
+                    }
+                    SA += std::abs(area);
+                }
+
+            }
+            return SA;
         }
 
         void helper(std::vector<Point3f *> *points, Point3f *point) {
@@ -95,8 +182,8 @@ namespace pbrt {
             std::vector<KDOPEdge> coincidentEdges;
 
             for (auto &edge: edges) {
-                float t1 = direction.dot(*edge.v1);
-                float t2 = direction.dot(*edge.v2);
+                float t1 = Dot(direction, *edge.v1);
+                float t2 = Dot(direction, *edge.v2);
                 if (t1 > t2) {
                     std::swap(edge.v1, edge.v2);
                     std::swap(t1, t2);

@@ -45,6 +45,9 @@ namespace pbrt {
     STAT_RATIO("BVH/Primitives per leaf node", totalPrimitives, totalLeafNodes);
     STAT_COUNTER("BVH/Interior nodes", interiorNodes);
     STAT_COUNTER("BVH/Leaf nodes", leafNodes);
+    STAT_COUNTER("BVH node traversals during intersect", nbNodeTraversals);
+    STAT_COUNTER("BVH node traversals during intersectP", nbNodeTraversalsP);
+
 
     // BVHAccel Local Declarations
     struct BVHPrimitiveInfo {
@@ -335,6 +338,8 @@ namespace pbrt {
         int nodesToVisit[64];
         while (true) {
             const LinearBVHNode *node = &nodes[currentNodeIndex];
+            nbNodeTraversals++;
+            ray.stats.bvhTreeNodeTraversals++;
             // Check ray against BVH node
             if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
                 if (node->nPrimitives > 0) {
@@ -373,6 +378,8 @@ namespace pbrt {
         int toVisitOffset = 0, currentNodeIndex = 0;
         while (true) {
             const LinearBVHNode *node = &nodes[currentNodeIndex];
+            nbNodeTraversalsP++;
+            ray.stats.bvhTreeNodeTraversalsP++;
             if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
                 // Process BVH node _node_ for traversal
                 if (node->nPrimitives > 0) {

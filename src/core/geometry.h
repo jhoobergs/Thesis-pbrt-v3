@@ -300,11 +300,6 @@ namespace pbrt {
 
         explicit Vector3(const Normal3<T> &n);
 
-        template<typename U>
-        Float dot(U f) const {
-            return x * f.x + y * f.y + z * f.z;
-        };
-
         // Vector3 Public Data
         T x, y, z;
     };
@@ -780,7 +775,7 @@ namespace pbrt {
         // Bounds Public Methods
         Bounds() {
             min = std::numeric_limits<T>::max();
-            max = std::numeric_limits<T>::min();
+            max = std::numeric_limits<T>::lowest();
         }
 
         explicit Bounds(T min, T max) : min(min), max(max) {}
@@ -789,6 +784,8 @@ namespace pbrt {
         explicit operator Bounds<U>() const {
             return Bounds<U>((U) min, (U) max);
         }
+
+        T Diagonal() const { return max - min; }
 
         inline const T &operator[](int i) const {
             DCHECK(i == 0 || i == 1);
@@ -1050,42 +1047,50 @@ namespace pbrt {
     class GeneralStats {
     public:
         GeneralStats(uint64_t rays, uint64_t triangleIntersections, uint64_t triangleIntersectionsP,
-                     uint64_t kdTreeNodeTraversals, uint64_t kdTreeNodeTraversalsP, uint64_t rBSPTreeNodeTraversals, uint64_t rBSPTreeNodeTraversalsP) :
-                rays(rays), triangleIntersections(triangleIntersections),
-                triangleIntersectionsP(triangleIntersectionsP),
+                     uint64_t kdTreeNodeTraversals, uint64_t kdTreeNodeTraversalsP, uint64_t rBSPTreeNodeTraversals, uint64_t rBSPTreeNodeTraversalsP,
+                     uint64_t bvhTreeNodeTraversals, uint64_t bvhTreeNodeTraversalsP) :
+                rays(rays), primitiveIntersections(triangleIntersections),
+                primitiveIntersectionsP(triangleIntersectionsP),
                 kdTreeNodeTraversals(kdTreeNodeTraversals), kdTreeNodeTraversalsP(kdTreeNodeTraversalsP),
-                rBSPTreeNodeTraversals(rBSPTreeNodeTraversals), rBSPTreeNodeTraversalsP(rBSPTreeNodeTraversalsP) {}
+                rBSPTreeNodeTraversals(rBSPTreeNodeTraversals), rBSPTreeNodeTraversalsP(rBSPTreeNodeTraversalsP),
+                bvhTreeNodeTraversals(bvhTreeNodeTraversals), bvhTreeNodeTraversalsP(bvhTreeNodeTraversalsP){}
 
-        GeneralStats() : GeneralStats(0, 0, 0, 0, 0, 0, 0) {}
+        GeneralStats() : GeneralStats(0, 0, 0, 0, 0, 0, 0, 0, 0) {}
 
         friend GeneralStats operator+(const GeneralStats &a, const GeneralStats &b) {
             return GeneralStats(a.rays + b.rays,
-                                a.triangleIntersections + b.triangleIntersections,
-                                a.triangleIntersectionsP + b.triangleIntersectionsP,
+                                a.primitiveIntersections + b.primitiveIntersections,
+                                a.primitiveIntersectionsP + b.primitiveIntersectionsP,
                                 a.kdTreeNodeTraversals + b.kdTreeNodeTraversals,
                                 a.kdTreeNodeTraversalsP + b.kdTreeNodeTraversalsP,
                                 a.rBSPTreeNodeTraversals + b.rBSPTreeNodeTraversals,
-                                a.rBSPTreeNodeTraversalsP + b.rBSPTreeNodeTraversalsP);
+                                a.rBSPTreeNodeTraversalsP + b.rBSPTreeNodeTraversalsP,
+                                a.bvhTreeNodeTraversals + b.bvhTreeNodeTraversals,
+                                a.bvhTreeNodeTraversalsP + b.bvhTreeNodeTraversalsP);
         }
 
         GeneralStats &operator+=(const GeneralStats &rhs) {
             this->rays += rhs.rays;
-            this->triangleIntersections += rhs.triangleIntersections;
-            this->triangleIntersectionsP += rhs.triangleIntersectionsP;
+            this->primitiveIntersections += rhs.primitiveIntersections;
+            this->primitiveIntersectionsP += rhs.primitiveIntersectionsP;
             this->kdTreeNodeTraversals += rhs.kdTreeNodeTraversals;
             this->kdTreeNodeTraversalsP += rhs.kdTreeNodeTraversalsP;
             this->rBSPTreeNodeTraversals += rhs.rBSPTreeNodeTraversals;
             this->rBSPTreeNodeTraversalsP += rhs.rBSPTreeNodeTraversalsP;
+            this->bvhTreeNodeTraversals += rhs.bvhTreeNodeTraversals;
+            this->bvhTreeNodeTraversalsP += rhs.bvhTreeNodeTraversalsP;
             return *this;
         }
 
         uint64_t rays;
-        uint64_t triangleIntersections;
-        uint64_t triangleIntersectionsP;
+        uint64_t primitiveIntersections;
+        uint64_t primitiveIntersectionsP;
         uint64_t kdTreeNodeTraversals;
         uint64_t kdTreeNodeTraversalsP;
         uint64_t rBSPTreeNodeTraversals;
         uint64_t rBSPTreeNodeTraversalsP;
+        uint64_t bvhTreeNodeTraversals;
+        uint64_t bvhTreeNodeTraversalsP;
     };
 
 // Ray Declarations
@@ -1178,6 +1183,12 @@ namespace pbrt {
 
     template<typename T>
     inline T Dot(const Vector3<T> &v1, const Vector3<T> &v2) {
+        DCHECK(!v1.HasNaNs() && !v2.HasNaNs());
+        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+    }
+
+    template<typename T>
+    inline T Dot(const Vector3<T> &v1, const Point3<T> &v2) {
         DCHECK(!v1.HasNaNs() && !v2.HasNaNs());
         return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
     }

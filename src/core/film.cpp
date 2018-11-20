@@ -170,12 +170,14 @@ void Film::AddSplat(const Point2f &p, Spectrum v) {
 
 void Film::WriteGeneralStats(){
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rays; },"rays");
-    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.triangleIntersections; },"triangleIntersections");
-    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.triangleIntersectionsP; },"triangleIntersectionsP");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.primitiveIntersections; },"primitiveIntersections");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.primitiveIntersectionsP; },"primitiveIntersectionsP");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.kdTreeNodeTraversals; },"kdTreeNodeTraversals");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.kdTreeNodeTraversalsP; },"kdTreeNodeTraversalsP");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rBSPTreeNodeTraversals; },"rBSPTreeNodeTraversals");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rBSPTreeNodeTraversalsP; },"rBSPTreeNodeTraversalsP");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversals; },"bvhTreeNodeTraversals");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversalsP; },"bvhTreeNodeTraversalsP");
 }
 
 void Film::WriteGeneralStatMatrix(std::function<uint64_t (GeneralStats &g)> f, std::string name){

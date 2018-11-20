@@ -477,7 +477,7 @@ namespace pbrt {
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps) {
         uint32_t isectCost = (uint32_t) ps.FindOneInt("intersectcost", 80);
         uint32_t travCost = (uint32_t) ps.FindOneInt("traversalcost", 1);
-        Float emptyBonus = ps.FindOneFloat("emptybonus", 0.5f);
+        Float emptyBonus = ps.FindOneFloat("emptybonus", 0);
         uint32_t maxPrims = (uint32_t) ps.FindOneInt("maxprims", 1);
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
 
