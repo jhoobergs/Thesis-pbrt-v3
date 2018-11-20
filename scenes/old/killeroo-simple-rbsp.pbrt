@@ -11,7 +11,7 @@ Film "image"
 #	"float cropwindow" [ .34 .49  .67 .8 ]
 
 Sampler "halton" "integer pixelsamples" [8]
-Accelerator "kdtree" 
+Accelerator "rbsp" 
 
 Integrator "path" "integer maxdepth" [5]
 
@@ -26,26 +26,26 @@ Shape "sphere" "float radius" [3]
 AttributeEnd
 
 
-AttributeBegin
-  Material "matte" "color Kd" [.5 .5 .8]
-  Translate 0 0 -140
-Shape "trianglemesh" "point P" [ -1000 -1000 0 1000 -1000 0 1000 1000 0 -1000 1000 0 ]
-      "float uv" [ 0 0 5 0 5 5 0 5 ]
-	"integer indices" [ 0 1 2 2 3 0]
-Shape "trianglemesh" "point P" [ -400 -1000 -1000   -400 1000 -1000   -400 1000 1000 -400 -1000 1000 ]
-      "float uv" [ 0 0 5 0 5 5 0 5 ]
-        "integer indices" [ 0 1 2 2 3 0]
-AttributeEnd
+#AttributeBegin
+#  Material "matte" "color Kd" [.5 .5 .8]
+#  Translate 0 0 -140
+#Shape "trianglemesh" "point P" [ -1000 -1000 0 1000 -1000 0 1000 1000 0 -1000 1000 0 ]
+#      "float uv" [ 0 0 5 0 5 5 0 5 ]
+#	"integer indices" [ 0 1 2 2 3 0]
+#Shape "trianglemesh" "point P" [ -400 -1000 -1000   -400 1000 -1000   -400 1000 1000 -400 -1000 1000 ]
+#      "float uv" [ 0 0 5 0 5 5 0 5 ]
+#        "integer indices" [ 0 1 2 2 3 0]
+#AttributeEnd
 
 AttributeBegin
 Scale .5 .5 .5
 Rotate -60 0 0 1
     Material "plastic" "color Kd" [.4 .2 .2] "color Ks" [.5 .5 .5]
         "float roughness" [.025]
-Translate 100 200 -140
-    Include "geometry/killeroo.pbrt"
-    Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
-        "float roughness" [.15] 
+#Translate 100 200 -140
+#    Include "geometry/killeroo.pbrt"
+#    Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
+#        "float roughness" [.15] 
 Translate -200 0 0
     Include "geometry/killeroo.pbrt"
 

@@ -1,0 +1,32 @@
+
+LookAt -5 0 0  # eye
+       0 0 0  # look at point
+       0 0 1    # up vector
+Camera "perspective" "float fov" [45]
+Film "image"  
+"integer xresolution" [700] "integer yresolution" [700]
+    "string filename" "simple.exr"
+
+Sampler "halton" "integer pixelsamples" [8]
+Accelerator "kdtree" 
+Integrator "path" "integer maxdepth" [5]
+
+WorldBegin
+
+ObjectBegin "spheres"
+  Shape "sphere" "float radius" [1]
+  Translate 10 0 2
+  Shape "sphere" "float radius" [1]
+ObjectEnd
+
+LightSource "distant" "point from" [-1 0 0] "point to" [0 0 0]
+
+
+AttributeBegin
+  Material "matte" "color Kd" [.5 .5 .8]
+  Translate 0 0 -2
+  ObjectInstance "spheres"
+AttributeEnd
+
+
+WorldEnd
