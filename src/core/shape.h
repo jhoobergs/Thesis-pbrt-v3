@@ -94,7 +94,7 @@ namespace pbrt {
         Boundsf getBounds(Vector3f direction) const {
             Boundsf bounds = Boundsf();
             for(int i = 0; i < 8; i++) {
-                float projection = direction.dot(WorldBound().Corner(i));
+                float projection = Dot(direction, WorldBound().Corner(i));
                 if(projection < bounds.min)
                     bounds.min = projection;
                 else if(projection > bounds.max)

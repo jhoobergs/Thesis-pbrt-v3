@@ -41,7 +41,7 @@ TEST(kDOP, Area) {
     kDOPMesh.addEdge(KDOPEdge(&v6, &v8, 0, 4));
     kDOPMesh.addEdge(KDOPEdge(&v7, &v8, 0, 2));
 
-    EXPECT_FLOAT_EQ(kDOPMesh.SurfaceArea(directions), 2 * 8.5 * (1 + 22) + 2 * 1 * 22);
+    EXPECT_FLOAT_EQ(2 * 8.5 * (1 + 22) + 2 * 1 * 22, kDOPMesh.SurfaceArea(directions));
 }
 
 TEST(kDOP, AreaFloat) {
@@ -119,6 +119,13 @@ TEST(kDOP, Cut) {
 
     EXPECT_FLOAT_EQ(2 * 5 * (1 + 22) + 2 * 1 * 22, result.first.SurfaceArea(directions));
     EXPECT_FLOAT_EQ(2 * 3.5 * (1 + 22) + 2 * 1 * 22, result.second.SurfaceArea(directions));
+
+    std::pair<KDOPMesh, KDOPMesh> result2 = result.first.cut(directions.size(), 2.5,
+                                                             directions[1], 1);
+    EXPECT_EQ(12, result2.first.edges.size());
+    EXPECT_EQ(12, result2.second.edges.size());
+    EXPECT_FLOAT_EQ(2 * 5 * (0.5 + 22) + 2 * 0.5 * 22, result2.first.SurfaceArea(directions));
+    EXPECT_FLOAT_EQ(2 * 5 * (0.5 + 22) + 2 * 0.5 * 22, result2.second.SurfaceArea(directions));
 }
 
 TEST(kDOP, CutDiag) {
@@ -126,7 +133,8 @@ TEST(kDOP, CutDiag) {
     directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
     directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
     directions.emplace_back(Vector3f(0.0, 0.0, 1.0));
-    directions.emplace_back(Vector3f(22 / (float) std::sqrt(22 * 22 + 8.5 * 8.5), 0.0, -8.5 / (float) std::sqrt(22 * 22 + 8.5 * 8.5)));
+    directions.emplace_back(
+            Vector3f(22 / (float) std::sqrt(22 * 22 + 8.5 * 8.5), 0.0, -8.5 / (float) std::sqrt(22 * 22 + 8.5 * 8.5)));
 
     Bounds3f bounds = Bounds3f(Point3f(-5, 2, 0), Point3f(3.5, 3, 22));
 
@@ -153,94 +161,77 @@ TEST(kDOP, CutDiag) {
     kDOPMesh.addEdge(KDOPEdge(&v6, &v8, 0, 4));
     kDOPMesh.addEdge(KDOPEdge(&v7, &v8, 0, 2));
 
-    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), -110 / (float) std::sqrt(22 * 22 + 8.5 * 8.5),
+    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(),
+                                                        -110 / (float) std::sqrt(22 * 22 + 8.5 * 8.5),
                                                         directions[3], 3);
     const float eps = 0.001;
     for (auto &edge: result.first.edges) {
         Warning("%d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y, edge.v1->z,
                 edge.v2->x, edge.v2->y, edge.v2->z);
-        if((edge.faceId1 == 1 && edge.faceId2 == 4) || (edge.faceId2 == 1 && edge.faceId1 == 4)){
-            if(edge.v1->operator-(v2).Length() < eps){
+        if ((edge.faceId1 == 1 && edge.faceId2 == 4) || (edge.faceId2 == 1 && edge.faceId1 == 4)) {
+            if (edge.v1->operator-(v2).Length() < eps) {
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v5).Length());
-            }
-            else{
+            } else {
                 EXPECT_FLOAT_EQ(0, edge.v1->operator-(v5).Length());
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v2).Length());
             }
-        }
-        else if((edge.faceId1 == 1 && edge.faceId2 == 6) || (edge.faceId2 == 1 && edge.faceId1 == 6)){
-            if(edge.v1->operator-(v1).Length() < eps){
+        } else if ((edge.faceId1 == 1 && edge.faceId2 == 6) || (edge.faceId2 == 1 && edge.faceId1 == 6)) {
+            if (edge.v1->operator-(v1).Length() < eps) {
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v3).Length());
-            }
-            else{
+            } else {
                 EXPECT_FLOAT_EQ(0, edge.v1->operator-(v3).Length());
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v1).Length());
             }
-        }
-        else if((edge.faceId1 == 4 && edge.faceId2 == 6) || (edge.faceId2 == 4 && edge.faceId1 == 6)){
-            if(edge.v1->operator-(v6).Length() < eps){
+        } else if ((edge.faceId1 == 4 && edge.faceId2 == 6) || (edge.faceId2 == 4 && edge.faceId1 == 6)) {
+            if (edge.v1->operator-(v6).Length() < eps) {
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v8).Length());
-            }
-            else{
+            } else {
                 EXPECT_FLOAT_EQ(0, edge.v1->operator-(v8).Length());
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v6).Length());
             }
-        }
-        else if((edge.faceId1 == 1 && edge.faceId2 == 3) || (edge.faceId2 == 1 && edge.faceId1 == 3)){
-            if(edge.v1->operator-(v1).Length() < eps){
+        } else if ((edge.faceId1 == 1 && edge.faceId2 == 3) || (edge.faceId2 == 1 && edge.faceId1 == 3)) {
+            if (edge.v1->operator-(v1).Length() < eps) {
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v2).Length());
-            }
-            else{
+            } else {
                 EXPECT_FLOAT_EQ(0, edge.v1->operator-(v2).Length());
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v1).Length());
             }
-        }
-        else if((edge.faceId1 == 1 && edge.faceId2 == 2) || (edge.faceId2 == 1 && edge.faceId1 == 2)){
-            if(edge.v1->operator-(v3).Length() < eps){
+        } else if ((edge.faceId1 == 1 && edge.faceId2 == 2) || (edge.faceId2 == 1 && edge.faceId1 == 2)) {
+            if (edge.v1->operator-(v3).Length() < eps) {
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v5).Length());
-            }
-            else{
+            } else {
                 EXPECT_FLOAT_EQ(0, edge.v1->operator-(v5).Length());
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v3).Length());
             }
-        }
-        else if((edge.faceId1 == 2 && edge.faceId2 == 4) || (edge.faceId2 == 2 && edge.faceId1 == 4)){
-            if(edge.v1->operator-(v5).Length() < eps){
+        } else if ((edge.faceId1 == 2 && edge.faceId2 == 4) || (edge.faceId2 == 2 && edge.faceId1 == 4)) {
+            if (edge.v1->operator-(v5).Length() < eps) {
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v8).Length());
-            }
-            else{
+            } else {
                 EXPECT_FLOAT_EQ(0, edge.v1->operator-(v8).Length());
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v5).Length());
             }
-        }
-        else if((edge.faceId1 == 3 && edge.faceId2 == 4) || (edge.faceId2 == 3 && edge.faceId1 == 4)){
-            if(edge.v1->operator-(v2).Length() < eps){
+        } else if ((edge.faceId1 == 3 && edge.faceId2 == 4) || (edge.faceId2 == 3 && edge.faceId1 == 4)) {
+            if (edge.v1->operator-(v2).Length() < eps) {
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v6).Length());
-            }
-            else{
+            } else {
                 EXPECT_FLOAT_EQ(0, edge.v1->operator-(v6).Length());
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v2).Length());
             }
-        }
-        else if((edge.faceId1 == 2 && edge.faceId2 == 6) || (edge.faceId2 == 2 && edge.faceId1 == 6)){
-            if(edge.v1->operator-(v3).Length() < eps){
+        } else if ((edge.faceId1 == 2 && edge.faceId2 == 6) || (edge.faceId2 == 2 && edge.faceId1 == 6)) {
+            if (edge.v1->operator-(v3).Length() < eps) {
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v8).Length());
-            }
-            else{
+            } else {
                 EXPECT_FLOAT_EQ(0, edge.v1->operator-(v8).Length());
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v3).Length());
             }
-        }
-        else if((edge.faceId1 == 3 && edge.faceId2 == 6) || (edge.faceId2 == 3 && edge.faceId1 == 6)){
-            if(edge.v1->operator-(v1).Length() < eps){
+        } else if ((edge.faceId1 == 3 && edge.faceId2 == 6) || (edge.faceId2 == 3 && edge.faceId1 == 6)) {
+            if (edge.v1->operator-(v1).Length() < eps) {
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v6).Length());
-            }
-            else{
+            } else {
                 EXPECT_FLOAT_EQ(0, edge.v1->operator-(v6).Length());
                 EXPECT_FLOAT_EQ(0, edge.v2->operator-(v1).Length());
             }
-        }
-        else{
+        } else {
             Warning("WRONG combo: %d and %d", edge.faceId1, edge.faceId2);
             EXPECT_FALSE(true);
         }
@@ -251,8 +242,10 @@ TEST(kDOP, CutDiag) {
     EXPECT_EQ(9, result.second.edges.size());
 
 
-    EXPECT_FLOAT_EQ(8.5 * 22 + 22 * 1 + 8.5 * 1 + 1 * (float) std::sqrt(22 * 22 + 8.5 * 8.5), result.first.SurfaceArea(directions));
-    EXPECT_FLOAT_EQ(8.5 * 22 + 22 * 1 + 8.5 * 1 + 1 * (float) std::sqrt(22 * 22 + 8.5 * 8.5), result.second.SurfaceArea(directions));
+    EXPECT_FLOAT_EQ(8.5 * 22 + 22 * 1 + 8.5 * 1 + 1 * (float) std::sqrt(22 * 22 + 8.5 * 8.5),
+                    result.first.SurfaceArea(directions));
+    EXPECT_FLOAT_EQ(8.5 * 22 + 22 * 1 + 8.5 * 1 + 1 * (float) std::sqrt(22 * 22 + 8.5 * 8.5),
+                    result.second.SurfaceArea(directions));
 }
 
 
@@ -261,7 +254,8 @@ TEST(kDOP, CutArb) {
     directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
     directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
     directions.emplace_back(Vector3f(0.0, 0.0, 1.0));
-    directions.emplace_back(Vector3f(1 / (float) std::sqrt(2), 1 / (float) std::sqrt(2),0));
+    directions.emplace_back(Vector3f(1 / (float) std::sqrt(2), 1 / (float) std::sqrt(2), 0));
+    directions.emplace_back(Vector3f(0, 1 / (float) std::sqrt(2), 1 / (float) std::sqrt(2)));
 
     Bounds3f bounds = Bounds3f(Point3f(-5, 2, 0), Point3f(3.5, 3, 22));
 
@@ -291,17 +285,29 @@ TEST(kDOP, CutArb) {
     std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 2.8 * (float) std::sqrt(2),
                                                         directions[3], 3);
     for (auto &edge: result.first.edges) {
-        Warning("FIRST: %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y, edge.v1->z,
+        Warning("FIRST: %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y,
+                edge.v1->z,
                 edge.v2->x, edge.v2->y, edge.v2->z);
     }
 
     for (auto &edge: result.second.edges) {
-        Warning("SECOND: %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y, edge.v1->z,
+        Warning("SECOND: %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y,
+                edge.v1->z,
                 edge.v2->x, edge.v2->y, edge.v2->z);
     }
     EXPECT_EQ(15, result.first.edges.size());
     EXPECT_EQ(9, result.second.edges.size());
 
-    EXPECT_FLOAT_EQ(2*7.6 * (22+1) + 22 + 0.9 * (22 + 2*0.1) + 0.1*22 + 0.9*0.9 + 0.9*std::sqrt(2)*22, result.first.SurfaceArea(directions));
-    EXPECT_FLOAT_EQ(2* 0.9*22 + 0.9*0.9 + 0.9*std::sqrt(2)*22, result.second.SurfaceArea(directions));
+    EXPECT_FLOAT_EQ(2 * 7.6 * (22 + 1) + 22 + 0.9 * (22 + 2 * 0.1) + 0.1 * 22 + 0.9 * 0.9 + 0.9 * std::sqrt(2) * 22,
+                    result.first.SurfaceArea(directions));
+    EXPECT_FLOAT_EQ(2 * 0.9 * 22 + 0.9 * 0.9 + 0.9 * std::sqrt(2) * 22, result.second.SurfaceArea(directions));
+
+    std::pair<KDOPMesh, KDOPMesh> result2 = result.first.cut(directions.size(), 2.8 * (float) std::sqrt(2),
+                                                             directions[4], 4);
+    EXPECT_EQ(15, result2.first.edges.size());
+    EXPECT_EQ(15, result2.second.edges.size());
+    Warning("FIRSTAREA: %f, SECONDAREA: %f, SUM: %f, ALMOST SUM %f", result2.first.SurfaceArea(directions),
+            result2.second.SurfaceArea(directions),
+            result2.first.SurfaceArea(directions) + result2.second.SurfaceArea(directions),
+            2 * 8.41 / std::sqrt(2) + result.first.SurfaceArea(directions));
 }

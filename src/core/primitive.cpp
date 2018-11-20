@@ -80,7 +80,9 @@ namespace pbrt {
         Transform InterpolatedPrimToWorld;
         PrimitiveToWorld.Interpolate(r.time, &InterpolatedPrimToWorld);
         Ray ray = Inverse(InterpolatedPrimToWorld)(r);
-        if (!primitive->Intersect(ray, isect)) return false;
+        bool intersects = primitive->Intersect(ray, isect);
+        r.stats += ray.stats;
+        if (!intersects) return false;
         r.tMax = ray.tMax;
         // Transform instance's intersection data to world space
         if (!InterpolatedPrimToWorld.IsIdentity())
@@ -93,7 +95,10 @@ namespace pbrt {
         Transform InterpolatedPrimToWorld;
         PrimitiveToWorld.Interpolate(r.time, &InterpolatedPrimToWorld);
         Transform InterpolatedWorldToPrim = Inverse(InterpolatedPrimToWorld);
-        return primitive->IntersectP(InterpolatedWorldToPrim(r));
+        Ray ray = InterpolatedWorldToPrim(r);
+        bool intersects =  primitive->IntersectP(ray);
+        r.stats += ray.stats;
+        return intersects;
     }
 
 // GeometricPrimitive Method Definitions
@@ -111,11 +116,13 @@ namespace pbrt {
     Bounds3f GeometricPrimitive::WorldBound() const { return shape->WorldBound(); }
 
     bool GeometricPrimitive::IntersectP(const Ray &r) const {
+        r.stats.primitiveIntersectionsP++;
         return shape->IntersectP(r);
     }
 
     bool GeometricPrimitive::Intersect(const Ray &r,
                                        SurfaceInteraction *isect) const {
+        r.stats.primitiveIntersections++;
         Float tHit;
         if (!shape->Intersect(r, &tHit, isect)) return false;
         r.tMax = tHit;

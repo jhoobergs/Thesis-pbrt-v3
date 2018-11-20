@@ -63,8 +63,9 @@ Spectrum GridDensityMedium::Sample(const Ray &rWorld, Sampler &sampler,
                                    MemoryArena &arena,
                                    MediumInteraction *mi) const {
     ProfilePhase _(Prof::MediumSample);
+    Warning("MEDIUM, sample");
     Ray ray = WorldToMedium(
-        Ray(rWorld.o, Normalize(rWorld.d), rWorld.tMax * rWorld.d.Length()));
+        Ray(rWorld.o, Normalize(rWorld.d), rWorld.tMax * rWorld.d.Length())); // Todo: maybe map ray stats
     // Compute $[\tmin, \tmax]$ interval of _ray_'s overlap with medium bounds
     const Bounds3f b(Point3f(0, 0, 0), Point3f(1, 1, 1));
     Float tMin, tMax;
@@ -89,7 +90,7 @@ Spectrum GridDensityMedium::Sample(const Ray &rWorld, Sampler &sampler,
 Spectrum GridDensityMedium::Tr(const Ray &rWorld, Sampler &sampler) const {
     ProfilePhase _(Prof::MediumTr);
     ++nTrCalls;
-
+    Warning("grid, GridDensityMedium::tr");
     Ray ray = WorldToMedium(
         Ray(rWorld.o, Normalize(rWorld.d), rWorld.tMax * rWorld.d.Length()));
     // Compute $[\tmin, \tmax]$ interval of _ray_'s overlap with medium bounds
