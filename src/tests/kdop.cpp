@@ -311,3 +311,148 @@ TEST(kDOP, CutArb) {
             result2.first.SurfaceArea(directions) + result2.second.SurfaceArea(directions),
             2 * 8.41 / std::sqrt(2) + result.first.SurfaceArea(directions));
 }
+
+TEST(kDOP, CutFailing) {
+    std::vector<Vector3f> directions;
+    directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
+    directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
+    directions.emplace_back(Vector3f(0.0, 0.0, 1.0));
+
+    directions.emplace_back(Normalize(Vector3f(1.0, 1.0, 1.0)));
+    directions.emplace_back(Normalize(Vector3f(1.0, -1.0f, 1.0)));
+    directions.emplace_back(Normalize(Vector3f(1.0, 1.0, -1.0f)));
+    directions.emplace_back(Normalize(Vector3f(1.0, -1.0f, -1.0f)));
+
+    directions.emplace_back(Normalize(Vector3f(1.0, 1.0, 0.0)));
+    directions.emplace_back(Normalize(Vector3f(1.0, 0.0, 1.0)));
+    directions.emplace_back(Normalize(Vector3f(0.0, 1.0, 1.0)));
+    directions.emplace_back(Normalize(Vector3f(1.0, -1.0f, 0.0)));
+    directions.emplace_back(Normalize(Vector3f(1.0, 0.0f, -1.0f)));
+    directions.emplace_back(Normalize(Vector3f(0.0, 1.0, -1.0f)));
+
+    KDOPMesh kDOPMesh;
+    Point3f v1 = Point3f(-1.25f, -1.25f, 1.25f); // c44
+    Point3f v2 = Point3f(-1.25f, -1.25f, -1.25f); // c38
+    Point3f v3 = Point3f(-1.25f, 1.25f, -1.25f); // c50
+    Point3f v4 = Point3f(-0.75f, -1.25f, -1.25f); // 1a0
+    Point3f v5 = Point3f(-1.25f, 1.25f, 1.25f); // c68
+    Point3f v6 = Point3f(-0.75f, -1.25f, 1.25f); // 200
+    Point3f v7 = Point3f(-0.75f, 1.25f, -1.25f); // 140
+    Point3f v8 = Point3f(-0.75f, 1.25f, 1.25f); // 1e0
+
+    kDOPMesh.addEdge(KDOPEdge(&v1, &v2, 1, 3));
+    kDOPMesh.addEdge(KDOPEdge(&v2, &v3, 1, 5));
+    kDOPMesh.addEdge(KDOPEdge(&v2, &v4, 3, 5));
+    kDOPMesh.addEdge(KDOPEdge(&v1, &v5, 1, 4));
+
+    kDOPMesh.addEdge(KDOPEdge(&v1, &v6, 3, 4));
+    kDOPMesh.addEdge(KDOPEdge(&v5, &v3, 1, 2));
+    kDOPMesh.addEdge(KDOPEdge(&v3, &v7, 2, 5));
+    kDOPMesh.addEdge(KDOPEdge(&v5, &v8, 2, 4));
+    kDOPMesh.addEdge(KDOPEdge(&v8, &v7, 2, 0));
+
+    kDOPMesh.addEdge(KDOPEdge(&v6, &v4, 3, 0));
+    kDOPMesh.addEdge(KDOPEdge(&v4, &v7, 5, 0));
+    kDOPMesh.addEdge(KDOPEdge(&v6, &v8, 4, 0));
+
+    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 0.353553414, directions[7], 7);
+
+    for (auto &edge: result.first.edges) {
+        Warning("First %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y,
+                edge.v1->z,
+                edge.v2->x, edge.v2->y, edge.v2->z);
+    }
+
+    for (auto &edge: result.second.edges) {
+        Warning("Second %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y,
+                edge.v1->z,
+                edge.v2->x, edge.v2->y, edge.v2->z);
+    }
+
+    EXPECT_GT(result.first.SurfaceArea(directions) + result.first.SurfaceArea(directions),
+              kDOPMesh.SurfaceArea(directions));
+
+    EXPECT_EQ(12, result.first.edges.size());
+    //EXPECT_EQ(0, result.second.edges.size());
+
+    result = kDOPMesh.cut(directions.size(), Dot(Vector3f(v1.x, v1.y, v1.z), directions[7]), directions[7], 7);
+
+    for (auto &edge: result.first.edges) {
+        Warning("First %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y,
+                edge.v1->z,
+                edge.v2->x, edge.v2->y, edge.v2->z);
+    }
+
+    for (auto &edge: result.second.edges) {
+        Warning("Second %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y,
+                edge.v1->z,
+                edge.v2->x, edge.v2->y, edge.v2->z);
+    }
+
+    //EXPECT_EQ(0, result.first.edges.size());
+    EXPECT_EQ(12, result.second.edges.size());
+
+    result = kDOPMesh.cut(directions.size(), 0, directions[7], 7);
+
+    for (auto &edge: result.first.edges) {
+        Warning("First %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y,
+                edge.v1->z,
+                edge.v2->x, edge.v2->y, edge.v2->z);
+    }
+
+    for (auto &edge: result.second.edges) {
+        Warning("Second %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1->x, edge.v1->y,
+                edge.v1->z,
+                edge.v2->x, edge.v2->y, edge.v2->z);
+    }
+
+    EXPECT_EQ(12, result.first.edges.size());
+    EXPECT_EQ(9, result.second.edges.size());
+}
+
+TEST(kDOP, AreaAfterInPlaneCut) {
+    std::vector<Vector3f> directions;
+    directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
+    directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
+    directions.emplace_back(Vector3f(0.0, 0.0, 1.0));
+
+    directions.emplace_back(Normalize(Vector3f(1.0, 1.0, 1.0)));
+    directions.emplace_back(Normalize(Vector3f(1.0, -1.0f, 1.0)));
+    directions.emplace_back(Normalize(Vector3f(1.0, 1.0, -1.0f)));
+    directions.emplace_back(Normalize(Vector3f(1.0, -1.0f, -1.0f)));
+
+    KDOPMesh kDOPMesh;
+
+    Point3f v1567832576 = Point3f(77.719696, 115.252464, -81.497276);
+    Point3f v1567831840 = Point3f(77.719696, 115.379906, -81.497276);
+    Point3f v1567832640 = Point3f(77.719696, 115.252464, -81.820984);
+    Point3f v1567831488 = Point3f(77.719696, 115.703598, -81.820984);
+    Point3f v1567832448 = Point3f(77.896996, 115.252464, -81.820984);
+    Point3f v1567831552 = Point3f(77.896996, 115.526299, -81.820984);
+    Point3f v1567831328 = Point3f(77.896996, 115.252464, -81.547150);
+    Point3f v1567831264 = Point3f(77.847130, 115.252464, -81.497276);
+    Point3f v1567831232 = Point3f(77.719696, 115.703598, -81.820976);
+    Point3f v1567831200 = Point3f(77.719704, 115.703598, -81.820984);
+
+    kDOPMesh.addEdge(KDOPEdge(&v1567832640, &v1567831488, 1, 5));
+    kDOPMesh.addEdge(KDOPEdge(&v1567832576, &v1567831840, 4, 1));
+    kDOPMesh.addEdge(KDOPEdge(&v1567832448, &v1567831552, 5, 0));
+    kDOPMesh.addEdge(KDOPEdge(&v1567832448, &v1567831328, 0, 3));
+    kDOPMesh.addEdge(KDOPEdge(&v1567832640, &v1567832576, 1, 3));
+    kDOPMesh.addEdge(KDOPEdge(&v1567832576, &v1567831264, 4, 3));
+    kDOPMesh.addEdge(KDOPEdge(&v1567832640, &v1567832448, 5, 3));
+    kDOPMesh.addEdge(KDOPEdge(&v1567831552, &v1567831328, 0, 6));
+    kDOPMesh.addEdge(KDOPEdge(&v1567831840, &v1567831232, 1, 6));
+    kDOPMesh.addEdge(KDOPEdge(&v1567831328, &v1567831264, 3, 6));
+    kDOPMesh.addEdge(KDOPEdge(&v1567831264, &v1567831840, 4, 6));
+    kDOPMesh.addEdge(KDOPEdge(&v1567831552, &v1567831200, 5, 6));
+    kDOPMesh.addEdge(KDOPEdge(&v1567831232, &v1567831488, 1, 2));
+    kDOPMesh.addEdge(KDOPEdge(&v1567831488, &v1567831200, 5, 2));
+    kDOPMesh.addEdge(KDOPEdge(&v1567831232, &v1567831200, 6, 2));
+
+    Warning("SA old %f", kDOPMesh.SurfaceArea(directions));
+
+    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 64.433624f, directions[3], 3);
+    Warning("SA first %f", result.first.SurfaceArea(directions));
+    Warning("SA second %f", result.second.SurfaceArea(directions));
+}

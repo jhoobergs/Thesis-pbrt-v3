@@ -9,3 +9,5 @@ cmake-build-debug
 *.obj
 .idea
 results
+
+build-double/
