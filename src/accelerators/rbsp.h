@@ -14,7 +14,17 @@ namespace pbrt {
 
     struct KDOPEdge {
         KDOPEdge(Point3f *v1, Point3f *v2, uint32_t faceId1, uint32_t faceId2) :
-                v1(v1), v2(v2), faceId1(faceId1), faceId2(faceId2) {}
+                v1(v1), v2(v2), faceId1(faceId1), faceId2(faceId2) {};
+
+        Boundsf getBounds(Vector3f &direction) const{
+            Boundsf bounds = Boundsf();
+            Float t1 = Dot(direction, *v1);
+            Float t2 = Dot(direction, *v2);
+            bounds.max = std::max(t1, t2);
+            bounds.min = std::min(t1, t2);
+
+            return bounds;
+        }
 
         Point3f *v1;
         Point3f *v2;
@@ -38,7 +48,7 @@ namespace pbrt {
             edges.emplace_back(edge);
         }
 
-        /*float SurfaceArea(const std::vector<Vector3f> &directions) {
+        Float SurfaceArea(const std::vector<Vector3f> &directions) {
             std::vector<std::vector<KDOPEdge *>> faces;
             for (size_t i = 0; i < 2 * directions.size(); ++i) {
                 faces.emplace_back(std::vector<KDOPEdge *>());
@@ -49,13 +59,28 @@ namespace pbrt {
                 faces[edge.faceId2].emplace_back(&edge);
             }
 
-            float SA = 0;
+            Float SA = 0;
             for (uint32_t i = 0; i < 2 * directions.size(); ++i) {
                 Vector3f FSA = Vector3f();
                 std::vector<KDOPEdge *> &face = faces[i];
                 if (!face.empty()) {
+                    std::vector<bool> used;
+                    used.reserve(face.size());
+                    for(auto &edge: face)
+                        used.emplace_back(false);
                     uint32_t edgeId = 0;
+                    // uint32_t previousEdgeId = 1;
                     do {
+                        //if(edgeId == previousEdgeId){
+                        if(used[edgeId]){
+                            FSA.x = 0;
+                            FSA.y = 0;
+                            FSA.z = 0;
+                            Warning("Breaking from invalid polygon");
+                            break;
+                        }
+                        used[edgeId] = true;
+                        // previousEdgeId = edgeId;
                         KDOPEdge *currentEdge = face[edgeId];
                         FSA += Vector3f(
                                 currentEdge->v1->y * currentEdge->v2->z - currentEdge->v1->z * currentEdge->v2->y,
@@ -73,12 +98,13 @@ namespace pbrt {
                         }
                     } while (edgeId != 0);
                 }
-                SA += std::abs(directions[i / 2].dot(FSA));
+                SA += std::abs(Dot(directions[i / 2], FSA));
             }
             return SA / 2.0f;
-        }*/
+        }
 
-        float SurfaceArea(const std::vector<Vector3f> &directions) {
+        /*
+        Float SurfaceArea(const std::vector<Vector3f> &directions) {
             std::vector<std::vector<KDOPEdge>> faces;
             for (size_t i = 0; i < 2 * directions.size(); ++i) {
                 faces.emplace_back(std::vector<KDOPEdge>());
@@ -89,7 +115,7 @@ namespace pbrt {
                 faces[edge.faceId2].emplace_back(edge);
             }
 
-            float SA = 0;
+            Float SA = 0;
             for (uint32_t d = 0; d < 2 * directions.size(); ++d) {
                 const Vector3f &N = directions[d / 2];
                 std::vector<KDOPEdge> &face = faces[d];
@@ -117,8 +143,8 @@ namespace pbrt {
                     vertices[vertexId] = vertices[0];
 
                     // THIS PART IS ADAPTED FROM area3D_Polygon at http://geomalgorithms.com/a01-_area.html
-                    float area = 0;
-                    float an, ax, ay, az; // abs value of normal and its coords
+                    Float area = 0;
+                    Float an, ax, ay, az; // abs value of normal and its coords
                     int coord;           // coord to ignore: 1=x, 2=y, 3=z
                     int i, j, k;         // loop indices
 
@@ -133,7 +159,7 @@ namespace pbrt {
                             if (ax > az) coord = 1;   // ignore x-coord
                         } else if (ay > az) coord = 2;  // ignore y-coord
 
-                        an = (float) std::sqrt(ax * ax + ay * ay + az * az); // length of normal vector
+                        an = (Float) std::sqrt(ax * ax + ay * ay + az * az); // length of normal vector
                         switch (coord) {
                             case 1:
                                 // compute area of the 2D projection
@@ -163,7 +189,7 @@ namespace pbrt {
 
             }
             return SA;
-        }
+        } */
 
         void helper(std::vector<Point3f *> *points, Point3f *point) {
             if (std::find(points->begin(), points->end(), point) == points->end()) {
@@ -171,7 +197,7 @@ namespace pbrt {
             }
         }
 
-        std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, float t, const Vector3f &direction, const uint32_t directionId) {
+        std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, Float t, const Vector3f &direction, const uint32_t directionId) {
             //Warning("t %f", t);
             KDOPMesh left;
             KDOPMesh right;
@@ -182,8 +208,12 @@ namespace pbrt {
             std::vector<KDOPEdge> coincidentEdges;
 
             for (auto &edge: edges) {
-                float t1 = Dot(direction, *edge.v1);
-                float t2 = Dot(direction, *edge.v2);
+                Float t1 = Dot(direction, *edge.v1);
+                Float t2 = Dot(direction, *edge.v2);
+                /*if(std::abs(t1-t) < 0.001 && std::abs(t1/t - 1) < 0.01)
+                    t1=t;
+                if(std::abs(t2-t) < 0.001 && std::abs(t2/t - 1) < 0.01)
+                    t2=t;*/
                 if (t1 > t2) {
                     std::swap(edge.v1, edge.v2);
                     std::swap(t1, t2);
@@ -202,7 +232,7 @@ namespace pbrt {
                     helper(&faceVertices[edge.faceId1], edge.v1);
                     helper(&faceVertices[edge.faceId2], edge.v1);
                 } else if (t1 < t && t < t2) {
-                    float tAlongEdge = (-(t1 - t)) / (t2 - t1);
+                    Float tAlongEdge = (-(t1 - t)) / (t2 - t1);
                     Point3f *vs = new Point3f(*edge.v1 + tAlongEdge * d);
                     left.addEdge(KDOPEdge(edge.v1, vs, edge.faceId1, edge.faceId2));
                     right.addEdge(KDOPEdge(vs, edge.v2, edge.faceId1, edge.faceId2));
@@ -235,14 +265,10 @@ namespace pbrt {
                         break;
                     }
                 }
-                /*if(!found)
+                if(!found)
                     Warning("Can't add edge from (%f,%f,%f) to (%f,%f,%f) with faces %d and %d",
                         edge.v1->x, edge.v1->y, edge.v1->z, edge.v2->x, edge.v2->y, edge.v2->z,
                         edge.faceId1, edge.faceId2);
-                else{
-                    Warning("Added edge from (%f,%f,%f) to (%f,%f,%f)",
-                            edge.v1->x, edge.v1->y, edge.v1->z, edge.v2->x, edge.v2->y, edge.v2->z);
-                }*/
             }
 
             /*for(size_t i = 0; i < 2 * M; ++i){
