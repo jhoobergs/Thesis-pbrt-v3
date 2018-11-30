@@ -1737,6 +1737,17 @@ namespace pbrt {
         return ret;
     }
 
+    inline Float planeDistance(const Float splitPos, const Ray& ray, Vector3f& invDir, uint32_t axis){
+        return (splitPos - ray.o[axis]) * invDir[axis];
+    }
+
+    inline Float planeDistance(const Vector3f& direction, const Float splitPos, const Ray& ray, Float& projectedO, Float& inverseProjectedD){
+        //Warning("(%f,%f,%f)", direction.x, direction.y, direction.z);
+        projectedO = Dot(direction, ray.o); // can be precomputed
+        inverseProjectedD = 1 / Dot(direction, ray.d); // can be precomputed
+        return (splitPos - projectedO) * inverseProjectedD;
+    }
+
 }  // namespace pbrt
 
 #endif  // PBRT_CORE_GEOMETRY_H

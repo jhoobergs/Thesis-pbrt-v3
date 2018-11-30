@@ -1,8 +1,12 @@
-#!/bin/sh
+#!/bin/bash
 NAME=$1
-ACC=$2
+IFS='-' read -ra ACCINFO <<< "$2"
+
+ACC=${ACCINFO[0]}
+ACCNR=${ACCINFO[1]}
+echo $ACCNR
 BASE="/Programming/Thesis/pbrt-v3"
-PBRT_PATH=$BASE"/build/"
+PBRT_PATH=$BASE"/"$BUILD_FOLDER"/"
 SCENE_PATH=$BASE/"scenes/"$NAME
 RESULTS_DIR=$BASE"/results/"$NAME
 mkdir $RESULTS_DIR > /dev/null 2>&1 || true
@@ -14,6 +18,7 @@ echo $RESULTS_DIR
 mkdir -p $RESULTS_DIR
 cp $SCENE_PATH $RESULTS_DIR"/input.pbrt"
 sed -i 's/$acc/"'$ACC'"/' $RESULTS_DIR"/input.pbrt"
+sed -i 's/$accnr/'$ACCNR'/' $RESULTS_DIR"/input.pbrt"
 #sed -i 's/Include "/Include "'$BASE'/scenes/' $RESULTS_DIR"/input.pbrt"
 $PBRT_PATH"pbrt" --outfile $RESULTS_DIR"/"$FILE_NAME $RESULTS_DIR"/input.pbrt" 2>&1 | tee $RESULTS_DIR/"renderOutput"
 tail --lines=+$(cat $RESULTS_DIR/"renderOutput" | grep -n "Statistics" | cut -f1 -d:) $RESULTS_DIR/"renderOutput" > $RESULTS_DIR/"statistics"
