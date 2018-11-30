@@ -1,0 +1,5 @@
+statistics 			kd	 	rbsp-3		 rbsp-7	 	rbsp-9		rbsp-13
+Node traversals			449597065 	449614985	 536362041	508118176	509277939
+Ray-triangle intersections	128156919 	128146776	 149309427	126294832	123089940
+Build time			2	 	38          	 126 	 	190		319
+Render time			8	 	27		 61	 	79		81 (36 with better traversalcost)

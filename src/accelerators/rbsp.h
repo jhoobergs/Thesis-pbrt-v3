@@ -12,22 +12,22 @@
 namespace pbrt {
     struct RBSPNode;
 
-    struct KDOPEdge {
-        KDOPEdge(Point3f *v1, Point3f *v2, uint32_t faceId1, uint32_t faceId2) :
-                v1(v1), v2(v2), faceId1(faceId1), faceId2(faceId2) {};
+    struct KDOPEdge { // TODO: Deallocating ? Smart pointers ?
+        KDOPEdge(Point3f v1, Point3f v2, uint32_t faceId1, uint32_t faceId2) :
+                v1(std::move(v1)), v2(std::move(v2)), faceId1(faceId1), faceId2(faceId2) {};
 
         Boundsf getBounds(Vector3f &direction) const{
             Boundsf bounds = Boundsf();
-            Float t1 = Dot(direction, *v1);
-            Float t2 = Dot(direction, *v2);
+            const Float t1 = Dot(direction, v1);
+            const Float t2 = Dot(direction, v2);
             bounds.max = std::max(t1, t2);
             bounds.min = std::min(t1, t2);
 
             return bounds;
         }
 
-        Point3f *v1;
-        Point3f *v2;
+        Point3f v1;
+        Point3f v2;
         uint32_t faceId1;
         uint32_t faceId2;
     };
@@ -59,20 +59,22 @@ namespace pbrt {
                 faces[edge.faceId2].emplace_back(&edge);
             }
 
+            KDOPEdge *currentEdge;
             Float SA = 0;
+            uint32_t edgeId;
             for (uint32_t i = 0; i < 2 * directions.size(); ++i) {
                 Vector3f FSA = Vector3f();
-                std::vector<KDOPEdge *> &face = faces[i];
+                const std::vector<KDOPEdge *> &face = faces[i];
                 if (!face.empty()) {
                     std::vector<bool> used;
                     used.reserve(face.size());
                     for(auto &edge: face)
                         used.emplace_back(false);
-                    uint32_t edgeId = 0;
+                    edgeId = 0;
                     // uint32_t previousEdgeId = 1;
                     do {
                         //if(edgeId == previousEdgeId){
-                        if(used[edgeId]){
+                        if(used[edgeId]){ // TODO; don't set to zero probably ?
                             FSA.x = 0;
                             FSA.y = 0;
                             FSA.z = 0;
@@ -81,11 +83,11 @@ namespace pbrt {
                         }
                         used[edgeId] = true;
                         // previousEdgeId = edgeId;
-                        KDOPEdge *currentEdge = face[edgeId];
+                        currentEdge = face[edgeId];
                         FSA += Vector3f(
-                                currentEdge->v1->y * currentEdge->v2->z - currentEdge->v1->z * currentEdge->v2->y,
-                                -(currentEdge->v1->x * currentEdge->v2->z - currentEdge->v1->z * currentEdge->v2->x),
-                                (currentEdge->v1->x * currentEdge->v2->y - currentEdge->v1->y * currentEdge->v2->x));
+                                currentEdge->v1.y * currentEdge->v2.z - currentEdge->v1.z * currentEdge->v2.y,
+                                -(currentEdge->v1.x * currentEdge->v2.z - currentEdge->v1.z * currentEdge->v2.x),
+                                (currentEdge->v1.x * currentEdge->v2.y - currentEdge->v1.y * currentEdge->v2.x)); // TODO: cross product
                         for (uint32_t j = 0; j < face.size(); ++j) {
                             if (j == edgeId) continue;
                             if (face[j]->v2 == currentEdge->v2) {
@@ -191,25 +193,25 @@ namespace pbrt {
             return SA;
         } */
 
-        void helper(std::vector<Point3f *> *points, Point3f *point) {
-            if (std::find(points->begin(), points->end(), point) == points->end()) {
-                points->push_back(point);
+        void helper(std::vector<Point3f> &points, Point3f point) {
+            if (std::find(points.begin(), points.end(), point) == points.end()) { // use shared pointers
+                points.push_back(point);
             }
         }
 
         std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, Float t, const Vector3f &direction, const uint32_t directionId) {
             //Warning("t %f", t);
-            KDOPMesh left;
+            KDOPMesh left; // TODO: ? Allocate right ? Use unique pointers and shared pointers
             KDOPMesh right;
-            std::vector<std::vector<Point3f *>> faceVertices;
+            std::vector<std::vector<Point3f>> faceVertices;
             for (size_t i = 0; i < 2 * M; ++i) {
-                faceVertices.emplace_back(std::vector<Point3f *>());
+                faceVertices.emplace_back(std::vector<Point3f>());
             }
             std::vector<KDOPEdge> coincidentEdges;
-
+            Float t1, t2;
             for (auto &edge: edges) {
-                Float t1 = Dot(direction, *edge.v1);
-                Float t2 = Dot(direction, *edge.v2);
+                t1 = Dot(direction, edge.v1);
+                t2 = Dot(direction, edge.v2);
                 /*if(std::abs(t1-t) < 0.001 && std::abs(t1/t - 1) < 0.01)
                     t1=t;
                 if(std::abs(t2-t) < 0.001 && std::abs(t2/t - 1) < 0.01)
@@ -218,27 +220,27 @@ namespace pbrt {
                     std::swap(edge.v1, edge.v2);
                     std::swap(t1, t2);
                 }
-                Vector3f d = edge.v2->operator-(*edge.v1);
+                Vector3f d = edge.v2-edge.v1;
                 if (t1 < t && t2 < t) {
                     left.addEdge(edge);
                 } else if (t1 > t && t2 > t) {
                     right.addEdge(edge);
                 } else if (t1 < t && t == t2) {
                     left.addEdge(edge);
-                    helper(&faceVertices[edge.faceId1], edge.v2);
-                    helper(&faceVertices[edge.faceId2], edge.v2);
+                    helper(faceVertices[edge.faceId1], edge.v2);
+                    helper(faceVertices[edge.faceId2], edge.v2);
                 } else if (t1 == t && t < t2) {
                     right.addEdge(edge);
-                    helper(&faceVertices[edge.faceId1], edge.v1);
-                    helper(&faceVertices[edge.faceId2], edge.v1);
+                    helper(faceVertices[edge.faceId1], edge.v1);
+                    helper(faceVertices[edge.faceId2], edge.v1);
                 } else if (t1 < t && t < t2) {
                     Float tAlongEdge = (-(t1 - t)) / (t2 - t1);
-                    Point3f *vs = new Point3f(*edge.v1 + tAlongEdge * d);
+                    Point3f vs(edge.v1 + tAlongEdge * d);
                     left.addEdge(KDOPEdge(edge.v1, vs, edge.faceId1, edge.faceId2));
                     right.addEdge(KDOPEdge(vs, edge.v2, edge.faceId1, edge.faceId2));
 
-                    helper(&faceVertices[edge.faceId1], vs);
-                    helper(&faceVertices[edge.faceId2], vs);
+                    helper(faceVertices[edge.faceId1], vs);
+                    helper(faceVertices[edge.faceId2], vs);
                 } else if (t1 == t && t == t2) {
                     coincidentEdges.push_back(edge);
                 } /*else{
@@ -267,7 +269,7 @@ namespace pbrt {
                 }
                 if(!found)
                     Warning("Can't add edge from (%f,%f,%f) to (%f,%f,%f) with faces %d and %d",
-                        edge.v1->x, edge.v1->y, edge.v1->z, edge.v2->x, edge.v2->y, edge.v2->z,
+                        edge.v1.x, edge.v1.y, edge.v1.z, edge.v2.x, edge.v2.y, edge.v2.z,
                         edge.faceId1, edge.faceId2);
             }
 
@@ -282,12 +284,12 @@ namespace pbrt {
             //Warning("Left %d", left.edges.size());
             //Warning("Right %d", right.edges.size());
 
-            std::vector<Point3f *> pairedVertex;
+            /*std::vector<Point3f *> pairedVertex;
             for (size_t i = 0; i < 2 * M; ++i) {
                 pairedVertex.emplace_back(nullptr);
-            }
+            }*/
 
-            for (size_t i = 0; i < 2 * M; ++i) {
+            for (uint32_t i = 0; i < 2 * M; ++i) {
                 if (faceVertices[i].size() == 2) {
                     /* Warning("Creating edge for %d from (%f,%f,%f) to (%f,%f,%f), left %d, right %d", i, faceVertices[i][0]->x,
                             faceVertices[i][0]->y, faceVertices[i][0]->z, faceVertices[i][1]->x, faceVertices[i][1]->y,
@@ -309,7 +311,7 @@ namespace pbrt {
         // KdTreeAccel Public Methods
         RBSP(std::vector<std::shared_ptr<Primitive>> p,
              uint32_t isectCost = 80, uint32_t traversalCost = 1,
-             Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1);
+             Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3);
 
         Bounds3f WorldBound() const { return bounds; }
 
@@ -337,17 +339,18 @@ namespace pbrt {
     };
 
     struct RBSPBuildNode {
-        RBSPBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines, BoundsMf nodeBounds, KDOPMesh kdopMesh,
+        RBSPBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines, BoundsMf nodeBounds, KDOPMesh kdopMesh, Float kdopMeshArea,
                       uint32_t *primNums, uint32_t parentNum = -1)
                 : depth(depth),
                   nPrimitives(nPrimitives), badRefines(badRefines), nodeBounds(std::move(nodeBounds)),
-                  kDOPMesh(std::move(kdopMesh)), primNums(primNums), parentNum(parentNum) {}
+                  kDOPMesh(std::move(kdopMesh)), kdopMeshArea(kdopMeshArea), primNums(primNums), parentNum(parentNum) {}
 
         uint32_t depth;
         uint32_t nPrimitives;
         uint32_t badRefines;
         BoundsMf nodeBounds;
         KDOPMesh kDOPMesh;
+        Float kdopMeshArea;
         uint32_t *primNums;
         uint32_t parentNum;
     };
