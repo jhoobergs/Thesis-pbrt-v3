@@ -41,6 +41,7 @@ namespace pbrt {
 
     STAT_COUNTER("Accelerator/Kd-tree node traversals during intersect", nbNodeTraversals);
     STAT_COUNTER("Accelerator/Kd-tree node traversals during intersectP", nbNodeTraversalsP);
+    STAT_COUNTER("Accelerator/Kd-tree nodes", nbNodes);
 
     // KdTreeAccel Local Declarations
     struct KdAccelNode {
@@ -100,7 +101,7 @@ namespace pbrt {
         ProfilePhase _(Prof::AccelConstruction);
         nextFreeNode = nAllocedNodes = 0;
         if (maxDepth == -1)
-            maxDepth = (uint32_t) std::round(8 + 1.3f * Log2Int(int64_t(primitives.size())));
+            maxDepth = (uint32_t) std::round(8 + 1.3f * Log2Int(int64_t(primitives.size()))); // TODO: change values of k1 and k2 (k1logN + k2) k1=1.2 && k2 = 2
 
         // Compute bounds for kd-tree construction
         std::vector<Bounds3f> primBounds;
@@ -140,9 +141,9 @@ namespace pbrt {
         std::unique_ptr<BoundEdge[]> edges[3];
         for (auto &edge : edges)
             edge.reset(new BoundEdge[2 * primitives.size()]);
-        std::unique_ptr<uint32_t> prims_p(
-                new uint32_t[(maxDepth + 1) * primitives.size()]);
-        uint32_t *prims = prims_p.get();
+        std::unique_ptr<uint32_t[]> prims(
+                new uint32_t[(maxDepth + 1) * primitives.size()]); // TODO: vector ?
+        //uint32_t *prims = prims_p.get();
         // Initialize _primNums_ for kd-tree construction
         for (uint32_t i = 0; i < primitives.size(); ++i) {
             prims[i] = i;
@@ -150,7 +151,7 @@ namespace pbrt {
         uint32_t maxPrimsOffset = 0;
 
         std::vector<KdBuildNode> stack;
-        stack.emplace_back(KdBuildNode(maxDepth, (uint32_t) primitives.size(), 0, rootNodeBounds, prims));
+        stack.emplace_back(KdBuildNode(maxDepth, (uint32_t) primitives.size(), 0, rootNodeBounds, &prims[0]));
 
         while (!stack.empty()) {
             KdBuildNode currentBuildNode = stack.back();
@@ -160,7 +161,7 @@ namespace pbrt {
             if (currentBuildNode.parentNum != -1)
                 nodes[currentBuildNode.parentNum].setAboveChild(nodeNum);
 
-            maxPrimsOffset = std::max(maxPrimsOffset, (uint32_t) (currentBuildNode.primNums - prims));
+            maxPrimsOffset = std::max(maxPrimsOffset, (uint32_t) (currentBuildNode.primNums - &prims[0]));
 
             // Get next free node from _nodes_ array
             if (nextFreeNode == nAllocedNodes) {
@@ -182,7 +183,7 @@ namespace pbrt {
             }
 
             // Choose split axis position for interior node
-            uint32_t bestAxis = -1, bestOffset = -1;
+            uint32_t bestAxis = -1, bestOffset = -1; // TODO: const
             Float bestCost = Infinity;
             Float oldCost = isectCost * Float(currentBuildNode.nPrimitives);
             Float totalSA = currentBuildNode.nodeBounds.SurfaceArea();
@@ -279,6 +280,7 @@ namespace pbrt {
         }
 
         Warning("Kd Depth %d", nodes[0].depth(nodes, 0));
+        nbNodes = nodeNum;
     }
 
     bool KdTreeAccel::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
@@ -310,7 +312,7 @@ namespace pbrt {
 
                 // Compute parametric distance along ray to split plane
                 uint32_t axis = node->SplitAxis();
-                Float tPlane = (node->SplitPos() - ray.o[axis]) * invDir[axis];
+                Float tPlane = planeDistance(node->SplitPos(), ray, invDir, axis);
 
                 // Get node children pointers for ray
                 const KdAccelNode *firstChild, *secondChild;
@@ -438,7 +440,7 @@ namespace pbrt {
 
                 // Compute parametric distance along ray to split plane
                 uint32_t axis = node->SplitAxis();
-                Float tPlane = (node->SplitPos() - ray.o[axis]) * invDir[axis];
+                Float tPlane = planeDistance(node->SplitPos(), ray, invDir, axis);
 
                 // Get node children pointers for ray
                 const KdAccelNode *firstChild, *secondChild;
