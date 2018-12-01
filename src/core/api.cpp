@@ -120,6 +120,7 @@
 
 #include <map>
 #include <stdio.h>
+#include <fstream>
 
 namespace pbrt {
 
@@ -783,12 +784,30 @@ std::shared_ptr<Primitive> MakeAccelerator(
         accel = CreateBVHAccelerator(std::move(prims), paramSet);
     else if (name == "bvhold")
         accel = CreateBVHAcceleratorOld(std::move(prims), paramSet);
-    else if (name == "kdtree")
-        accel = CreateKdTreeAccelerator(std::move(prims), paramSet);
+    else if (name == "kdtree") {
+        std::shared_ptr<KdTreeAccel> kd = CreateKdTreeAccelerator(std::move(prims), paramSet);
+        std::string filename = PbrtOptions.imageFile;
+        std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(".txt");
+        Warning("%s", textFile.c_str());
+        std::ofstream myfile;
+        myfile.open(textFile);
+        myfile << *kd.get();
+        myfile.close();
+        accel = kd;
+    }
     else if (name == "kdtreeold")
         accel = CreateKdTreeAcceleratorOld(std::move(prims), paramSet);
-    else if (name == "rbsp")
-        accel = CreateRBSPTreeAccelerator(std::move(prims), paramSet);
+    else if (name == "rbsp") {
+        std::shared_ptr<RBSP> rbsp = CreateRBSPTreeAccelerator(std::move(prims), paramSet);
+        std::string filename = PbrtOptions.imageFile;
+        std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(".txt");
+        Warning("%s", textFile.c_str());
+        std::ofstream myfile;
+        myfile.open(textFile);
+        myfile << *rbsp.get();
+        myfile.close();
+        accel = rbsp;
+    }
     else
         Warning("Accelerator \"%s\" unknown.", name.c_str());
     paramSet.ReportUnused();

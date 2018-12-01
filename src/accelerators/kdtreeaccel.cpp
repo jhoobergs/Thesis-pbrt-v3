@@ -33,15 +33,21 @@
 // accelerators/kdtreeaccel.cpp*
 #include "accelerators/kdtreeaccel.h"
 #include "paramset.h"
-#include "interaction.h"
 #include "stats.h"
-#include <algorithm>
+#include <fstream>
 
 namespace pbrt {
 
     STAT_COUNTER("Accelerator/Kd-tree node traversals during intersect", nbNodeTraversals);
     STAT_COUNTER("Accelerator/Kd-tree node traversals during intersectP", nbNodeTraversalsP);
     STAT_COUNTER("Accelerator/Kd-tree nodes", nbNodes);
+    STAT_COUNTER("Accelerator/Kd-tree param:intersectioncost", statParamIntersectCost);
+    STAT_COUNTER("Accelerator/Kd-tree param:traversalcost", statParamTraversalCost);
+    STAT_COUNTER("Accelerator/Kd-tree param:maxprims", statParamMaxPrims);
+    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:emptybonus", statParamEmptyBonus);
+    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:maxdepth", statParamMaxDepth);
+    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree SA-cost", totalSACost);
+    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree Depth", statDepth);
 
     // KdTreeAccel Local Declarations
     struct KdAccelNode {
@@ -74,6 +80,30 @@ namespace pbrt {
                 return 1 + std::max(nodes[AboveChild()].depth(nodes, AboveChild()), nodes[id + 1].depth(nodes, id + 1));
         }
 
+        std::string toString(const std::vector<uint32_t> &primitiveIndices){
+            std::stringstream ss;
+            if(IsLeaf()){
+                uint32_t np = nPrimitives();
+                ss << "L " << np;
+                if(np == 1){
+                    ss << " " << onePrimitive;
+                }
+                else{
+                    for(int i = 0; i < np; i++){
+                        uint32_t primitiveIndex =
+                                primitiveIndices[primitiveIndicesOffset + i];
+                        ss << " " << primitiveIndex;
+                    }
+                }
+            }
+            else{
+                ss << "I " << SplitAxis() << " " << SplitPos() << " " << AboveChild();
+            }
+
+
+            return ss.str();
+        }
+
         union {
             Float split;                 // Interior
             uint32_t onePrimitive;            // Leaf
@@ -87,6 +117,19 @@ namespace pbrt {
             uint32_t aboveChild;  // Interior
         };
     };
+
+    std::ofstream& operator<<(std::ofstream& os, const KdTreeAccel& kdTreeAccel)
+    {
+        os << "3" << std::endl;
+        os << "1 0 0" << std::endl;
+        os << "0 1 0" << std::endl;
+        os << "0 0 1" << std::endl;
+        os << kdTreeAccel.nextFreeNode << std::endl;
+        for(int i =0; i < kdTreeAccel.nextFreeNode; i++){
+            os << kdTreeAccel.nodes[i].toString(kdTreeAccel.primitiveIndices) << std::endl;
+        }
+        return os;
+    }
 
     // KdTreeAccel Method Definitions
     KdTreeAccel::KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
@@ -102,6 +145,11 @@ namespace pbrt {
         nextFreeNode = nAllocedNodes = 0;
         if (maxDepth == -1)
             maxDepth = (uint32_t) std::round(8 + 1.3f * Log2Int(int64_t(primitives.size()))); // TODO: change values of k1 and k2 (k1logN + k2) k1=1.2 && k2 = 2
+        statParamMaxDepth = maxDepth;
+        statParamEmptyBonus = emptyBonus;
+        statParamIntersectCost = isectCost;
+        statParamTraversalCost = traversalCost;
+        statParamMaxPrims = maxPrims;
 
         // Compute bounds for kd-tree construction
         std::vector<Bounds3f> primBounds;
@@ -149,6 +197,7 @@ namespace pbrt {
             prims[i] = i;
         }
         uint32_t maxPrimsOffset = 0;
+        double currentSACost = 0;
 
         std::vector<KdBuildNode> stack;
         stack.emplace_back(KdBuildNode(maxDepth, (uint32_t) primitives.size(), 0, rootNodeBounds, &prims[0]));
@@ -178,6 +227,7 @@ namespace pbrt {
 
             // Initialize leaf node if termination criteria met
             if (currentBuildNode.nPrimitives <= maxPrims || currentBuildNode.depth == 0) {
+                currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.nodeBounds.SurfaceArea();
                 nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives, &primitiveIndices);
                 continue;
             }
@@ -249,6 +299,7 @@ namespace pbrt {
             if (bestCost > oldCost) ++currentBuildNode.badRefines;
             if ((bestCost > 4 * oldCost && currentBuildNode.nPrimitives < 16) || bestAxis == -1 ||
                 currentBuildNode.badRefines == 3) {
+                currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.nodeBounds.SurfaceArea();
                 nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives, &primitiveIndices);
                 continue;
             }
@@ -270,6 +321,7 @@ namespace pbrt {
             Bounds3f bounds0 = currentBuildNode.nodeBounds, bounds1 = currentBuildNode.nodeBounds;
             bounds0.pMax[bestAxis] = bounds1.pMin[bestAxis] = tSplit;
 
+            currentSACost += traversalCost * currentBuildNode.nodeBounds.SurfaceArea();
             nodes[nodeNum].InitInterior(bestAxis, tSplit);
 
             stack.emplace_back(
@@ -279,8 +331,10 @@ namespace pbrt {
             ++nodeNum;
         }
 
-        Warning("Kd Depth %d", nodes[0].depth(nodes, 0));
+        statDepth = nodes[0].depth(nodes, 0);
         nbNodes = nodeNum;
+        totalSACost = currentSACost / bounds.SurfaceArea();
+        Warning("%f", bounds.SurfaceArea());
     }
 
     bool KdTreeAccel::Intersect(const Ray &ray, SurfaceInteraction *isect) const {

@@ -7,13 +7,21 @@
 #include "paramset.h"
 #include "accelerators/rbsp.h"
 #include "accelerators/kdtreeaccel.h"
+#include <fstream>
 
 namespace pbrt {
 
     STAT_COUNTER("Accelerator/RBSP-tree node traversals during intersect", nbNodeTraversals);
     STAT_COUNTER("Accelerator/RBSP-tree node traversals during intersectP", nbNodeTraversalsP);
-    STAT_COUNTER("Accelerator/RBSP-tree directions", nbDirections);
     STAT_COUNTER("Accelerator/RBSP-tree nodes", nbNodes);
+    STAT_COUNTER("Accelerator/RBSP-tree param:directions", statPraramnbDirections);
+    STAT_COUNTER("Accelerator/RBSP-tree param:intersectioncost", statParamIntersectCost);
+    STAT_COUNTER("Accelerator/RBSP-tree param:traversalcost", statParamTraversalCost);
+    STAT_COUNTER("Accelerator/RBSP-tree param:maxprims", statParamMaxPrims);
+    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:emptybonus", statParamEmptyBonus);
+    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:maxdepth", statParamMaxDepth);
+    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
+    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
 
     inline uint32_t getBitOffset(const uint32_t M){
         return (uint32_t) std::ceil(std::log2(M+1));
@@ -54,6 +62,30 @@ namespace pbrt {
                 return 1 + std::max(nodes[AboveChild(M)].depth(M, nodes, AboveChild(M)), nodes[id + 1].depth(M, nodes, id + 1));
         }
 
+        std::string toString(uint32_t M, const std::vector<uint32_t> &primitiveIndices){
+            std::stringstream ss;
+            if(IsLeaf(M)){
+                uint32_t np = nPrimitives(M);
+                ss << "L " << np;
+                if(np == 1){
+                    ss << " " << onePrimitive;
+                }
+                else{
+                    for(int i = 0; i < np; i++){
+                        uint32_t primitiveIndex =
+                                primitiveIndices[primitiveIndicesOffset + i];
+                        ss << " " << primitiveIndex;
+                    }
+                }
+            }
+            else{
+                ss << "I " << SplitAxis(M) << " " << SplitPos() << " " << AboveChild(M);
+            }
+
+
+            return ss.str();
+        }
+
         union {
             Float split;                 // Interior
             uint32_t onePrimitive;            // Leaf
@@ -86,8 +118,21 @@ namespace pbrt {
 
     RBSP::~RBSP() { FreeAligned(nodes); }
 
+    std::ofstream& operator<<(std::ofstream& os, const RBSP& rbspTree)
+    {
+        os << rbspTree.directions.size() << std::endl;
+        for(auto &direction: rbspTree.directions){
+            os << direction.x << " " << direction.y << " " << direction.z << std::endl;
+        }
+        os << rbspTree.nextFreeNode << std::endl;
+        for(int i =0; i < rbspTree.nextFreeNode; i++){
+            os << rbspTree.nodes[i].toString(rbspTree.directions.size(), rbspTree.primitiveIndices) << std::endl;
+        }
+        return os;
+    }
+
     RBSP::RBSP(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost, uint32_t traversalCost,
-               Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDir)
+               Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
             : isectCost(isectCost),
               traversalCost(traversalCost),
               maxPrims(maxPrims),
@@ -97,7 +142,12 @@ namespace pbrt {
         nextFreeNode = nAllocedNodes = 0;
         if (maxDepth == -1)
             maxDepth = (uint32_t) std::round(8 + 1.3f * Log2Int(int64_t(primitives.size())));  // TODO: change values of k1 and k2 (k1logN + k2) k1=1.2 && k2 = 2
-        nbDirections = nbDir;
+        statPraramnbDirections = nbDirections;
+        statParamMaxDepth = maxDepth;
+        statParamEmptyBonus = emptyBonus;
+        statParamIntersectCost = isectCost;
+        statParamTraversalCost = traversalCost;
+        statParamMaxPrims = maxPrims;
 
         directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
         directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
@@ -189,6 +239,7 @@ namespace pbrt {
             prims[i] = i;
         }
         uint32_t maxPrimsOffset = 0;
+        double currentSACost = 0;
 
         std::vector<RBSPBuildNode> stack;
         stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, rootNodeMBounds, kDOPMesh, kDOPMesh.SurfaceArea(directions), &prims[0]);
@@ -221,6 +272,7 @@ namespace pbrt {
 
             // Initialize leaf node if termination criteria met
             if (currentBuildNode.nPrimitives <= maxPrims || currentBuildNode.depth == 0) {
+                currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].InitLeaf(M, currentBuildNode.primNums, currentBuildNode.nPrimitives, &primitiveIndices);
                 continue;
             }
@@ -315,6 +367,7 @@ namespace pbrt {
             if (bestCost > oldCost) ++currentBuildNode.badRefines;
             if ((bestCost > 4 * oldCost && currentBuildNode.nPrimitives < 16) || bestD == -1 ||
                 currentBuildNode.badRefines == 3) {
+                currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].InitLeaf(M, currentBuildNode.primNums, currentBuildNode.nPrimitives, &primitiveIndices);
                 continue;
             }
@@ -354,7 +407,7 @@ namespace pbrt {
                 }
             }
 
-
+            currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
             nodes[nodeNum].InitInterior(bestD, tSplit);
 
             //CHECK(bestSplittedKDOPs.first.edges.size() == 12 && bestSplittedKDOPs.second.edges.size() == 12);
@@ -379,8 +432,9 @@ namespace pbrt {
             ++nodeNum;
         }
         reporter.Done();
-        Warning("RBSP Depth %d", nodes[0].depth(M, nodes, 0));
+        statDepth = nodes[0].depth(M, nodes, 0);
         nbNodes = nodeNum;
+        totalSACost = currentSACost / bounds.SurfaceArea();
     }
 
     bool RBSP::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
@@ -579,8 +633,8 @@ namespace pbrt {
 
     std::shared_ptr<RBSP> CreateRBSPTreeAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps) {
-        uint32_t isectCost = (uint32_t) ps.FindOneInt("intersectcost", 16);
-        uint32_t travCost = (uint32_t) ps.FindOneInt("traversalcost", 1);
+        uint32_t isectCost = (uint32_t) ps.FindOneInt("intersectcost", 80);
+        uint32_t travCost = (uint32_t) ps.FindOneInt("traversalcost", 5);
         Float emptyBonus = ps.FindOneFloat("emptybonus", 0);
         uint32_t maxPrims = (uint32_t) ps.FindOneInt("maxprims", 1);
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
