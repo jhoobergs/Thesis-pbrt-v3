@@ -77,6 +77,9 @@ class StatsAccumulator {
     void ReportCounter(const std::string &name, int64_t val) {
         counters[name] += val;
     }
+    void ReportCounter(const std::string &name, double val) {
+        counters[name] += val;
+    }
     void ReportMemoryCounter(const std::string &name, int64_t val) {
         memoryCounters[name] += val;
     }
@@ -293,7 +296,13 @@ void CleanupProfiler();
         var = 0;                                           \
     }                                                      \
     static StatRegisterer STATS_REG##var(STATS_FUNC##var)
-
+#define STAT_COUNTER_DOUBLE(title, var)                    \
+    static PBRT_THREAD_LOCAL double var;                  \
+    static void STATS_FUNC##var(StatsAccumulator &accum) { \
+        accum.ReportCounter(title, var);                   \
+        var = 0;                                           \
+    }                                                      \
+    static StatRegisterer STATS_REG##var(STATS_FUNC##var)
 #ifndef PBRT_HAVE_CONSTEXPR
 #define STATS_INT64_T_MIN LLONG_MAX
 #define STATS_INT64_T_MAX _I64_MIN

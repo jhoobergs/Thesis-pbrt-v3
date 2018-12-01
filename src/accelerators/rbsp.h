@@ -75,19 +75,13 @@ namespace pbrt {
                     do {
                         //if(edgeId == previousEdgeId){
                         if(used[edgeId]){ // TODO; don't set to zero probably ?
-                            FSA.x = 0;
-                            FSA.y = 0;
-                            FSA.z = 0;
-                            Warning("Breaking from invalid polygon");
+                            Warning("Breaking from invalid polygon %f %f %f", FSA.x, FSA.y, FSA.z);
                             break;
                         }
                         used[edgeId] = true;
                         // previousEdgeId = edgeId;
                         currentEdge = face[edgeId];
-                        FSA += Vector3f(
-                                currentEdge->v1.y * currentEdge->v2.z - currentEdge->v1.z * currentEdge->v2.y,
-                                -(currentEdge->v1.x * currentEdge->v2.z - currentEdge->v1.z * currentEdge->v2.x),
-                                (currentEdge->v1.x * currentEdge->v2.y - currentEdge->v1.y * currentEdge->v2.x)); // TODO: cross product
+                        FSA += Cross(currentEdge->v1, currentEdge->v2);
                         for (uint32_t j = 0; j < face.size(); ++j) {
                             if (j == edgeId) continue;
                             if (face[j]->v2 == currentEdge->v2) {
@@ -320,6 +314,7 @@ namespace pbrt {
         bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
 
         bool IntersectP(const Ray &ray) const;
+        friend std::ofstream& operator<<(std::ofstream& os, const RBSP& rbspTree);
 
     private:
         // RBSP Private Methods
