@@ -79,7 +79,7 @@ namespace pbrt {
         bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
 
         bool IntersectP(const Ray &ray) const;
-
+        friend std::ofstream& operator<<(std::ofstream& os, const KdTreeAccel& kdTreeAccel);
     private:
         // KdTreeAccel Private Methods
         void buildTree(Bounds3f &rootNodeBounds,
