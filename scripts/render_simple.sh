@@ -19,6 +19,7 @@ mkdir -p $RESULTS_DIR
 cp $SCENE_PATH $RESULTS_DIR"/input.pbrt"
 sed -i 's/$acc/"'$ACC'"/' $RESULTS_DIR"/input.pbrt"
 sed -i 's/$accnr/'$ACCNR'/' $RESULTS_DIR"/input.pbrt"
+sed -i 's/$splitalpha/'$SPLITALPHA'/' $RESULTS_DIR"/input.pbrt"
 #sed -i 's/Include "/Include "'$BASE'/scenes/' $RESULTS_DIR"/input.pbrt"
 $PBRT_PATH"pbrt" --outfile $RESULTS_DIR"/"$FILE_NAME $RESULTS_DIR"/input.pbrt" 2>&1 | tee $RESULTS_DIR/"renderOutput"
 tail --lines=+$(cat $RESULTS_DIR/"renderOutput" | grep -n "Statistics" | cut -f1 -d:) $RESULTS_DIR/"renderOutput" > $RESULTS_DIR/"statistics"

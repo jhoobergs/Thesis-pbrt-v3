@@ -277,7 +277,8 @@ namespace pbrt {
 
         template<typename U>
         Vector3<T> operator/(U f) const {
-            CHECK_NE(f, 0);
+            if(f == 0)
+                CHECK_NE(f, 0);
             Float inv = (Float) 1 / f;
             return Vector3<T>(x * inv, y * inv, z * inv);
         }

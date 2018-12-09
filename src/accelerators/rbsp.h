@@ -16,7 +16,7 @@ namespace pbrt {
         KDOPEdge(Point3f v1, Point3f v2, uint32_t faceId1, uint32_t faceId2) :
                 v1(std::move(v1)), v2(std::move(v2)), faceId1(faceId1), faceId2(faceId2) {};
 
-        Boundsf getBounds(Vector3f &direction) const{
+        Boundsf getBounds(Vector3f &direction) const {
             Boundsf bounds = Boundsf();
             const Float t1 = Dot(direction, v1);
             const Float t2 = Dot(direction, v2);
@@ -68,13 +68,13 @@ namespace pbrt {
                 if (!face.empty()) {
                     std::vector<bool> used;
                     used.reserve(face.size());
-                    for(auto &edge: face)
+                    for (auto &edge: face)
                         used.emplace_back(false);
                     edgeId = 0;
                     // uint32_t previousEdgeId = 1;
                     do {
                         //if(edgeId == previousEdgeId){
-                        if(used[edgeId]){ // TODO; don't set to zero probably ?
+                        if (used[edgeId]) { // TODO; don't set to zero probably ?
                             Warning("Breaking from invalid polygon %f %f %f", FSA.x, FSA.y, FSA.z);
                             break;
                         }
@@ -214,7 +214,7 @@ namespace pbrt {
                     std::swap(edge.v1, edge.v2);
                     std::swap(t1, t2);
                 }
-                Vector3f d = edge.v2-edge.v1;
+                Vector3f d = edge.v2 - edge.v1;
                 if (t1 < t && t2 < t) {
                     left.addEdge(edge);
                 } else if (t1 > t && t2 > t) {
@@ -261,10 +261,10 @@ namespace pbrt {
                         break;
                     }
                 }
-                if(!found)
+                if (!found)
                     Warning("Can't add edge from (%f,%f,%f) to (%f,%f,%f) with faces %d and %d",
-                        edge.v1.x, edge.v1.y, edge.v1.z, edge.v2.x, edge.v2.y, edge.v2.z,
-                        edge.faceId1, edge.faceId2);
+                            edge.v1.x, edge.v1.y, edge.v1.z, edge.v2.x, edge.v2.y, edge.v2.z,
+                            edge.faceId1, edge.faceId2);
             }
 
             /*for(size_t i = 0; i < 2 * M; ++i){
@@ -305,7 +305,7 @@ namespace pbrt {
         // KdTreeAccel Public Methods
         RBSP(std::vector<std::shared_ptr<Primitive>> p,
              uint32_t isectCost = 80, uint32_t traversalCost = 1,
-             Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3);
+             Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3, Float splitAlpha = 90);
 
         Bounds3f WorldBound() const { return bounds; }
 
@@ -314,13 +314,14 @@ namespace pbrt {
         bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
 
         bool IntersectP(const Ray &ray) const;
-        friend std::ofstream& operator<<(std::ofstream& os, const RBSP& rbspTree);
+
+        friend std::ofstream &operator<<(std::ofstream &os, const RBSP &rbspTree);
 
     private:
         // RBSP Private Methods
         void buildTree(BoundsMf &rootNodeMBounds, KDOPMesh &kDOPMesh,
                        const std::vector<BoundsMf> &allPrimBounds,
-                       uint32_t maxDepth);
+                       uint32_t maxDepth, Float splitAlphaCos);
 
         // KdTreeAccel Private Data
         const uint32_t isectCost, traversalCost, maxPrims;
@@ -334,7 +335,8 @@ namespace pbrt {
     };
 
     struct RBSPBuildNode {
-        RBSPBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines, BoundsMf nodeBounds, KDOPMesh kdopMesh, Float kdopMeshArea,
+        RBSPBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines, BoundsMf nodeBounds, KDOPMesh kdopMesh,
+                      Float kdopMeshArea,
                       uint32_t *primNums, uint32_t parentNum = -1)
                 : depth(depth),
                   nPrimitives(nPrimitives), badRefines(badRefines), nodeBounds(std::move(nodeBounds)),

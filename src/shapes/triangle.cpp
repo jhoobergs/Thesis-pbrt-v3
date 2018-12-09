@@ -581,6 +581,18 @@ namespace pbrt {
         return 0.5 * Cross(p1 - p0, p2 - p0).Length();
     }
 
+    Normal3f Triangle::Normal() const {
+        const Point3f &p0 = mesh->p[v[0]];
+        const Point3f &p1 = mesh->p[v[1]];
+        const Point3f &p2 = mesh->p[v[2]];
+
+        Vector3f dp02 = p0 - p2, dp12 = p1 - p2;
+        Vector3f n = Cross(dp02, dp12);
+        if(n.Length() > 0)
+            n = Normalize(n);
+        return Normal3f(n);
+    }
+
     Interaction Triangle::Sample(const Point2f &u, Float *pdf) const {
         Point2f b = UniformSampleTriangle(u);
         // Get triangle vertices in _p0_, _p1_, and _p2_
