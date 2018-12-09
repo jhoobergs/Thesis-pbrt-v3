@@ -91,6 +91,8 @@ namespace pbrt {
 
         Float Area() const;
 
+        Normal3f Normal() const;
+
         using Shape::Sample;  // Bring in the other Sample() overload.
         Interaction Sample(const Point2f &u, Float *pdf) const;
 
