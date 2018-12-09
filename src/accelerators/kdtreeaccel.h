@@ -51,6 +51,7 @@ namespace pbrt {
     enum class EdgeType {
         Start, End
     };
+
     struct BoundEdge {
         // BoundEdge Public Methods
         BoundEdge() {}
@@ -70,7 +71,7 @@ namespace pbrt {
         // KdTreeAccel Public Methods
         KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
                     uint32_t isectCost = 80, uint32_t traversalCost = 1,
-                    Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1);
+                    Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, Float splitAlpha = 90);
 
         Bounds3f WorldBound() const { return bounds; }
 
@@ -79,11 +80,13 @@ namespace pbrt {
         bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
 
         bool IntersectP(const Ray &ray) const;
-        friend std::ofstream& operator<<(std::ofstream& os, const KdTreeAccel& kdTreeAccel);
+
+        friend std::ofstream &operator<<(std::ofstream &os, const KdTreeAccel &kdTreeAccel);
+
     private:
         // KdTreeAccel Private Methods
         void buildTree(Bounds3f &rootNodeBounds,
-                       const std::vector<Bounds3f> &allPrimBounds, uint32_t maxDepth);
+                       const std::vector<Bounds3f> &allPrimBounds, uint32_t maxDepth, Float splitAlphaCos);
 
         // KdTreeAccel Private Data
         const uint32_t isectCost, traversalCost, maxPrims;
@@ -95,8 +98,9 @@ namespace pbrt {
         Bounds3f bounds;
     };
 
-    struct KdBuildNode{
-        KdBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines, Bounds3f nodeBounds, uint32_t *primNums, uint32_t parentNum = -1)
+    struct KdBuildNode {
+        KdBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines, Bounds3f nodeBounds, uint32_t *primNums,
+                    uint32_t parentNum = -1)
                 : depth(depth),
                   nPrimitives(nPrimitives), badRefines(badRefines), nodeBounds(std::move(nodeBounds)),
                   primNums(primNums), parentNum(parentNum) {}

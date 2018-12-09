@@ -80,6 +80,10 @@ namespace pbrt {
             }
             return bounds;
         }
+
+        virtual Normal3f Normal() const {
+            return Normal3f(0,0,0);
+        }
     };
 
 // GeometricPrimitive Declarations
@@ -106,6 +110,10 @@ namespace pbrt {
                                         bool allowMultipleLobes) const;
 
         Boundsf getBounds(Vector3f direction) const;
+
+        Normal3f Normal() const {
+            return shape->Normal();
+        }
 
     private:
         // GeometricPrimitive Private Data
@@ -141,6 +149,10 @@ namespace pbrt {
         Bounds3f WorldBound() const {
             return PrimitiveToWorld.MotionBounds(primitive->WorldBound());
         }
+
+        Normal3f Normal() const {
+            return Normal3f(0,0,0);
+        };
 
     private:
         // TransformedPrimitive Private Data

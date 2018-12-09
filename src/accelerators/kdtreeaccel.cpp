@@ -35,17 +35,22 @@
 #include "paramset.h"
 #include "stats.h"
 #include <fstream>
+#include <shapes/triangle.h>
 
 namespace pbrt {
 
     STAT_COUNTER("Accelerator/Kd-tree node traversals during intersect", nbNodeTraversals);
     STAT_COUNTER("Accelerator/Kd-tree node traversals during intersectP", nbNodeTraversalsP);
     STAT_COUNTER("Accelerator/Kd-tree nodes", nbNodes);
+    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:maxdepth", statParamMaxDepth);
+
+    STAT_COUNTER("Accelerator/Kd-tree build: splitTests", statNbSplitTests);
     STAT_COUNTER("Accelerator/Kd-tree param:intersectioncost", statParamIntersectCost);
+    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:emptybonus", statParamEmptyBonus);
+
     STAT_COUNTER("Accelerator/Kd-tree param:traversalcost", statParamTraversalCost);
     STAT_COUNTER("Accelerator/Kd-tree param:maxprims", statParamMaxPrims);
-    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:emptybonus", statParamEmptyBonus);
-    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:maxdepth", statParamMaxDepth);
+    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:splitalpha", statParamSplitAlpha);
     STAT_COUNTER_DOUBLE("Accelerator/Kd-tree SA-cost", totalSACost);
     STAT_COUNTER_DOUBLE("Accelerator/Kd-tree Depth", statDepth);
 
@@ -80,23 +85,21 @@ namespace pbrt {
                 return 1 + std::max(nodes[AboveChild()].depth(nodes, AboveChild()), nodes[id + 1].depth(nodes, id + 1));
         }
 
-        std::string toString(const std::vector<uint32_t> &primitiveIndices){
+        std::string toString(const std::vector<uint32_t> &primitiveIndices) {
             std::stringstream ss;
-            if(IsLeaf()){
+            if (IsLeaf()) {
                 uint32_t np = nPrimitives();
                 ss << "L " << np;
-                if(np == 1){
+                if (np == 1) {
                     ss << " " << onePrimitive;
-                }
-                else{
-                    for(int i = 0; i < np; i++){
+                } else {
+                    for (int i = 0; i < np; i++) {
                         uint32_t primitiveIndex =
                                 primitiveIndices[primitiveIndicesOffset + i];
                         ss << " " << primitiveIndex;
                     }
                 }
-            }
-            else{
+            } else {
                 ss << "I " << SplitAxis() << " " << SplitPos() << " " << AboveChild();
             }
 
@@ -118,15 +121,19 @@ namespace pbrt {
         };
     };
 
-    std::ofstream& operator<<(std::ofstream& os, const KdTreeAccel& kdTreeAccel)
-    {
+    std::ofstream &operator<<(std::ofstream &os, const KdTreeAccel &kdTreeAccel) {
         os << "3" << std::endl;
         os << "1 0 0" << std::endl;
         os << "0 1 0" << std::endl;
         os << "0 0 1" << std::endl;
         os << kdTreeAccel.nextFreeNode << std::endl;
-        for(int i =0; i < kdTreeAccel.nextFreeNode; i++){
+        for (int i = 0; i < kdTreeAccel.nextFreeNode; i++) {
             os << kdTreeAccel.nodes[i].toString(kdTreeAccel.primitiveIndices) << std::endl;
+        }
+        os << kdTreeAccel.primitives.size() << std::endl;
+        for (auto &p: kdTreeAccel.primitives){
+            Normal3f n = p->Normal();
+            os << n.x << " " << n.y << " " << n.z << std::endl;
         }
         return os;
     }
@@ -134,7 +141,7 @@ namespace pbrt {
     // KdTreeAccel Method Definitions
     KdTreeAccel::KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
                              uint32_t isectCost, uint32_t traversalCost, Float emptyBonus,
-                             uint32_t maxPrims, uint32_t maxDepth)
+                             uint32_t maxPrims, uint32_t maxDepth, Float splitAlpha)
             : isectCost(isectCost),
               traversalCost(traversalCost),
               maxPrims(maxPrims),
@@ -144,12 +151,16 @@ namespace pbrt {
         ProfilePhase _(Prof::AccelConstruction);
         nextFreeNode = nAllocedNodes = 0;
         if (maxDepth == -1)
-            maxDepth = (uint32_t) std::round(8 + 1.3f * Log2Int(int64_t(primitives.size()))); // TODO: change values of k1 and k2 (k1logN + k2) k1=1.2 && k2 = 2
+            maxDepth = (uint32_t) std::round(8 + 1.3f * Log2Int(int64_t(
+                    primitives.size()))); // TODO: change values of k1 and k2 (k1logN + k2) k1=1.2 && k2 = 2
         statParamMaxDepth = maxDepth;
         statParamEmptyBonus = emptyBonus;
         statParamIntersectCost = isectCost;
         statParamTraversalCost = traversalCost;
         statParamMaxPrims = maxPrims;
+        statNbSplitTests = 0;
+        statParamSplitAlpha = splitAlpha;
+        Float splitAlphaCos = (Float) std::abs(std::cos(splitAlpha * 3.14/180));
 
         // Compute bounds for kd-tree construction
         std::vector<Bounds3f> primBounds;
@@ -161,7 +172,7 @@ namespace pbrt {
         }
         //Warning("Lets build");
         // Start recursive construction of kd-tree
-        buildTree(bounds, primBounds, maxDepth);
+        buildTree(bounds, primBounds, maxDepth, splitAlphaCos);
     }
 
     void KdAccelNode::InitLeaf(uint32_t *primNums, uint32_t np,
@@ -183,7 +194,7 @@ namespace pbrt {
 
     void KdTreeAccel::buildTree(Bounds3f &rootNodeBounds,
                                 const std::vector<Bounds3f> &allPrimBounds,
-                                uint32_t maxDepth) {
+                                uint32_t maxDepth, Float splitAlphaCos) {
         uint32_t nodeNum = 0;
         // Allocate working memory for kd-tree construction
         std::unique_ptr<BoundEdge[]> edges[3];
@@ -265,7 +276,8 @@ namespace pbrt {
                     const Float edgeT = edges[axis][i].t;
 
                     if (edgeT > currentBuildNode.nodeBounds.pMin[axis] &&
-                        edgeT < currentBuildNode.nodeBounds.pMax[axis]) {
+                        edgeT < currentBuildNode.nodeBounds.pMax[axis] && std::abs(Dot(primitives[edges[axis][i].primNum]->Normal(), Vector3f(axis==0 ? 1: 0, axis==1 ? 1: 0, axis==2 ? 1: 0))) > splitAlphaCos) {
+                        statNbSplitTests += 1;
                         // Compute cost for split at _i_th edge
 
                         // Compute child surface areas for split at _edgeT_
@@ -536,9 +548,10 @@ namespace pbrt {
         Float emptyBonus = ps.FindOneFloat("emptybonus", 0);
         uint32_t maxPrims = (uint32_t) ps.FindOneInt("maxprims", 1);
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
+        Float splitAlpha = ps.FindOneFloat("splitalpha", 90);
 
         return std::make_shared<KdTreeAccel>(std::move(prims), isectCost, travCost, emptyBonus,
-                                             maxPrims, maxDepth);
+                                             maxPrims, maxDepth, splitAlpha);
     }
 
 }  // namespace pbrt
