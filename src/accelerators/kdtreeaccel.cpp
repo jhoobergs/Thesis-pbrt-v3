@@ -179,7 +179,6 @@ namespace pbrt {
             bounds = Union(bounds, b);
             primBounds.push_back(b);
         }
-        //Warning("Lets build");
         // Start recursive construction of kd-tree
         buildTree(bounds, primBounds, maxDepth, splitAlpha, alphaType);
     }
@@ -397,7 +396,6 @@ namespace pbrt {
     }
 
     bool KdTreeAccel::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
-        //Warning("Let's intersect %f, %f, %f", ray.o.x, ray.o.y, ray.o.z);
         ProfilePhase p(Prof::AccelIntersect);
         // Compute initial parametric range of ray inside kd-tree extent
         Float tMin, tMax;
@@ -420,7 +418,6 @@ namespace pbrt {
             nbNodeTraversals++;
             ray.stats.kdTreeNodeTraversals++;
             if (!node->IsLeaf()) {
-                //Warning("Checking Interior");
                 // Process kd-tree interior node
 
                 // Compute parametric distance along ray to split plane
@@ -432,7 +429,6 @@ namespace pbrt {
                 bool belowFirst =
                         (ray.o[axis] < node->SplitPos()) ||
                         (ray.o[axis] == node->SplitPos() && ray.d[axis] <= 0);
-                //Warning("Checking Interior: before if");
                 if (belowFirst) {
                     firstChild = node + 1;
                     secondChild = &nodes[node->AboveChild()];
@@ -440,7 +436,6 @@ namespace pbrt {
                     firstChild = &nodes[node->AboveChild()];
                     secondChild = node + 1;
                 }
-                //Warning("Checking Interior after if");
 
                 // Advance to next child node, possibly enqueue other child
                 if (tPlane > tMax || tPlane <= 0)
@@ -456,11 +451,9 @@ namespace pbrt {
                     node = firstChild;
                     tMax = tPlane;
                 }
-                //Warning("Checking Interior end");
             } else {
                 // Check for intersections inside leaf node
                 uint32_t nPrimitives = node->nPrimitives();
-                //Warning("Checking Leaf %d", nPrimitives);
                 if (nPrimitives == 1) {
                     const std::shared_ptr<Primitive> &p =
                             primitives[node->onePrimitive];
@@ -475,8 +468,6 @@ namespace pbrt {
                         if (p->Intersect(ray, isect)) hit = true;
                     }
                 }
-                //Warning("Checking Leaf finding new");
-
 
                 // Grab next node to process from todo list
                 if (todoPos > 0) {
@@ -492,7 +483,6 @@ namespace pbrt {
     }
 
     bool KdTreeAccel::IntersectP(const Ray &ray) const {
-        //Warning("Let's intersectP");
         ProfilePhase p(Prof::AccelIntersectP);
         // Compute initial parametric range of ray inside kd-tree extent
         Float tMin, tMax;
@@ -510,19 +500,14 @@ namespace pbrt {
             nbNodeTraversalsP++;
             ray.stats.kdTreeNodeTraversalsP++;
             if (node->IsLeaf()) {
-                //Warning("Checking Leaf");
                 // Check for shadow ray intersections inside leaf node
                 uint32_t nPrimitives = node->nPrimitives();
-                //Warning("Checking Leaf %d", nPrimitives);
                 if (nPrimitives == 1) {
                     const std::shared_ptr<Primitive> &p =
                             primitives[node->onePrimitive];
-                    //Warning("Checking Leaf %d = 1", nPrimitives);
                     if (p->IntersectP(ray)) {
-                        //Warning("Checking Leaf %d = 1 hit", nPrimitives);
                         return true;
                     }
-                    //Warning("Checking Leaf %d = 1 mis", nPrimitives);
                 } else {
                     for (uint32_t i = 0; i < nPrimitives; ++i) {
                         uint32_t primitiveIndex =
@@ -537,18 +522,14 @@ namespace pbrt {
 
                 // Grab next node to process from todo list
                 if (todoPos > 0) {
-                    //Warning("Checking Leaf %d mis, todos %d", nPrimitives, todoPos);
                     --todoPos;
                     node = todo[todoPos].node;
                     tMin = todo[todoPos].tMin;
                     tMax = todo[todoPos].tMax;
                 } else {
-                    //Warning("breaking Out of Leaf");
                     break;
                 }
-                //Warning("Out of Leaf");
             } else {
-                //Warning("Checking Interior");
                 // Process kd-tree interior node
 
                 // Compute parametric distance along ray to split plane
@@ -582,7 +563,6 @@ namespace pbrt {
                     node = firstChild;
                     tMax = tPlane;
                 }
-                //Warning("Out of Interior");
             }
         }
         return false;
