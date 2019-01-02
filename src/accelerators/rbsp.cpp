@@ -12,6 +12,7 @@
 namespace pbrt {
 
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:splitalpha", statParamSplitAlpha);
+    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:alphatype", statParamAlphaType);
     STAT_COUNTER("Accelerator/RBSP-tree node traversals during intersect", nbNodeTraversals);
     STAT_COUNTER("Accelerator/RBSP-tree node traversals during intersectP", nbNodeTraversalsP);
     STAT_COUNTER("Accelerator/RBSP-tree nodes", nbNodes);
@@ -134,11 +135,21 @@ namespace pbrt {
             Normal3f n = p->Normal();
             os << n.x << " " << n.y << " " << n.z << std::endl;
         }
+        for (auto &p: rbspTree.primitives){
+            for(auto &direction: rbspTree.directions) {
+                auto b = p->getBounds(direction);
+                os << b.min << " " << b.max << " ";
+            }
+            os << std::endl;
+        }
+        for (auto &p: rbspTree.primitives){
+            os << p->getSurfaceArea() << std::endl;
+        }
         return os;
     }
 
     RBSP::RBSP(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost, uint32_t traversalCost,
-               Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, Float splitAlpha)
+               Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, Float splitAlpha, uint32_t alphaType)
             : isectCost(isectCost),
               traversalCost(traversalCost),
               maxPrims(maxPrims),
@@ -157,7 +168,7 @@ namespace pbrt {
         statParamMaxPrims = maxPrims;
         statNbSplitTests = 0;
         statParamSplitAlpha = splitAlpha;
-        Float splitAlphaCos = (Float) std::abs(std::cos(splitAlpha * 3.14/180));
+        statParamAlphaType = alphaType;
 
         directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
         directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
@@ -224,13 +235,13 @@ namespace pbrt {
         kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
 
         // Start recursive construction of RBSP-tree
-        buildTree(rootNodeMBounds, kDOPMesh, primBounds, maxDepth, splitAlphaCos);
+        buildTree(rootNodeMBounds, kDOPMesh, primBounds, maxDepth, splitAlpha, alphaType);
     }
 
     void
     RBSP::buildTree(pbrt::BoundsMf &rootNodeMBounds, pbrt::KDOPMesh &kDOPMesh,
                     const std::vector<BoundsMf> &allPrimBounds,
-                    uint32_t maxDepth, Float splitAlphaCos) {
+                    uint32_t maxDepth, Float splitAlpha, uint32_t alphaType) {
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
 
         //Warning("Building RBSP");
@@ -250,6 +261,9 @@ namespace pbrt {
         }
         uint32_t maxPrimsOffset = 0;
         double currentSACost = 0;
+
+        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * 3.14/180));
+        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * 3.14/180));
 
         std::vector<RBSPBuildNode> stack;
         stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, rootNodeMBounds, kDOPMesh,
@@ -321,9 +335,17 @@ namespace pbrt {
                 for (uint32_t i = 0; i < 2 * currentBuildNode.nPrimitives; ++i) {
                     if (edges[d][i].type == EdgeType::End) --nAbove;
                     const Float edgeT = edges[d][i].t;
+                    bool check = true;
+                    const Float angleCos = std::abs(Dot(primitives[edges[d][i].primNum]->Normal(), directions[d]));
+                    if(alphaType == 2)
+                        check = angleCos < splitAlphaCos1;
+                    else if(alphaType == 1)
+                        check = angleCos > splitAlphaCos0;
+                    else if(alphaType == 0)
+                        check = angleCos < splitAlphaCos1 or angleCos > splitAlphaCos0;
 
                     if (edgeT > currentBuildNode.nodeBounds[d].min &&
-                        edgeT < currentBuildNode.nodeBounds[d].max && std::abs(Dot(primitives[edges[d][i].primNum]->Normal(), directions[d])) > splitAlphaCos) {
+                        edgeT < currentBuildNode.nodeBounds[d].max && check) {
                         statNbSplitTests += 1;
                         // Compute cost for split at _i_th edge
 
@@ -656,9 +678,11 @@ namespace pbrt {
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
         uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3);
         Float splitAlpha = ps.FindOneFloat("splitalpha", 90);
+        uint32_t alphaType = (uint32_t) ps.FindOneInt("alphatype", 3);
+        Warning("alphatype %d", alphaType);
 
         return std::make_shared<RBSP>(std::move(prims), isectCost, travCost, emptyBonus,
-                                      maxPrims, maxDepth, nbDirections, splitAlpha);
+                                      maxPrims, maxDepth, nbDirections, splitAlpha, alphaType);
     }
 
 }  // namespace pbrt
