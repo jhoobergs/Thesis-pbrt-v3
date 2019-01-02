@@ -241,14 +241,12 @@ namespace pbrt {
                     uint32_t maxDepth, Float splitAlpha, uint32_t alphaType) {
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
 
-        //Warning("Building RBSP");
         auto M = (uint32_t) directions.size();
         uint32_t nodeNum = 0;
         // Allocate working memory for rbsp-tree construction
         std::vector<std::unique_ptr<BoundEdge[]>> edges;
         for (uint32_t i = 0; i < M; ++i)
             edges.emplace_back(std::unique_ptr<BoundEdge[]>(new BoundEdge[2 * primitives.size()]));
-        //Warning("Let's create prims");
         std::unique_ptr<uint32_t[]> prims(
                 new uint32_t[(maxDepth + 1) * primitives.size()]); // TODO: use vector ?
         // Initialize _primNums_ for rbsp-tree construction
@@ -515,7 +513,6 @@ namespace pbrt {
             nbNodeTraversals++;
             ray.stats.rBSPTreeNodeTraversals++;
             if (!node->IsLeaf(M)) {
-                //Warning("Checking Interior");
                 // Process rbsp-tree interior node
 
                 // Compute parametric distance along ray to split plane
@@ -529,7 +526,6 @@ namespace pbrt {
                 const bool belowFirst =
                         (projectedO < node->SplitPos()) ||
                         (projectedO == node->SplitPos() && inverseProjectedD <= 0);
-                //Warning("Checking Interior: before if");
                 if (belowFirst) {
                     firstChild = node + 1;
                     secondChild = &nodes[node->AboveChild(M)];
@@ -537,7 +533,6 @@ namespace pbrt {
                     firstChild = &nodes[node->AboveChild(M)];
                     secondChild = node + 1;
                 }
-                //Warning("Checking Interior after if");
 
                 // Advance to next child node, possibly enqueue other child
                 if (tPlane > tMax || tPlane <= 0)
@@ -553,11 +548,9 @@ namespace pbrt {
                     node = firstChild;
                     tMax = tPlane;
                 }
-                //Warning("Checking Interior end");
             } else {
                 // Check for intersections inside leaf node
                 const uint32_t nPrimitives = node->nPrimitives(M);
-                //Warning("Checking Leaf %d", nPrimitives);
                 if (nPrimitives == 1) {
                     const std::shared_ptr<Primitive> &p =
                             primitives[node->onePrimitive];
@@ -572,7 +565,6 @@ namespace pbrt {
                         if (p->Intersect(ray, isect)) hit = true;
                     }
                 }
-                //Warning("Checking Leaf finding new");
 
 
                 // Grab next node to process from todo list
@@ -606,19 +598,14 @@ namespace pbrt {
             nbNodeTraversalsP++;
             ray.stats.rBSPTreeNodeTraversalsP++;
             if (node->IsLeaf(M)) {
-                //Warning("Checking Leaf");
                 // Check for shadow ray intersections inside leaf node
                 const uint32_t nPrimitives = node->nPrimitives(M);
-                //Warning("Checking Leaf %d", nPrimitives);
                 if (nPrimitives == 1) {
                     const std::shared_ptr<Primitive> &p =
                             primitives[node->onePrimitive];
-                    //Warning("Checking Leaf %d = 1", nPrimitives);
                     if (p->IntersectP(ray)) {
-                        //Warning("Checking Leaf %d = 1 hit", nPrimitives);
                         return true;
                     }
-                    //Warning("Checking Leaf %d = 1 mis", nPrimitives);
                 } else {
                     for (uint32_t i = 0; i < nPrimitives; ++i) {
                         const uint32_t primitiveIndex =
@@ -633,18 +620,14 @@ namespace pbrt {
 
                 // Grab next node to process from todo list
                 if (todoPos > 0) {
-                    //Warning("Checking Leaf %d mis, todos %d", nPrimitives, todoPos);
                     --todoPos;
                     node = todo[todoPos].node;
                     tMin = todo[todoPos].tMin;
                     tMax = todo[todoPos].tMax;
                 } else {
-                    //Warning("breaking Out of Leaf");
                     break;
                 }
-                //Warning("Out of Leaf");
             } else {
-                //Warning("Checking Interior");
                 // Process rbsp-tree interior node
 
                 // Compute parametric distance along ray to split plane
@@ -680,7 +663,6 @@ namespace pbrt {
                     node = firstChild;
                     tMax = tPlane;
                 }
-                //Warning("Out of Interior");
             }
         }
         return false;
