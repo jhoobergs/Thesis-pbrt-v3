@@ -78,7 +78,7 @@ class StatsAccumulator {
         counters[name] += val;
     }
     void ReportCounter(const std::string &name, double val) {
-        counters[name] += val;
+        doubleCounters[name] += val;
     }
     void ReportMemoryCounter(const std::string &name, int64_t val) {
         memoryCounters[name] += val;
@@ -128,6 +128,7 @@ class StatsAccumulator {
   private:
     // StatsAccumulator Private Data
     std::map<std::string, int64_t> counters;
+    std::map<std::string, double> doubleCounters;
     std::map<std::string, int64_t> memoryCounters;
     std::map<std::string, int64_t> intDistributionSums;
     std::map<std::string, int64_t> intDistributionCounts;
