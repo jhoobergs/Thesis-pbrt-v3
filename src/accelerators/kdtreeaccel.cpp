@@ -161,8 +161,7 @@ namespace pbrt {
         ProfilePhase _(Prof::AccelConstruction);
         nextFreeNode = nAllocedNodes = 0;
         if (maxDepth == -1)
-            maxDepth = (uint32_t) std::round(8 + 1.3f * Log2Int(int64_t(
-                    primitives.size()))); // TODO: change values of k1 and k2 (k1logN + k2) k1=1.2 && k2 = 2
+            maxDepth = calculateMaxDepth(primitives.size());
         statParamMaxDepth = maxDepth;
         statParamEmptyBonus = emptyBonus;
         statParamIntersectCost = isectCost;
@@ -214,16 +213,47 @@ namespace pbrt {
             edge.reset(new BoundEdge[2 * primitives.size()]);
         std::unique_ptr<uint32_t[]> prims(
                 new uint32_t[(maxDepth + 1) * primitives.size()]); // TODO: vector ?
-        //uint32_t *prims = prims_p.get();
         // Initialize _primNums_ for kd-tree construction
         for (uint32_t i = 0; i < primitives.size(); ++i) {
             prims[i] = i;
         }
+        // Precalculate normals
+        std::vector<std::vector<Float>> directionDotNormals; // for each direction a vector with for each primitive the dot product between it's normal and the direction
+        std::vector<std::vector<bool>> angleMatrix; // for each direction a vector with for each primitive whether it should be checked
+
+        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * M_PI/180));
+        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * M_PI/180));
+        for(uint32_t axis = 0; axis < 3; ++axis) {
+            std::vector<Float> dotNormals;
+            directionDotNormals.emplace_back(dotNormals);
+            std::vector<bool> angleVector;
+            angleMatrix.emplace_back(angleVector);
+        }
+        for(uint32_t i = 0; i < primitives.size(); ++i) {
+            Normal3f n = primitives[i]->Normal();
+            directionDotNormals[0].emplace_back(std::abs(n.x));
+            directionDotNormals[1].emplace_back(std::abs(n.y));
+            directionDotNormals[2].emplace_back(std::abs(n.z));
+
+            if(alphaType == 2)
+                for(uint32_t axis = 0; axis < 3; ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1);
+            else if(alphaType == 1)
+                for(uint32_t axis = 0; axis < 3; ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] >= splitAlphaCos0);
+            else if(alphaType == 0)
+                for(uint32_t axis = 0; axis < 3; ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1 or directionDotNormals[axis][i] >= splitAlphaCos0);
+            else if(alphaType == 3)
+                for(uint32_t axis = 0; axis < 3; ++axis)
+                    angleMatrix[axis].emplace_back(true);
+        }
+
+
         uint32_t maxPrimsOffset = 0;
         double currentSACost = 0;
 
-        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * 3.14/180));
-        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * 3.14/180));
+
 
         std::vector<KdBuildNode> stack;
         stack.emplace_back(KdBuildNode(maxDepth, (uint32_t) primitives.size(), 0, rootNodeBounds, &prims[0]));
@@ -290,17 +320,9 @@ namespace pbrt {
                 for (uint32_t i = 0; i < 2 * currentBuildNode.nPrimitives; ++i) {
                     if (edges[axis][i].type == EdgeType::End) --nAbove;
                     const Float edgeT = edges[axis][i].t;
-                    bool check = true;
-                    const Float angleCos = std::abs(Dot(primitives[edges[axis][i].primNum]->Normal(), Vector3f(axis==0 ? 1: 0, axis==1 ? 1: 0, axis==2 ? 1: 0)));
-                    if(alphaType == 2)
-                        check = angleCos < splitAlphaCos1;
-                    else if(alphaType == 1)
-                        check = angleCos > splitAlphaCos0;
-                    else if(alphaType == 0)
-                        check = angleCos < splitAlphaCos1 or angleCos > splitAlphaCos0;
 
                     if (edgeT > currentBuildNode.nodeBounds.pMin[axis] &&
-                        edgeT < currentBuildNode.nodeBounds.pMax[axis] && check) {
+                        edgeT < currentBuildNode.nodeBounds.pMax[axis] && angleMatrix[axis][edges[axis][i].primNum]) {
                         statNbSplitTests += 1;
                         // Compute cost for split at _i_th edge
 
@@ -371,7 +393,7 @@ namespace pbrt {
         statDepth = nodes[0].depth(nodes, 0);
         nbNodes = nodeNum;
         totalSACost = currentSACost / bounds.SurfaceArea();
-        Warning("%f", bounds.SurfaceArea());
+        Warning("%f", totalSACost);
     }
 
     bool KdTreeAccel::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
@@ -575,7 +597,8 @@ namespace pbrt {
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
         Float splitAlpha = ps.FindOneFloat("splitalpha", 90);
         uint32_t alphaType = (uint32_t) ps.FindOneInt("alphatype", 3);
-        Warning("alphatype %d", alphaType);
+        if(alphaType == 3)
+            splitAlpha = 0;
 
         return std::make_shared<KdTreeAccel>(std::move(prims), isectCost, travCost, emptyBonus,
                                              maxPrims, maxDepth, splitAlpha, alphaType);

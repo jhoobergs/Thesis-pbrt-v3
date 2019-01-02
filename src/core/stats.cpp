@@ -113,6 +113,13 @@ void StatsAccumulator::Print(FILE *dest) {
         toPrint[category].push_back(StringPrintf(
             "%-42s               %12" PRIu64, title.c_str(), counter.second));
     }
+    for (auto &counter : doubleCounters) {
+        if (counter.second == 0) continue;
+        std::string category, title;
+        getCategoryAndTitle(counter.first, &category, &title);
+        toPrint[category].push_back(StringPrintf(
+                "%-42s               %12f", title.c_str(), counter.second));
+    }
     for (auto &counter : memoryCounters) {
         if (counter.second == 0) continue;
         std::string category, title;
@@ -188,6 +195,7 @@ void StatsAccumulator::Print(FILE *dest) {
 
 void StatsAccumulator::Clear() {
     counters.clear();
+    doubleCounters.clear();
     memoryCounters.clear();
     intDistributionSums.clear();
     intDistributionCounts.clear();

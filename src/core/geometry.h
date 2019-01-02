@@ -1752,6 +1752,10 @@ namespace pbrt {
         return (splitPos - projectedO) * inverseProjectedD;
     }
 
+    inline uint32_t calculateMaxDepth(int64_t N){
+        return (uint32_t) std::round(2 + 1.2f * Log2Int(N));
+    }
+
 }  // namespace pbrt
 
 #endif  // PBRT_CORE_GEOMETRY_H

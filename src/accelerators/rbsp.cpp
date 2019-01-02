@@ -50,7 +50,6 @@ namespace pbrt {
 
         Float SplitPos() const { return split; }
 
-        //TODO change amount of bit shifts etc
         uint32_t nPrimitives(uint32_t M) const { return nPrims >> getBitOffset(M); }
 
         uint32_t SplitAxis(uint32_t M) const { return flags & getBitMask(M); }
@@ -103,10 +102,9 @@ namespace pbrt {
         };
     };
 
-    // TODO uint32 -> u32 type
     void RBSPNode::InitLeaf(uint32_t M, uint32_t *primNums, uint32_t np,
                             std::vector<uint32_t> *primitiveIndices) {
-        flags = M; // TODO: change this as function of M
+        flags = M;
         nPrims |= (np << getBitOffset(M));
         // Store primitive ids for leaf node
         if (np == 0)
@@ -158,8 +156,7 @@ namespace pbrt {
         ProfilePhase _(Prof::AccelConstruction);
         nextFreeNode = nAllocedNodes = 0;
         if (maxDepth == -1)
-            maxDepth = (uint32_t) std::round(8 + 1.3f * Log2Int(int64_t(
-                    primitives.size())));  // TODO: change values of k1 and k2 (k1logN + k2) k1=1.2 && k2 = 2
+            maxDepth = calculateMaxDepth(primitives.size());
         statPraramnbDirections = nbDirections;
         statParamMaxDepth = maxDepth;
         statParamEmptyBonus = emptyBonus;
@@ -254,16 +251,44 @@ namespace pbrt {
         //Warning("Let's create prims");
         std::unique_ptr<uint32_t[]> prims(
                 new uint32_t[(maxDepth + 1) * primitives.size()]); // TODO: use vector ?
-        //uint32_t *prims = prims_p.get();
         // Initialize _primNums_ for rbsp-tree construction
         for (uint32_t i = 0; i < primitives.size(); ++i) {
             prims[i] = i;
         }
+        // Precalculate normals
+        std::vector<std::vector<Float>> directionDotNormals; // for each direction a vector with for each primitive the dot product between it's normal and the direction
+        std::vector<std::vector<bool>> angleMatrix; // for each direction a vector with for each primitive whether it should be checked
+
+        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * M_PI/180));
+        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * M_PI/180));
+        for(uint32_t axis = 0; axis < directions.size(); ++axis) {
+            std::vector<Float> dotNormals;
+            directionDotNormals.emplace_back(dotNormals);
+            std::vector<bool> angleVector;
+            angleMatrix.emplace_back(angleVector);
+        }
+        for(uint32_t i = 0; i < primitives.size(); ++i) {
+            Normal3f n = primitives[i]->Normal();
+            for(uint32_t axis = 0; axis < directions.size(); ++axis)
+                directionDotNormals[axis].emplace_back(std::abs(Dot(n, directions[axis])));
+
+            if(alphaType == 2)
+                for(uint32_t axis = 0; axis < directions.size(); ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1);
+            else if(alphaType == 1)
+                for(uint32_t axis = 0; axis < directions.size(); ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] >= splitAlphaCos0);
+            else if(alphaType == 0)
+                for(uint32_t axis = 0; axis < directions.size(); ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1 or directionDotNormals[axis][i] >= splitAlphaCos0);
+            else if(alphaType == 3)
+                for(uint32_t axis = 0; axis < directions.size(); ++axis)
+                    angleMatrix[axis].emplace_back(true);
+        }
+
+
         uint32_t maxPrimsOffset = 0;
         double currentSACost = 0;
-
-        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * 3.14/180));
-        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * 3.14/180));
 
         std::vector<RBSPBuildNode> stack;
         stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, rootNodeMBounds, kDOPMesh,
@@ -305,7 +330,7 @@ namespace pbrt {
 
 
             // Choose split axis position for interior node
-            uint32_t bestD = -1, bestOffset = -1; // TODO: std:limit
+            uint32_t bestD = -1, bestOffset = -1;
             std::pair<KDOPMesh, KDOPMesh> bestSplittedKDOPs;
             std::pair<Float, Float> bestSplittedKDOPAreas = std::make_pair(0, 0);
             Float bestCost = Infinity;
@@ -335,17 +360,9 @@ namespace pbrt {
                 for (uint32_t i = 0; i < 2 * currentBuildNode.nPrimitives; ++i) {
                     if (edges[d][i].type == EdgeType::End) --nAbove;
                     const Float edgeT = edges[d][i].t;
-                    bool check = true;
-                    const Float angleCos = std::abs(Dot(primitives[edges[d][i].primNum]->Normal(), directions[d]));
-                    if(alphaType == 2)
-                        check = angleCos < splitAlphaCos1;
-                    else if(alphaType == 1)
-                        check = angleCos > splitAlphaCos0;
-                    else if(alphaType == 0)
-                        check = angleCos < splitAlphaCos1 or angleCos > splitAlphaCos0;
 
                     if (edgeT > currentBuildNode.nodeBounds[d].min &&
-                        edgeT < currentBuildNode.nodeBounds[d].max && check) {
+                        edgeT < currentBuildNode.nodeBounds[d].max && angleMatrix[d][edges[d][i].primNum]) {
                         statNbSplitTests += 1;
                         // Compute cost for split at _i_th edge
 
@@ -679,7 +696,8 @@ namespace pbrt {
         uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3);
         Float splitAlpha = ps.FindOneFloat("splitalpha", 90);
         uint32_t alphaType = (uint32_t) ps.FindOneInt("alphatype", 3);
-        Warning("alphatype %d", alphaType);
+        if(alphaType == 3)
+            splitAlpha = 0;
 
         return std::make_shared<RBSP>(std::move(prims), isectCost, travCost, emptyBonus,
                                       maxPrims, maxDepth, nbDirections, splitAlpha, alphaType);
