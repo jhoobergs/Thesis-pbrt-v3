@@ -36,6 +36,7 @@
 #include "stats.h"
 #include <fstream>
 #include <shapes/triangle.h>
+#include <core/progressreporter.h>
 
 namespace pbrt {
 
@@ -51,6 +52,7 @@ namespace pbrt {
     STAT_COUNTER("Accelerator/Kd-tree param:traversalcost", statParamTraversalCost);
     STAT_COUNTER("Accelerator/Kd-tree param:maxprims", statParamMaxPrims);
     STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:splitalpha", statParamSplitAlpha);
+    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:alphatype", statParamAlphaType);
     STAT_COUNTER_DOUBLE("Accelerator/Kd-tree SA-cost", totalSACost);
     STAT_COUNTER_DOUBLE("Accelerator/Kd-tree Depth", statDepth);
 
@@ -135,13 +137,21 @@ namespace pbrt {
             Normal3f n = p->Normal();
             os << n.x << " " << n.y << " " << n.z << std::endl;
         }
+        for (auto &p: kdTreeAccel.primitives){
+            for(int i = 0; i <3; i++)
+                os << p->WorldBound().pMin[i] << " " << p->WorldBound().pMax[i] << " ";
+            os << std::endl;
+        }
+        for (auto &p: kdTreeAccel.primitives){
+            os << p->getSurfaceArea() << std::endl;
+        }
         return os;
     }
 
     // KdTreeAccel Method Definitions
     KdTreeAccel::KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
                              uint32_t isectCost, uint32_t traversalCost, Float emptyBonus,
-                             uint32_t maxPrims, uint32_t maxDepth, Float splitAlpha)
+                             uint32_t maxPrims, uint32_t maxDepth, Float splitAlpha, uint32_t alphaType)
             : isectCost(isectCost),
               traversalCost(traversalCost),
               maxPrims(maxPrims),
@@ -160,7 +170,7 @@ namespace pbrt {
         statParamMaxPrims = maxPrims;
         statNbSplitTests = 0;
         statParamSplitAlpha = splitAlpha;
-        Float splitAlphaCos = (Float) std::abs(std::cos(splitAlpha * 3.14/180));
+        statParamAlphaType = alphaType;
 
         // Compute bounds for kd-tree construction
         std::vector<Bounds3f> primBounds;
@@ -172,7 +182,7 @@ namespace pbrt {
         }
         //Warning("Lets build");
         // Start recursive construction of kd-tree
-        buildTree(bounds, primBounds, maxDepth, splitAlphaCos);
+        buildTree(bounds, primBounds, maxDepth, splitAlpha, alphaType);
     }
 
     void KdAccelNode::InitLeaf(uint32_t *primNums, uint32_t np,
@@ -194,7 +204,9 @@ namespace pbrt {
 
     void KdTreeAccel::buildTree(Bounds3f &rootNodeBounds,
                                 const std::vector<Bounds3f> &allPrimBounds,
-                                uint32_t maxDepth, Float splitAlphaCos) {
+                                uint32_t maxDepth, Float splitAlpha, uint32_t alphaType) {
+        ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
+
         uint32_t nodeNum = 0;
         // Allocate working memory for kd-tree construction
         std::unique_ptr<BoundEdge[]> edges[3];
@@ -210,10 +222,14 @@ namespace pbrt {
         uint32_t maxPrimsOffset = 0;
         double currentSACost = 0;
 
+        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * 3.14/180));
+        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * 3.14/180));
+
         std::vector<KdBuildNode> stack;
         stack.emplace_back(KdBuildNode(maxDepth, (uint32_t) primitives.size(), 0, rootNodeBounds, &prims[0]));
 
         while (!stack.empty()) {
+            reporter.Update();
             KdBuildNode currentBuildNode = stack.back();
             stack.pop_back();
             CHECK_EQ(nodeNum, nextFreeNode);
@@ -244,7 +260,7 @@ namespace pbrt {
             }
 
             // Choose split axis position for interior node
-            uint32_t bestAxis = -1, bestOffset = -1; // TODO: const
+            uint32_t bestAxis = -1, bestOffset = -1;
             Float bestCost = Infinity;
             Float oldCost = isectCost * Float(currentBuildNode.nPrimitives);
             Float totalSA = currentBuildNode.nodeBounds.SurfaceArea();
@@ -274,9 +290,17 @@ namespace pbrt {
                 for (uint32_t i = 0; i < 2 * currentBuildNode.nPrimitives; ++i) {
                     if (edges[axis][i].type == EdgeType::End) --nAbove;
                     const Float edgeT = edges[axis][i].t;
+                    bool check = true;
+                    const Float angleCos = std::abs(Dot(primitives[edges[axis][i].primNum]->Normal(), Vector3f(axis==0 ? 1: 0, axis==1 ? 1: 0, axis==2 ? 1: 0)));
+                    if(alphaType == 2)
+                        check = angleCos < splitAlphaCos1;
+                    else if(alphaType == 1)
+                        check = angleCos > splitAlphaCos0;
+                    else if(alphaType == 0)
+                        check = angleCos < splitAlphaCos1 or angleCos > splitAlphaCos0;
 
                     if (edgeT > currentBuildNode.nodeBounds.pMin[axis] &&
-                        edgeT < currentBuildNode.nodeBounds.pMax[axis] && std::abs(Dot(primitives[edges[axis][i].primNum]->Normal(), Vector3f(axis==0 ? 1: 0, axis==1 ? 1: 0, axis==2 ? 1: 0))) > splitAlphaCos) {
+                        edgeT < currentBuildNode.nodeBounds.pMax[axis] && check) {
                         statNbSplitTests += 1;
                         // Compute cost for split at _i_th edge
 
@@ -343,6 +367,7 @@ namespace pbrt {
             ++nodeNum;
         }
 
+        reporter.Done();
         statDepth = nodes[0].depth(nodes, 0);
         nbNodes = nodeNum;
         totalSACost = currentSACost / bounds.SurfaceArea();
@@ -549,9 +574,11 @@ namespace pbrt {
         uint32_t maxPrims = (uint32_t) ps.FindOneInt("maxprims", 1);
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
         Float splitAlpha = ps.FindOneFloat("splitalpha", 90);
+        uint32_t alphaType = (uint32_t) ps.FindOneInt("alphatype", 3);
+        Warning("alphatype %d", alphaType);
 
         return std::make_shared<KdTreeAccel>(std::move(prims), isectCost, travCost, emptyBonus,
-                                             maxPrims, maxDepth, splitAlpha);
+                                             maxPrims, maxDepth, splitAlpha, alphaType);
     }
 
 }  // namespace pbrt

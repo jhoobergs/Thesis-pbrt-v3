@@ -305,7 +305,7 @@ namespace pbrt {
         // KdTreeAccel Public Methods
         RBSP(std::vector<std::shared_ptr<Primitive>> p,
              uint32_t isectCost = 80, uint32_t traversalCost = 1,
-             Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3, Float splitAlpha = 90);
+             Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3, Float splitAlpha = 90, uint32_t alphaType = 3);
 
         Bounds3f WorldBound() const { return bounds; }
 
@@ -321,7 +321,7 @@ namespace pbrt {
         // RBSP Private Methods
         void buildTree(BoundsMf &rootNodeMBounds, KDOPMesh &kDOPMesh,
                        const std::vector<BoundsMf> &allPrimBounds,
-                       uint32_t maxDepth, Float splitAlphaCos);
+                       uint32_t maxDepth, Float splitAlpha, uint32_t alphaType);
 
         // KdTreeAccel Private Data
         const uint32_t isectCost, traversalCost, maxPrims;

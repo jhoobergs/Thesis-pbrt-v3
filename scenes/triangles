@@ -1,0 +1,29 @@
+LookAt 0 0 0  # eye
+       0 1 0  # look at point
+       0 0 1    # up vector
+Camera "perspective" "float fov" 45
+
+Sampler "halton" "integer pixelsamples" 8
+Accelerator $acc "integer nbDirections" [$accnr]
+Integrator "path"
+Film "image" "string filename" "simple.png"
+     "integer xresolution" [400] "integer yresolution" [400]
+
+WorldBegin
+
+# uniform blue-ish illumination from all directions
+LightSource "infinite" "rgb L" [.4 .45 .5]
+
+# approximate the sun
+LightSource "distant"  "point from" [ -30 40  100 ]
+   "blackbody L" [3000 1.5]
+
+AttributeBegin
+  Translate 0 10 0
+  Shape "trianglemesh"
+      "integer indices" [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
+      "point P" [ -2 2 0 2 2 0 2 2 2 -2 4 0 2 4 0 2 4 2 -2 6 0 2 6 0 2 6 2 -2 8 0 2 8 0 2 8 2 -2 10 0 2 10 0 2 10 2 -2 12 0 2 12 0 2 12 2 -2 14 0 2 14 0 2 14 2 -2 16 0 2 16 0 2 16 2 -2 18 0 2 18 0 2 18 2 -2 20 0 2 20 0 2 20 2 -2 22 0 2 22 0 2 22 2 -2 24 0 2 24 0 2 24 2 -2 26 0 2 26 0 2 26 2 -2 28 0 2 28 0 2 28 2 -2 30 0 2 30 0 2 30 2 -2 32 0 2 32 0 2 32 2 -2 34 0 2 34 0 2 34 2 -2 36 0 2 36 0 2 36 2 -2 38 0 2 38 0 2 38 2 -2 40 0 2 40 0 2 40 2]
+
+AttributeEnd
+
+WorldEnd

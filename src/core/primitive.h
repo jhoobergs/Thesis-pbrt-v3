@@ -84,6 +84,10 @@ namespace pbrt {
         virtual Normal3f Normal() const {
             return Normal3f(0,0,0);
         }
+
+        virtual Float getSurfaceArea() const {
+            return 0;
+        };
     };
 
 // GeometricPrimitive Declarations
@@ -109,10 +113,14 @@ namespace pbrt {
                                         MemoryArena &arena, TransportMode mode,
                                         bool allowMultipleLobes) const;
 
-        Boundsf getBounds(Vector3f direction) const;
+        Boundsf getBounds(Vector3f direction) const override;
 
-        Normal3f Normal() const {
+        Normal3f Normal() const override {
             return shape->Normal();
+        }
+
+        Float getSurfaceArea() const override {
+            return shape->Area();
         }
 
     private:
@@ -146,13 +154,17 @@ namespace pbrt {
                        "called";
         }
 
-        Bounds3f WorldBound() const {
+        Bounds3f WorldBound() const override {
             return PrimitiveToWorld.MotionBounds(primitive->WorldBound());
         }
 
-        Normal3f Normal() const {
+        Normal3f Normal() const override {
             return Normal3f(0,0,0);
         };
+
+        Float getSurfaceArea() const override {
+            return primitive->getSurfaceArea();
+        }
 
     private:
         // TransformedPrimitive Private Data
