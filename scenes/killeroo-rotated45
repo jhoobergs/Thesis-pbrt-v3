@@ -19,7 +19,7 @@ LightSource "distant" "point from" [400 20 30] "point to" [0 63 -110]
 
 AttributeBegin
   Scale 1 1 1
-  Rotate 0 0 0 1
+  Rotate 45 0 0 1
   Translate -200 100 -100
   Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
         "float roughness" [.15] 

@@ -71,7 +71,7 @@ namespace pbrt {
         // KdTreeAccel Public Methods
         KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
                     uint32_t isectCost = 80, uint32_t traversalCost = 1,
-                    Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, Float splitAlpha = 90);
+                    Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, Float splitAlpha = 90, uint32_t alphaType = 3);
 
         Bounds3f WorldBound() const { return bounds; }
 
@@ -86,7 +86,7 @@ namespace pbrt {
     private:
         // KdTreeAccel Private Methods
         void buildTree(Bounds3f &rootNodeBounds,
-                       const std::vector<Bounds3f> &allPrimBounds, uint32_t maxDepth, Float splitAlphaCos);
+                       const std::vector<Bounds3f> &allPrimBounds, uint32_t maxDepth, Float splitAlpha, uint32_t alphaType);
 
         // KdTreeAccel Private Data
         const uint32_t isectCost, traversalCost, maxPrims;
