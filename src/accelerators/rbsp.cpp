@@ -8,7 +8,11 @@
 #include "accelerators/rbsp.h"
 #include <fstream>
 #include <shapes/triangle.h>
+#include <random>
+#include <cmath>
+#include <limits.h>
 
+#define clz(x) __builtin_clz(x)
 namespace pbrt {
 
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:splitalpha", statParamSplitAlpha);
@@ -19,6 +23,8 @@ namespace pbrt {
     STAT_COUNTER("Accelerator/RBSP-tree build: splitTests", statNbSplitTests);
     STAT_COUNTER("Accelerator/RBSP-tree param:directions", statPraramnbDirections);
     STAT_COUNTER("Accelerator/RBSP-tree param:intersectioncost", statParamIntersectCost);
+    STAT_COUNTER("Accelerator/RBSP-tree param:axisSelectionType", statParamAxisSelectionType);
+    STAT_COUNTER("Accelerator/RBSP-tree param:axisSelectionAmount", statParamAxisSelectionAmount);
 
     STAT_COUNTER("Accelerator/RBSP-tree param:traversalcost", statParamTraversalCost);
     STAT_COUNTER("Accelerator/RBSP-tree param:maxprims", statParamMaxPrims);
@@ -27,12 +33,17 @@ namespace pbrt {
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
 
-    inline uint32_t getBitOffset(const uint32_t M) {
-        return (uint32_t) std::ceil(std::log2(M + 1));
+    inline uint32_t log2_fast(const uint32_t x) {
+        return sizeof(uint32_t) * CHAR_BIT - clz(x - 1);
+    }
+
+    inline const uint32_t getBitOffset(const uint32_t M) {
+        return log2_fast(M + 1);
+        //return (uint32_t) std::ceil(std::log2(M + 1));
     }
 
     inline uint32_t getBitMask(const uint32_t M) {
-        return ((uint32_t) std::pow(2, getBitOffset(M))) - 1;
+        return ((uint32_t) 1 << getBitOffset(M)) - 1;
     }
 
     struct RBSPNode {
@@ -129,25 +140,27 @@ namespace pbrt {
             os << rbspTree.nodes[i].toString(rbspTree.directions.size(), rbspTree.primitiveIndices) << std::endl;
         }
         os << rbspTree.primitives.size() << std::endl;
-        for (auto &p: rbspTree.primitives){
+        for (auto &p: rbspTree.primitives) {
             Normal3f n = p->Normal();
             os << n.x << " " << n.y << " " << n.z << std::endl;
         }
-        for (auto &p: rbspTree.primitives){
-            for(auto &direction: rbspTree.directions) {
+        for (auto &p: rbspTree.primitives) {
+            for (auto &direction: rbspTree.directions) {
                 auto b = p->getBounds(direction);
                 os << b.min << " " << b.max << " ";
             }
             os << std::endl;
         }
-        for (auto &p: rbspTree.primitives){
+        for (auto &p: rbspTree.primitives) {
             os << p->getSurfaceArea() << std::endl;
         }
         return os;
     }
 
     RBSP::RBSP(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost, uint32_t traversalCost,
-               Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, Float splitAlpha, uint32_t alphaType)
+               Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, Float splitAlpha,
+               uint32_t alphaType,
+               uint32_t axisSelectionType, uint32_t axisSelectionAmount)
             : isectCost(isectCost),
               traversalCost(traversalCost),
               maxPrims(maxPrims),
@@ -157,6 +170,8 @@ namespace pbrt {
         nextFreeNode = nAllocedNodes = 0;
         if (maxDepth == -1)
             maxDepth = calculateMaxDepth(primitives.size());
+        if (axisSelectionAmount == -1)
+            axisSelectionAmount = nbDirections;
         statPraramnbDirections = nbDirections;
         statParamMaxDepth = maxDepth;
         statParamEmptyBonus = emptyBonus;
@@ -166,27 +181,10 @@ namespace pbrt {
         statNbSplitTests = 0;
         statParamSplitAlpha = splitAlpha;
         statParamAlphaType = alphaType;
+        statParamAxisSelectionType = axisSelectionType;
+        statParamAxisSelectionAmount = axisSelectionAmount;
 
-        directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
-        directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
-        directions.emplace_back(Vector3f(0.0, 0.0, 1.0));
-
-        if (nbDirections == 7 || nbDirections == 13) {
-            directions.emplace_back(Normalize(Vector3f(1.0, 1.0, 1.0)));
-            directions.emplace_back(Normalize(Vector3f(1.0, -1.0f, 1.0)));
-            directions.emplace_back(Normalize(Vector3f(1.0, 1.0, -1.0f)));
-            directions.emplace_back(Normalize(Vector3f(1.0, -1.0f, -1.0f)));
-        }
-
-        if (nbDirections == 9 || nbDirections == 13) {
-            directions.emplace_back(Normalize(Vector3f(1.0, 1.0, 0.0)));
-            directions.emplace_back(Normalize(Vector3f(1.0, 0.0, 1.0)));
-            directions.emplace_back(Normalize(Vector3f(0.0, 1.0, 1.0)));
-            directions.emplace_back(Normalize(Vector3f(1.0, -1.0f, 0.0)));
-            directions.emplace_back(Normalize(Vector3f(1.0, 0.0f, -1.0f)));
-            directions.emplace_back(Normalize(Vector3f(0.0, 1.0, -1.0f)));
-        }
-        CHECK_EQ(nbDirections, directions.size());
+        directions = getDirections(nbDirections);
 
         pbrt::BoundsMf rootNodeMBounds;
         for (auto &d: directions) {
@@ -232,13 +230,15 @@ namespace pbrt {
         kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
 
         // Start recursive construction of RBSP-tree
-        buildTree(rootNodeMBounds, kDOPMesh, primBounds, maxDepth, splitAlpha, alphaType);
+        buildTree(rootNodeMBounds, kDOPMesh, primBounds, maxDepth, splitAlpha, alphaType, axisSelectionType,
+                  axisSelectionAmount);
     }
 
     void
     RBSP::buildTree(pbrt::BoundsMf &rootNodeMBounds, pbrt::KDOPMesh &kDOPMesh,
                     const std::vector<BoundsMf> &allPrimBounds,
-                    uint32_t maxDepth, Float splitAlpha, uint32_t alphaType) {
+                    uint32_t maxDepth, Float splitAlpha, uint32_t alphaType, uint32_t axisSelectionType,
+                    uint32_t axisSelectionAmount) {
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
 
         auto M = (uint32_t) directions.size();
@@ -256,31 +256,39 @@ namespace pbrt {
         // Precalculate normals
         std::vector<std::vector<Float>> directionDotNormals; // for each direction a vector with for each primitive the dot product between it's normal and the direction
         std::vector<std::vector<bool>> angleMatrix; // for each direction a vector with for each primitive whether it should be checked
+        std::vector<uint32_t> closestDirection; // for each primitive, the index of the closest direction
 
-        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * M_PI/180));
-        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * M_PI/180));
-        for(uint32_t axis = 0; axis < directions.size(); ++axis) {
+        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * M_PI / 180));
+        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * M_PI / 180));
+        for (uint32_t axis = 0; axis < directions.size(); ++axis) {
             std::vector<Float> dotNormals;
             directionDotNormals.emplace_back(dotNormals);
             std::vector<bool> angleVector;
             angleMatrix.emplace_back(angleVector);
         }
-        for(uint32_t i = 0; i < primitives.size(); ++i) {
+        for (uint32_t i = 0; i < primitives.size(); ++i) {
             Normal3f n = primitives[i]->Normal();
-            for(uint32_t axis = 0; axis < directions.size(); ++axis)
+            for (uint32_t axis = 0; axis < directions.size(); ++axis)
                 directionDotNormals[axis].emplace_back(std::abs(Dot(n, directions[axis])));
 
-            if(alphaType == 2)
-                for(uint32_t axis = 0; axis < directions.size(); ++axis)
-                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1);
-            else if(alphaType == 1)
-                for(uint32_t axis = 0; axis < directions.size(); ++axis)
+            uint32_t best = 0;
+            for (uint32_t axis = 1; axis < directions.size(); ++axis)
+                if (directionDotNormals[axis][i] > directionDotNormals[best][i])
+                    best = axis;
+            closestDirection.emplace_back(best);
+
+            if (alphaType == 1)
+                for (uint32_t axis = 0; axis < directions.size(); ++axis)
                     angleMatrix[axis].emplace_back(directionDotNormals[axis][i] >= splitAlphaCos0);
-            else if(alphaType == 0)
-                for(uint32_t axis = 0; axis < directions.size(); ++axis)
-                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1 or directionDotNormals[axis][i] >= splitAlphaCos0);
-            else if(alphaType == 3)
-                for(uint32_t axis = 0; axis < directions.size(); ++axis)
+            else if (alphaType == 2)
+                for (uint32_t axis = 0; axis < directions.size(); ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1);
+            else if (alphaType == 3)
+                for (uint32_t axis = 0; axis < directions.size(); ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1 or
+                                                   directionDotNormals[axis][i] >= splitAlphaCos0);
+            else if (alphaType == 0)
+                for (uint32_t axis = 0; axis < directions.size(); ++axis)
                     angleMatrix[axis].emplace_back(true);
         }
 
@@ -336,7 +344,150 @@ namespace pbrt {
             // Float totalSA = currentBuildNode.kDOPMesh.SurfaceArea(directions);
             const Float invTotalSA = 1 / currentBuildNode.kdopMeshArea;
             std::pair<KDOPMesh, KDOPMesh> splittedKDOPs;
-            for (uint32_t d = 0; d < M; ++d) {
+
+            std::vector<uint32_t> directionsToUse;
+            if (axisSelectionType == 0) {
+                for (uint32_t axis = 0; axis < M; ++axis)
+                    directionsToUse.emplace_back(axis);
+                std::shuffle(directionsToUse.begin(), directionsToUse.end(), std::mt19937(std::random_device()()));
+                directionsToUse.erase(directionsToUse.begin() + axisSelectionAmount, directionsToUse.end());
+            } else if (axisSelectionType == 1) {
+                std::vector<std::pair<Float, uint32_t>> means;
+                for (uint32_t axis = 0; axis < M; ++axis) {
+                    Float sum = 0;
+                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                        sum += directionDotNormals[axis][currentBuildNode.primNums[i]];
+                    }
+                    means.emplace_back(std::make_pair(sum / currentBuildNode.nPrimitives, axis));
+                }
+                std::sort(means.begin(), means.end());
+                for (uint32_t axis = 0; axis < axisSelectionAmount; ++axis) {
+                    directionsToUse.emplace_back(means[means.size() - 1 - axis].second);
+                }
+            } else if (axisSelectionType == 2) {
+                std::vector<std::pair<Float, uint32_t>> amounts;
+                for (uint32_t axis = 0; axis < M; ++axis) {
+                    amounts.emplace_back(std::make_pair(0, axis));
+                }
+                for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                    amounts[closestDirection[i]].first += 1; //bounds.pMax[closestDirection[i]] - bounds.pMin[closestDirection[i]];
+                }
+
+                std::sort(amounts.begin(), amounts.end());
+                for (uint32_t axis = 0; axis < axisSelectionAmount; ++axis) {
+                    directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
+                }
+            } else if (axisSelectionType == 3) {
+                Float f = currentBuildNode.depth * 1.0f / maxDepth;
+                if (f < 0.2) {
+                    for (uint32_t axis = 0; axis < M; ++axis)
+                        directionsToUse.emplace_back(axis);
+                } else {
+                    std::vector<std::pair<Float, uint32_t>> amounts;
+                    for (uint32_t axis = 0; axis < M; ++axis) {
+                        amounts.emplace_back(std::make_pair(0, axis));
+                    }
+                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                        amounts[closestDirection[i]].first += 1;
+                    }
+
+                    std::sort(amounts.begin(), amounts.end());
+                    uint32_t after = 0, before = 0;
+                    if (f <= 0.6) {
+                        after = std::max((axisSelectionAmount > 1) ? 1u : 0u,
+                                         (uint32_t) std::floor(f * axisSelectionAmount));
+                        before = axisSelectionAmount - after;
+                        CHECK(before >= after);
+                    } else {
+                        before = std::max((axisSelectionAmount > 1) ? 1u : 0u,
+                                          (uint32_t) std::floor((1 - f) * axisSelectionAmount));
+                        after = axisSelectionAmount - before;
+                        CHECK(after >= before);
+                    }
+
+                    for (uint32_t axis = 0; axis < before; ++axis) {
+                        directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
+                    }
+                    for (uint32_t axis = 0; axis < after; ++axis) {
+                        directionsToUse.emplace_back(amounts[axis].second);
+                    }
+                }
+            } else if (axisSelectionType == 4) {
+                Float f = currentBuildNode.depth * 1.0f / maxDepth;
+                if (f < 0.2 || f > 0.8) {
+                    for (uint32_t axis = 0; axis < M; ++axis)
+                        directionsToUse.emplace_back(axis);
+                } else {
+                    std::vector<std::pair<Float, uint32_t>> amounts;
+                    for (uint32_t axis = 0; axis < M; ++axis) {
+                        amounts.emplace_back(std::make_pair(0, axis));
+                    }
+                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                        amounts[closestDirection[i]].first += 1;
+                    }
+
+                    std::sort(amounts.begin(), amounts.end());
+                    uint32_t after = 0, before = 0;
+                    if (f <= 0.5) {
+                        after = std::max((axisSelectionAmount > 1) ? 1u : 0u,
+                                         (uint32_t) std::floor(f * axisSelectionAmount));
+                        before = axisSelectionAmount - after;
+                        CHECK(before >= after);
+                    } else if (f <= 0.8) {
+                        before = std::max((axisSelectionAmount > 1) ? 1u : 0u,
+                                          (uint32_t) std::floor((1 - f) * axisSelectionAmount));
+                        after = axisSelectionAmount - before;
+                        CHECK(after >= before);
+                    }
+
+                    for (uint32_t axis = 0; axis < before; ++axis) {
+                        directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
+                    }
+                    for (uint32_t axis = 0; axis < after; ++axis) {
+                        directionsToUse.emplace_back(amounts[axis].second);
+                    }
+                }
+            } else if (axisSelectionType == 5) {
+                Float f = currentBuildNode.depth * 1.0f / maxDepth;
+                if (f < 0.2 || f > 0.8) {
+                    uint32_t amount = std::min(2 * axisSelectionAmount, (uint32_t) std::ceil(M * std::max(1 - f, f)));
+                    for (uint32_t axis = 0; axis < amount; ++axis)
+                        directionsToUse.emplace_back(axis);
+                } else {
+                    std::vector<std::pair<Float, uint32_t>> amounts;
+                    for (uint32_t axis = 0; axis < M; ++axis) {
+                        amounts.emplace_back(std::make_pair(0, axis));
+                    }
+                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                        amounts[closestDirection[i]].first += 1;
+                    }
+
+                    std::sort(amounts.begin(), amounts.end());
+                    uint32_t after = 0, before = 0;
+                    if (f <= 0.5) {
+                        after = std::max((axisSelectionAmount > 1) ? 1u : 0u,
+                                         (uint32_t) std::floor(f * axisSelectionAmount));
+                        before = axisSelectionAmount - after;
+                        CHECK(before >= after);
+                    } else if (f <= 0.8) {
+                        before = std::max((axisSelectionAmount > 1) ? 1u : 0u,
+                                          (uint32_t) std::floor((1 - f) * axisSelectionAmount));
+                        after = axisSelectionAmount - before;
+                        CHECK(after >= before);
+                    }
+
+                    for (uint32_t axis = 0; axis < before; ++axis) {
+                        directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
+                    }
+                    for (uint32_t axis = 0; axis < after; ++axis) {
+                        directionsToUse.emplace_back(amounts[axis].second);
+                    }
+                }
+            }
+
+
+            for (auto d: directionsToUse) {
+                //for (uint32_t d = 0; d < M; ++d) {
                 /*if(nodeNum == 31 || nodeNum == 308)
                     Warning("Val %d", d);*/
                 // Sort _edges_ for _axis_
@@ -676,13 +827,19 @@ namespace pbrt {
         uint32_t maxPrims = (uint32_t) ps.FindOneInt("maxprims", 1);
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
         uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3);
-        Float splitAlpha = ps.FindOneFloat("splitalpha", 90);
-        uint32_t alphaType = (uint32_t) ps.FindOneInt("alphatype", 3);
-        if(alphaType == 3)
-            splitAlpha = 0;
+        Float splitAlpha = ps.FindOneFloat("splitalpha", 0);
+        uint32_t alphaType = (uint32_t) ps.FindOneInt("alphatype",
+                                                      0); // 1 is between 0 and alpha, 2 between 90 and 90-alpha and 3 between 0 and alpha or 90 and 90 - alpha
+
+        uint32_t axisSelectionType = (uint32_t) ps.FindOneInt("axisselectiontype",
+                                                              0); // 0 is random, 1 is mean, 2 is simpleCluster
+        uint32_t axisSelectionAmount = (uint32_t) ps.FindOneInt("axisselectionamount", nbDirections);
+        if (axisSelectionAmount > nbDirections)
+            axisSelectionAmount = nbDirections;
 
         return std::make_shared<RBSP>(std::move(prims), isectCost, travCost, emptyBonus,
-                                      maxPrims, maxDepth, nbDirections, splitAlpha, alphaType);
+                                      maxPrims, maxDepth, nbDirections, splitAlpha, alphaType, axisSelectionType,
+                                      axisSelectionAmount);
     }
 
 }  // namespace pbrt
