@@ -1,3 +1,5 @@
+#include <random>
+
 
 /*
     pbrt source code is Copyright(c) 1998-2016
@@ -35,7 +37,6 @@
 #include "paramset.h"
 #include "stats.h"
 #include <fstream>
-#include <shapes/triangle.h>
 #include <core/progressreporter.h>
 
 namespace pbrt {
@@ -47,6 +48,8 @@ namespace pbrt {
 
     STAT_COUNTER("Accelerator/Kd-tree build: splitTests", statNbSplitTests);
     STAT_COUNTER("Accelerator/Kd-tree param:intersectioncost", statParamIntersectCost);
+    STAT_COUNTER("Accelerator/Kd-tree param:axisSelectionType", statParamAxisSelectionType);
+    STAT_COUNTER("Accelerator/Kd-tree param:axisSelectionAmount", statParamAxisSelectionAmount);
     STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:emptybonus", statParamEmptyBonus);
 
     STAT_COUNTER("Accelerator/Kd-tree param:traversalcost", statParamTraversalCost);
@@ -133,16 +136,16 @@ namespace pbrt {
             os << kdTreeAccel.nodes[i].toString(kdTreeAccel.primitiveIndices) << std::endl;
         }
         os << kdTreeAccel.primitives.size() << std::endl;
-        for (auto &p: kdTreeAccel.primitives){
+        for (auto &p: kdTreeAccel.primitives) {
             Normal3f n = p->Normal();
             os << n.x << " " << n.y << " " << n.z << std::endl;
         }
-        for (auto &p: kdTreeAccel.primitives){
-            for(int i = 0; i <3; i++)
+        for (auto &p: kdTreeAccel.primitives) {
+            for (int i = 0; i < 3; i++)
                 os << p->WorldBound().pMin[i] << " " << p->WorldBound().pMax[i] << " ";
             os << std::endl;
         }
-        for (auto &p: kdTreeAccel.primitives){
+        for (auto &p: kdTreeAccel.primitives) {
             os << p->getSurfaceArea() << std::endl;
         }
         return os;
@@ -151,7 +154,8 @@ namespace pbrt {
     // KdTreeAccel Method Definitions
     KdTreeAccel::KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
                              uint32_t isectCost, uint32_t traversalCost, Float emptyBonus,
-                             uint32_t maxPrims, uint32_t maxDepth, Float splitAlpha, uint32_t alphaType)
+                             uint32_t maxPrims, uint32_t maxDepth, Float splitAlpha, uint32_t alphaType,
+                             uint32_t axisSelectionType, uint32_t axisSelectionAmount)
             : isectCost(isectCost),
               traversalCost(traversalCost),
               maxPrims(maxPrims),
@@ -162,6 +166,8 @@ namespace pbrt {
         nextFreeNode = nAllocedNodes = 0;
         if (maxDepth == -1)
             maxDepth = calculateMaxDepth(primitives.size());
+        if (axisSelectionAmount == -1)
+            axisSelectionAmount = 3;
         statParamMaxDepth = maxDepth;
         statParamEmptyBonus = emptyBonus;
         statParamIntersectCost = isectCost;
@@ -170,6 +176,8 @@ namespace pbrt {
         statNbSplitTests = 0;
         statParamSplitAlpha = splitAlpha;
         statParamAlphaType = alphaType;
+        statParamAxisSelectionType = axisSelectionType;
+        statParamAxisSelectionAmount = axisSelectionAmount;
 
         // Compute bounds for kd-tree construction
         std::vector<Bounds3f> primBounds;
@@ -180,7 +188,7 @@ namespace pbrt {
             primBounds.push_back(b);
         }
         // Start recursive construction of kd-tree
-        buildTree(bounds, primBounds, maxDepth, splitAlpha, alphaType);
+        buildTree(bounds, primBounds, maxDepth, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount);
     }
 
     void KdAccelNode::InitLeaf(uint32_t *primNums, uint32_t np,
@@ -202,7 +210,8 @@ namespace pbrt {
 
     void KdTreeAccel::buildTree(Bounds3f &rootNodeBounds,
                                 const std::vector<Bounds3f> &allPrimBounds,
-                                uint32_t maxDepth, Float splitAlpha, uint32_t alphaType) {
+                                uint32_t maxDepth, Float splitAlpha, uint32_t alphaType, uint32_t axisSelectionType,
+                                uint32_t axisSelectionAmount) {
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
 
         uint32_t nodeNum = 0;
@@ -219,39 +228,47 @@ namespace pbrt {
         // Precalculate normals
         std::vector<std::vector<Float>> directionDotNormals; // for each direction a vector with for each primitive the dot product between it's normal and the direction
         std::vector<std::vector<bool>> angleMatrix; // for each direction a vector with for each primitive whether it should be checked
+        std::vector<uint32_t> closestDirection; // for each primitive, the index of the closest direction
 
-        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * M_PI/180));
-        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * M_PI/180));
-        for(uint32_t axis = 0; axis < 3; ++axis) {
+        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * M_PI / 180));
+        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * M_PI / 180));
+        for (uint32_t axis = 0; axis < 3; ++axis) {
             std::vector<Float> dotNormals;
             directionDotNormals.emplace_back(dotNormals);
             std::vector<bool> angleVector;
             angleMatrix.emplace_back(angleVector);
         }
-        for(uint32_t i = 0; i < primitives.size(); ++i) {
+        for (uint32_t i = 0; i < primitives.size(); ++i) {
             Normal3f n = primitives[i]->Normal();
+            uint32_t best = 0;
             directionDotNormals[0].emplace_back(std::abs(n.x));
             directionDotNormals[1].emplace_back(std::abs(n.y));
             directionDotNormals[2].emplace_back(std::abs(n.z));
 
-            if(alphaType == 2)
-                for(uint32_t axis = 0; axis < 3; ++axis)
-                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1);
-            else if(alphaType == 1)
-                for(uint32_t axis = 0; axis < 3; ++axis)
+            for (uint32_t axis = 1; axis < 3; ++axis)
+                if (directionDotNormals[axis][i] > directionDotNormals[best][i])
+                    best = axis;
+
+            closestDirection.emplace_back(best);
+
+            if (alphaType == 1)
+                for (uint32_t axis = 0; axis < 3; ++axis)
                     angleMatrix[axis].emplace_back(directionDotNormals[axis][i] >= splitAlphaCos0);
-            else if(alphaType == 0)
-                for(uint32_t axis = 0; axis < 3; ++axis)
-                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1 or directionDotNormals[axis][i] >= splitAlphaCos0);
-            else if(alphaType == 3)
-                for(uint32_t axis = 0; axis < 3; ++axis)
+            else if (alphaType == 2)
+                for (uint32_t axis = 0; axis < 3; ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1);
+            else if (alphaType == 3)
+                for (uint32_t axis = 0; axis < 3; ++axis)
+                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1 or
+                                                   directionDotNormals[axis][i] >= splitAlphaCos0);
+            else if (alphaType == 0)
+                for (uint32_t axis = 0; axis < 3; ++axis)
                     angleMatrix[axis].emplace_back(true);
         }
 
 
         uint32_t maxPrimsOffset = 0;
         double currentSACost = 0;
-
 
 
         std::vector<KdBuildNode> stack;
@@ -296,7 +313,78 @@ namespace pbrt {
             const Float invTotalSA = 1 / totalSA;
             const Vector3f d = currentBuildNode.nodeBounds.pMax - currentBuildNode.nodeBounds.pMin;
 
-            for (uint32_t axis = 0; axis < 3u; ++axis) {
+            std::vector<uint32_t> directionsToUse;
+            if (axisSelectionType == 0) {
+                for (uint32_t axis = 0; axis < 3u; ++axis)
+                    directionsToUse.emplace_back(axis);
+                std::shuffle(directionsToUse.begin(), directionsToUse.end(), std::mt19937(std::random_device()()));
+                directionsToUse.erase(directionsToUse.begin() + axisSelectionAmount, directionsToUse.end());
+            } else if (axisSelectionType == 1) {
+                std::vector<std::pair<Float, uint32_t>> means;
+                for (uint32_t axis = 0; axis < 3u; ++axis) {
+                    Float sum = 0;
+                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                        sum += directionDotNormals[axis][currentBuildNode.primNums[i]];
+                    }
+                    means.emplace_back(std::make_pair(sum / currentBuildNode.nPrimitives, axis));
+                }
+                std::sort(means.begin(), means.end());
+                for (uint32_t axis =0; axis < axisSelectionAmount; ++axis) {
+                    directionsToUse.emplace_back(means[means.size() - 1 - axis].second);
+                }
+            } else if (axisSelectionType == 2) {
+                std::vector<std::pair<Float , uint32_t>> amounts;
+                for (uint32_t axis = 0; axis < 3u; ++axis) {
+                    amounts.emplace_back(std::make_pair(0, axis));
+                }
+                for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                   amounts[closestDirection[i]].first += 1;
+                }
+
+                std::sort(amounts.begin(), amounts.end());
+                for (uint32_t axis =0; axis < axisSelectionAmount; ++axis) {
+                    directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
+                }
+            } else if (axisSelectionType == 3) {
+                Float f = currentBuildNode.depth * 1.0f / maxDepth;
+                if(f < 0.2){
+                    for (uint32_t axis = 0; axis < 3u; ++axis)
+                        directionsToUse.emplace_back(axis);
+                }
+                else{
+                    std::vector<std::pair<Float , uint32_t>> amounts;
+                    for (uint32_t axis = 0; axis < 3u; ++axis) {
+                        amounts.emplace_back(std::make_pair(0, axis));
+                    }
+                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                        amounts[closestDirection[i]].first += 1;
+                    }
+
+                    std::sort(amounts.begin(), amounts.end());
+                    uint32_t after = 0, before = 0;
+                    if(f <= 0.6){
+                        after = std::max((axisSelectionAmount > 1) ? 1u : 0u, (uint32_t) std::floor(f * axisSelectionAmount));
+                        before = axisSelectionAmount - after;
+                        CHECK(before >= after);
+                    }
+                    else {
+                        before = std::max((axisSelectionAmount > 1) ? 1u : 0u, (uint32_t) std::floor((1-f) * axisSelectionAmount));
+                        after = axisSelectionAmount - before;
+                        CHECK(after >= before);
+                    }
+
+                    for (uint32_t axis =0; axis < before; ++axis) {
+                        directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
+                    }
+                    for (uint32_t axis =0; axis < after; ++axis) {
+                        directionsToUse.emplace_back(amounts[axis].second);
+                    }
+                }
+            }
+
+
+
+            for (auto axis: directionsToUse) {
                 // Initialize edges for _axis_
                 for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
                     const uint32_t pn = currentBuildNode.primNums[i];
@@ -575,13 +663,20 @@ namespace pbrt {
         Float emptyBonus = ps.FindOneFloat("emptybonus", 0);
         uint32_t maxPrims = (uint32_t) ps.FindOneInt("maxprims", 1);
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
-        Float splitAlpha = ps.FindOneFloat("splitalpha", 90);
-        uint32_t alphaType = (uint32_t) ps.FindOneInt("alphatype", 3);
-        if(alphaType == 3)
-            splitAlpha = 0;
+        Float splitAlpha = ps.FindOneFloat("splitalpha", 0);
+        uint32_t alphaType = (uint32_t) ps.FindOneInt("alphatype",
+                                                      0); // 1 is between 0 and alpha, 2 between 90 and 90-alpha and 3 between 0 and alpha or 90 and 90 - alpha
+
+
+        uint32_t axisSelectionType = (uint32_t) ps.FindOneInt("axisselectiontype",
+                                                              0); // 0 is random, 1 is mean, 2 is simpleCluster
+        uint32_t axisSelectionAmount = (uint32_t) ps.FindOneInt("axisselectionamount", 3);
+        if (axisSelectionAmount > 3)
+            axisSelectionAmount = 3;
 
         return std::make_shared<KdTreeAccel>(std::move(prims), isectCost, travCost, emptyBonus,
-                                             maxPrims, maxDepth, splitAlpha, alphaType);
+                                             maxPrims, maxDepth, splitAlpha, alphaType, axisSelectionType,
+                                             axisSelectionAmount);
     }
 
 }  // namespace pbrt
