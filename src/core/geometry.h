@@ -277,7 +277,7 @@ namespace pbrt {
 
         template<typename U>
         Vector3<T> operator/(U f) const {
-            if(f == 0)
+            if (f == 0)
                 CHECK_NE(f, 0);
             Float inv = (Float) 1 / f;
             return Vector3<T>(x * inv, y * inv, z * inv);
@@ -1048,13 +1048,14 @@ namespace pbrt {
     class GeneralStats {
     public:
         GeneralStats(uint64_t rays, uint64_t triangleIntersections, uint64_t triangleIntersectionsP,
-                     uint64_t kdTreeNodeTraversals, uint64_t kdTreeNodeTraversalsP, uint64_t rBSPTreeNodeTraversals, uint64_t rBSPTreeNodeTraversalsP,
+                     uint64_t kdTreeNodeTraversals, uint64_t kdTreeNodeTraversalsP, uint64_t rBSPTreeNodeTraversals,
+                     uint64_t rBSPTreeNodeTraversalsP,
                      uint64_t bvhTreeNodeTraversals, uint64_t bvhTreeNodeTraversalsP) :
                 rays(rays), primitiveIntersections(triangleIntersections),
                 primitiveIntersectionsP(triangleIntersectionsP),
                 kdTreeNodeTraversals(kdTreeNodeTraversals), kdTreeNodeTraversalsP(kdTreeNodeTraversalsP),
                 rBSPTreeNodeTraversals(rBSPTreeNodeTraversals), rBSPTreeNodeTraversalsP(rBSPTreeNodeTraversalsP),
-                bvhTreeNodeTraversals(bvhTreeNodeTraversals), bvhTreeNodeTraversalsP(bvhTreeNodeTraversalsP){}
+                bvhTreeNodeTraversals(bvhTreeNodeTraversals), bvhTreeNodeTraversalsP(bvhTreeNodeTraversalsP) {}
 
         GeneralStats() : GeneralStats(0, 0, 0, 0, 0, 0, 0, 0, 0) {}
 
@@ -1747,18 +1748,19 @@ namespace pbrt {
         return ret;
     }
 
-    inline Float planeDistance(const Float splitPos, const Ray& ray, Vector3f& invDir, uint32_t axis){
+    inline Float planeDistance(const Float splitPos, const Ray &ray, Vector3f &invDir, uint32_t axis) {
         return (splitPos - ray.o[axis]) * invDir[axis];
     }
 
-    inline Float planeDistance(const Vector3f& direction, const Float splitPos, const Ray& ray, Float& projectedO, Float& inverseProjectedD){
+    inline Float planeDistance(const Vector3f &direction, const Float splitPos, const Ray &ray, Float &projectedO,
+                               Float &inverseProjectedD) {
         //Warning("(%f,%f,%f)", direction.x, direction.y, direction.z);
         projectedO = Dot(direction, ray.o); // can be precomputed
         inverseProjectedD = 1 / Dot(direction, ray.d); // can be precomputed
         return (splitPos - projectedO) * inverseProjectedD;
     }
 
-    inline uint32_t calculateMaxDepth(int64_t N){
+    inline uint32_t calculateMaxDepth(int64_t N) {
         return (uint32_t) std::round(2 + 1.2f * Log2Int(N));
     }
 
