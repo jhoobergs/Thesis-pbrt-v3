@@ -90,7 +90,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
 
         if(first) {
             r.stats += ray.stats;
-            first = false;
+            first = true;
         }
 
         // Possibly add emitted light at intersection

@@ -348,7 +348,7 @@ namespace pbrt {
         uint32_t depth;
         uint32_t nPrimitives;
         uint32_t badRefines;
-        BoundsMf nodeBounds;
+        BoundsMf nodeBounds; // TODO: remove
         KDOPMesh kDOPMesh;
         Float kdopMeshArea;
         uint32_t *primNums;
