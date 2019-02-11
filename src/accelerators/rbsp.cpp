@@ -345,6 +345,7 @@ namespace pbrt {
             const Float invTotalSA = 1 / currentBuildNode.kdopMeshArea;
             std::pair<KDOPMesh, KDOPMesh> splittedKDOPs;
 
+            const uint32_t depth = maxDepth - currentBuildNode.depth;
             std::vector<uint32_t> directionsToUse;
             if (axisSelectionType == 0) {
                 for (uint32_t axis = 0; axis < M; ++axis)
@@ -378,7 +379,7 @@ namespace pbrt {
                     directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
                 }
             } else if (axisSelectionType == 3) {
-                Float f = currentBuildNode.depth * 1.0f / maxDepth;
+                Float f = depth * 1.0f / maxDepth;
                 if (f < 0.2) {
                     for (uint32_t axis = 0; axis < M; ++axis)
                         directionsToUse.emplace_back(axis);
@@ -413,7 +414,7 @@ namespace pbrt {
                     }
                 }
             } else if (axisSelectionType == 4) {
-                Float f = currentBuildNode.depth * 1.0f / maxDepth;
+                Float f = depth * 1.0f / maxDepth;
                 if (f < 0.2 || f > 0.8) {
                     for (uint32_t axis = 0; axis < M; ++axis)
                         directionsToUse.emplace_back(axis);
@@ -448,7 +449,7 @@ namespace pbrt {
                     }
                 }
             } else if (axisSelectionType == 5) {
-                Float f = currentBuildNode.depth * 1.0f / maxDepth;
+                Float f = depth * 1.0f / maxDepth;
                 if (f < 0.2 || f > 0.8) {
                     uint32_t amount = std::min(2 * axisSelectionAmount, (uint32_t) std::ceil(M * std::max(1 - f, f)));
                     for (uint32_t axis = 0; axis < amount; ++axis)
@@ -647,8 +648,6 @@ namespace pbrt {
         if (!bounds.IntersectP(ray, &tMin, &tMax)) {
             return false;
         }
-        // ray.stats.rBSPTreeNodeTraversals = 10000;
-        // return false;
 
         // Prepare to traverse rbsp-tree for ray
         PBRT_CONSTEXPR uint32_t maxTodo = 64u;
