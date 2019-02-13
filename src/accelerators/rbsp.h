@@ -6,8 +6,8 @@
 #define PBRT_V3_RBSP_H
 
 #include <core/geometry.h>
-#include "kdtreeaccel.h"
 #include <algorithm>
+#include "genericRBSP.h"
 
 namespace pbrt {
     struct RBSPNode;
@@ -299,7 +299,7 @@ namespace pbrt {
         std::vector<KDOPEdge> edges;
     };
 
-    class RBSP : public Aggregate {
+    class RBSP : public GenericRBSP<RBSPNode> {
     public:
 
         // KdTreeAccel Public Methods
@@ -309,32 +309,14 @@ namespace pbrt {
              Float splitAlpha = 90, uint32_t alphaType = 0, uint32_t axisSelectionType = 0,
              uint32_t axisSelectionAmount = -1);
 
-        Bounds3f WorldBound() const { return bounds; }
+        bool Intersect(const Ray &ray, SurfaceInteraction *isect) const override;
 
-        ~RBSP();
+        bool IntersectP(const Ray &ray) const override;
 
-        bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
+        void printNodes(std::ofstream &os) const override;
 
-        bool IntersectP(const Ray &ray) const;
-
-        friend std::ofstream &operator<<(std::ofstream &os, const RBSP &rbspTree);
-
-    private:
-        // RBSP Private Methods
-        void buildTree(BoundsMf &rootNodeMBounds, KDOPMesh &kDOPMesh,
-                       const std::vector<BoundsMf> &allPrimBounds,
-                       uint32_t maxDepth, Float splitAlpha, uint32_t alphaType, uint32_t axisSelectionType,
-                       uint32_t axisSelectionAmount);
-
-        // KdTreeAccel Private Data
-        const uint32_t isectCost, traversalCost, maxPrims;
-        const Float emptyBonus;
-        std::vector<std::shared_ptr<Primitive>> primitives;
-        std::vector<uint32_t> primitiveIndices;
-        RBSPNode *nodes;
-        uint32_t nAllocedNodes, nextFreeNode;
-        Bounds3f bounds;
-        std::vector<Vector3f> directions;
+    protected:
+        void buildTree() override;
     };
 
     struct RBSPBuildNode {
@@ -353,11 +335,6 @@ namespace pbrt {
         Float kdopMeshArea;
         uint32_t *primNums;
         uint32_t parentNum;
-    };
-
-    struct RBSPToDo {
-        const RBSPNode *node;
-        Float tMin, tMax;
     };
 
     std::shared_ptr<RBSP> CreateRBSPTreeAccelerator(

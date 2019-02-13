@@ -126,48 +126,14 @@ namespace pbrt {
         };
     };
 
-    std::ofstream &operator<<(std::ofstream &os, const KdTreeAccel &kdTreeAccel) {
-        os << "3" << std::endl;
-        os << "1 0 0" << std::endl;
-        os << "0 1 0" << std::endl;
-        os << "0 0 1" << std::endl;
-        os << kdTreeAccel.nextFreeNode << std::endl;
-        for (int i = 0; i < kdTreeAccel.nextFreeNode; i++) {
-            os << kdTreeAccel.nodes[i].toString(kdTreeAccel.primitiveIndices) << std::endl;
-        }
-        os << kdTreeAccel.primitives.size() << std::endl;
-        for (auto &p: kdTreeAccel.primitives) {
-            Normal3f n = p->Normal();
-            os << n.x << " " << n.y << " " << n.z << std::endl;
-        }
-        for (auto &p: kdTreeAccel.primitives) {
-            for (int i = 0; i < 3; i++)
-                os << p->WorldBound().pMin[i] << " " << p->WorldBound().pMax[i] << " ";
-            os << std::endl;
-        }
-        for (auto &p: kdTreeAccel.primitives) {
-            os << p->getSurfaceArea() << std::endl;
-        }
-        return os;
-    }
-
     // KdTreeAccel Method Definitions
     KdTreeAccel::KdTreeAccel(std::vector<std::shared_ptr<Primitive>> p,
                              uint32_t isectCost, uint32_t traversalCost, Float emptyBonus,
                              uint32_t maxPrims, uint32_t maxDepth, Float splitAlpha, uint32_t alphaType,
                              uint32_t axisSelectionType, uint32_t axisSelectionAmount)
-            : isectCost(isectCost),
-              traversalCost(traversalCost),
-              maxPrims(maxPrims),
-              emptyBonus(emptyBonus),
-              primitives(std::move(p)) {
-        // Build kd-tree for accelerator
+            : GenericRBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, 3u, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount) {
         ProfilePhase _(Prof::AccelConstruction);
-        nextFreeNode = nAllocedNodes = 0;
-        if (maxDepth == -1)
-            maxDepth = calculateMaxDepth(primitives.size());
-        if (axisSelectionAmount == -1)
-            axisSelectionAmount = 3;
+
         statParamMaxDepth = maxDepth;
         statParamEmptyBonus = emptyBonus;
         statParamIntersectCost = isectCost;
@@ -179,16 +145,12 @@ namespace pbrt {
         statParamAxisSelectionType = axisSelectionType;
         statParamAxisSelectionAmount = axisSelectionAmount;
 
-        // Compute bounds for kd-tree construction
-        std::vector<Bounds3f> primBounds;
-        primBounds.reserve(primitives.size());
-        for (const std::shared_ptr<Primitive> &prim : primitives) {
-            Bounds3f b = prim->WorldBound();
-            bounds = Union(bounds, b);
-            primBounds.push_back(b);
-        }
+        directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
+        directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
+        directions.emplace_back(Vector3f(0.0, 0.0, 1.0));
+
         // Start recursive construction of kd-tree
-        buildTree(bounds, primBounds, maxDepth, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount);
+        buildTree();
     }
 
     void KdAccelNode::InitLeaf(uint32_t *primNums, uint32_t np,
@@ -206,12 +168,22 @@ namespace pbrt {
         }
     }
 
-    KdTreeAccel::~KdTreeAccel() { FreeAligned(nodes); }
+    void KdTreeAccel::printNodes(std::ofstream &os) const {
+        for (int i = 0; i < nextFreeNode; i++) {
+            os << nodes[i].toString(primitiveIndices) << std::endl;
+        }
+    }
 
-    void KdTreeAccel::buildTree(Bounds3f &rootNodeBounds,
-                                const std::vector<Bounds3f> &allPrimBounds,
-                                uint32_t maxDepth, Float splitAlpha, uint32_t alphaType, uint32_t axisSelectionType,
-                                uint32_t axisSelectionAmount) {
+    void KdTreeAccel::buildTree() {
+        // Compute bounds for kd-tree construction
+        std::vector<Bounds3f> allPrimBounds;
+        allPrimBounds.reserve(primitives.size());
+        for (const std::shared_ptr<Primitive> &prim : primitives) {
+            Bounds3f b = prim->WorldBound();
+            bounds = Union(bounds, b);
+            allPrimBounds.push_back(b);
+        }
+
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
 
         uint32_t nodeNum = 0;
@@ -272,7 +244,7 @@ namespace pbrt {
 
 
         std::vector<KdBuildNode> stack;
-        stack.emplace_back(KdBuildNode(maxDepth, (uint32_t) primitives.size(), 0, rootNodeBounds, &prims[0]));
+        stack.emplace_back(KdBuildNode(maxDepth, (uint32_t) primitives.size(), 0, bounds, &prims[0]));
 
         while (!stack.empty()) {
             reporter.Update();
