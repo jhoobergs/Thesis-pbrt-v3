@@ -9,25 +9,26 @@ RESULTS_DIR=$RESULTS_DIR"/"$NR
 FILE_NAME='output.png'
 echo $RESULTS_DIR
 
-while true
+
+for VAR in 1 2 3 4 5 6 7 8 9 10
 do
 echo prim kd bvh or rbsp
-read t
-echo $t
-if [ "$t" == "prim" ]
+read ty 
+echo $ty
+if [ "$ty" == "prim" ]
 then
-python ../../plots/heatmap_single.py $RESULTS_DIR"/output-primitiveIntersections.txt" &
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-primitiveIntersections.txt" #& 
 fi
-if [ "$t" == "kd" ]
+if [ "$ty" == "kd" ]
 then
-python ../../plots/heatmap_single.py $RESULTS_DIR"/output-kdTreeNodeTraversals.txt" &
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-kdTreeNodeTraversals.txt" #&
 fi
-if [ "$t" == "bvh" ]
+if [ "$ty" == "bvh" ]
 then
-python ../../plots/heatmap_single.py $RESULTS_DIR"/output-bvhTreeNodeTraversals.txt" &
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-bvhTreeNodeTraversals.txt" #&
 fi
-if [ "$t" == "rbsp" ]
+if [ "$ty" == "rbsp" ]
 then
-python ../../plots/heatmap_single.py $RESULTS_DIR"/output-rBSPTreeNodeTraversals.txt" &
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-rBSPTreeNodeTraversals.txt" #&
 fi
 done
