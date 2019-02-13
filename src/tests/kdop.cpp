@@ -75,8 +75,8 @@ TEST(kDOP, AreaFloat) {
     kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
     kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
 
-    EXPECT_FLOAT_EQ(kDOPMesh.SurfaceArea(directions), 2 * 8.5 * (1.3 + 22) + 2 * 1.3 * 22);
-    EXPECT_FLOAT_EQ(kDOPMesh.SurfaceArea(directions), 2 * 8.5 * (1.3 + 22) + 2 * 1.3 * 22);
+    EXPECT_FLOAT_EQ(2 * 8.5 * (1.3 + 22) + 2 * 1.3 * 22, kDOPMesh.SurfaceArea(directions));
+    EXPECT_FLOAT_EQ(2 * 8.5 * (1.3 + 22) + 2 * 1.3 * 22, kDOPMesh.SurfaceArea(directions));
 }
 
 TEST(kDOP, Cut) {
@@ -117,8 +117,8 @@ TEST(kDOP, Cut) {
                 edge.v2.x, edge.v2.y, edge.v2.z);
     }
 
-    EXPECT_FLOAT_EQ(2 * 5 * (1 + 22) + 2 * 1 * 22, result.first.SurfaceArea(directions));
-    EXPECT_FLOAT_EQ(2 * 3.5 * (1 + 22) + 2 * 1 * 22, result.second.SurfaceArea(directions));
+    EXPECT_FLOAT_EQ(result.first.SurfaceArea(directions), 2 * 5 * (1 + 22) + 2 * 1 * 22);
+    EXPECT_FLOAT_EQ(result.second.SurfaceArea(directions), 2 * 3.5 * (1 + 22) + 2 * 1 * 22);
 
     std::pair<KDOPMesh, KDOPMesh> result2 = result.first.cut(directions.size(), 2.5,
                                                              directions[1], 1);
