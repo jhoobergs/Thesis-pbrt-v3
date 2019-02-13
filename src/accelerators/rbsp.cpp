@@ -21,7 +21,7 @@ namespace pbrt {
     STAT_COUNTER("Accelerator/RBSP-tree node traversals during intersectP", nbNodeTraversalsP);
     STAT_COUNTER("Accelerator/RBSP-tree nodes", nbNodes);
     STAT_COUNTER("Accelerator/RBSP-tree build: splitTests", statNbSplitTests);
-    STAT_COUNTER("Accelerator/RBSP-tree param:directions", statPraramnbDirections);
+    STAT_COUNTER("Accelerator/RBSP-tree param:directions", statParamnbDirections);
     STAT_COUNTER("Accelerator/RBSP-tree param:intersectioncost", statParamIntersectCost);
     STAT_COUNTER("Accelerator/RBSP-tree param:axisSelectionType", statParamAxisSelectionType);
     STAT_COUNTER("Accelerator/RBSP-tree param:axisSelectionAmount", statParamAxisSelectionAmount);
@@ -128,51 +128,14 @@ namespace pbrt {
         }
     }
 
-    RBSP::~RBSP() { FreeAligned(nodes); }
-
-    std::ofstream &operator<<(std::ofstream &os, const RBSP &rbspTree) {
-        os << rbspTree.directions.size() << std::endl;
-        for (auto &direction: rbspTree.directions) {
-            os << direction.x << " " << direction.y << " " << direction.z << std::endl;
-        }
-        os << rbspTree.nextFreeNode << std::endl;
-        for (int i = 0; i < rbspTree.nextFreeNode; i++) {
-            os << rbspTree.nodes[i].toString(rbspTree.directions.size(), rbspTree.primitiveIndices) << std::endl;
-        }
-        os << rbspTree.primitives.size() << std::endl;
-        for (auto &p: rbspTree.primitives) {
-            Normal3f n = p->Normal();
-            os << n.x << " " << n.y << " " << n.z << std::endl;
-        }
-        for (auto &p: rbspTree.primitives) {
-            for (auto &direction: rbspTree.directions) {
-                auto b = p->getBounds(direction);
-                os << b.min << " " << b.max << " ";
-            }
-            os << std::endl;
-        }
-        for (auto &p: rbspTree.primitives) {
-            os << p->getSurfaceArea() << std::endl;
-        }
-        return os;
-    }
-
     RBSP::RBSP(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost, uint32_t traversalCost,
                Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, Float splitAlpha,
                uint32_t alphaType,
                uint32_t axisSelectionType, uint32_t axisSelectionAmount)
-            : isectCost(isectCost),
-              traversalCost(traversalCost),
-              maxPrims(maxPrims),
-              emptyBonus(emptyBonus),
-              primitives(std::move(p)) {
+            : GenericRBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount) {
         ProfilePhase _(Prof::AccelConstruction);
-        nextFreeNode = nAllocedNodes = 0;
-        if (maxDepth == -1)
-            maxDepth = calculateMaxDepth(primitives.size());
-        if (axisSelectionAmount == -1)
-            axisSelectionAmount = nbDirections;
-        statPraramnbDirections = nbDirections;
+
+        statParamnbDirections = nbDirections;
         statParamMaxDepth = maxDepth;
         statParamEmptyBonus = emptyBonus;
         statParamIntersectCost = isectCost;
@@ -186,14 +149,27 @@ namespace pbrt {
 
         directions = getDirections(nbDirections);
 
+        // Start recursive construction of RBSP-tree
+        buildTree();
+    }
+
+    void RBSP::printNodes(std::ofstream &os) const {
+        for (int i = 0; i < nextFreeNode; i++) {
+            os << nodes[i].toString(directions.size(), primitiveIndices) << std::endl;
+        }
+    }
+
+
+    void RBSP::buildTree() {
+        //Initialize
         pbrt::BoundsMf rootNodeMBounds;
         for (auto &d: directions) {
             rootNodeMBounds.emplace_back(Boundsf());
         }
 
         // Compute bounds for rbsp-tree construction
-        std::vector<BoundsMf> primBounds;
-        primBounds.reserve(primitives.size());
+        std::vector<BoundsMf> allPrimBounds;
+        allPrimBounds.reserve(primitives.size());
         for (const std::shared_ptr<Primitive> &prim : primitives) {
             bounds = Union(bounds, prim->WorldBound());
             pbrt::BoundsMf mBounds;
@@ -203,7 +179,7 @@ namespace pbrt {
                 mBounds.emplace_back(b);
                 rootNodeMBounds[i] = Union(rootNodeMBounds[i], b);
             }
-            primBounds.emplace_back(mBounds);
+            allPrimBounds.emplace_back(mBounds);
         }
 
         KDOPMesh kDOPMesh;
@@ -229,16 +205,7 @@ namespace pbrt {
         kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
         kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
 
-        // Start recursive construction of RBSP-tree
-        buildTree(rootNodeMBounds, kDOPMesh, primBounds, maxDepth, splitAlpha, alphaType, axisSelectionType,
-                  axisSelectionAmount);
-    }
-
-    void
-    RBSP::buildTree(pbrt::BoundsMf &rootNodeMBounds, pbrt::KDOPMesh &kDOPMesh,
-                    const std::vector<BoundsMf> &allPrimBounds,
-                    uint32_t maxDepth, Float splitAlpha, uint32_t alphaType, uint32_t axisSelectionType,
-                    uint32_t axisSelectionAmount) {
+        // Building
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
 
         auto M = (uint32_t) directions.size();
@@ -651,7 +618,7 @@ namespace pbrt {
 
         // Prepare to traverse rbsp-tree for ray
         PBRT_CONSTEXPR uint32_t maxTodo = 64u;
-        RBSPToDo todo[maxTodo];
+        RBSPToDo<RBSPNode> todo[maxTodo];
         uint32_t todoPos = 0;
 
         // Traverse rbsp-tree nodes in order for ray
@@ -741,7 +708,7 @@ namespace pbrt {
 
         // Prepare to traverse rbsp-tree for ray
         PBRT_CONSTEXPR uint32_t maxTodo = 64;
-        RBSPToDo todo[maxTodo];
+        RBSPToDo<RBSPNode> todo[maxTodo];
         uint32_t todoPos = 0;
         const RBSPNode *node = &nodes[0];
         while (node != nullptr) {

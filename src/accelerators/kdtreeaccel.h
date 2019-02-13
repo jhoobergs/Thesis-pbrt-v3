@@ -40,32 +40,15 @@
 
 // accelerators/kdtreeaccel.h*
 #include "pbrt.h"
-#include "primitive.h"
+#include "accelerators/genericRBSP.h"
+#include "genericRBSP.h"
 
 namespace pbrt {
 
     // KdTreeAccel Declarations
     struct KdAccelNode;
 
-
-    enum class EdgeType {
-        Start, End
-    };
-
-    struct BoundEdge {
-        // BoundEdge Public Methods
-        BoundEdge() {}
-
-        BoundEdge(Float t, uint32_t primNum, bool starting) : t(t), primNum(primNum) {
-            type = starting ? EdgeType::Start : EdgeType::End;
-        }
-
-        Float t;
-        uint32_t primNum;
-        EdgeType type;
-    };
-
-    class KdTreeAccel : public Aggregate {
+    class KdTreeAccel : public GenericRBSP<KdAccelNode> {
     public:
 
         // KdTreeAccel Public Methods
@@ -77,28 +60,17 @@ namespace pbrt {
 
         Bounds3f WorldBound() const { return bounds; }
 
-        ~KdTreeAccel();
+        bool Intersect(const Ray &ray, SurfaceInteraction *isect) const override;
 
-        bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
+        bool IntersectP(const Ray &ray) const override;
 
-        bool IntersectP(const Ray &ray) const;
+        void printNodes(std::ofstream &os) const override;
 
-        friend std::ofstream &operator<<(std::ofstream &os, const KdTreeAccel &kdTreeAccel);
-
-    private:
+    protected:
         // KdTreeAccel Private Methods
-        void buildTree(Bounds3f &rootNodeBounds,
-                       const std::vector<Bounds3f> &allPrimBounds, uint32_t maxDepth, Float splitAlpha,
-                       uint32_t alphaType,
-                       uint32_t axisSelectionType, uint32_t axisSelectionAmount);
+        void buildTree() override;
 
         // KdTreeAccel Private Data
-        const uint32_t isectCost, traversalCost, maxPrims;
-        const Float emptyBonus;
-        std::vector<std::shared_ptr<Primitive>> primitives;
-        std::vector<uint32_t> primitiveIndices;
-        KdAccelNode *nodes;
-        uint32_t nAllocedNodes, nextFreeNode;
         Bounds3f bounds;
     };
 
