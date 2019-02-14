@@ -10,9 +10,7 @@
 #include <shapes/triangle.h>
 #include <random>
 #include <cmath>
-#include <limits.h>
 
-#define clz(x) __builtin_clz(x)
 namespace pbrt {
 
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:splitalpha", statParamSplitAlpha);
@@ -32,19 +30,6 @@ namespace pbrt {
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:maxdepth", statParamMaxDepth);
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
-
-    inline uint32_t log2_fast(const uint32_t x) {
-        return sizeof(uint32_t) * CHAR_BIT - clz(x - 1);
-    }
-
-    inline const uint32_t getBitOffset(const uint32_t M) {
-        return log2_fast(M + 1);
-        //return (uint32_t) std::ceil(std::log2(M + 1));
-    }
-
-    inline uint32_t getBitMask(const uint32_t M) {
-        return ((uint32_t) 1 << getBitOffset(M)) - 1;
-    }
 
     struct RBSPNode {
         // RBSPNode Methods
