@@ -7,6 +7,9 @@
 
 #include <core/geometry.h>
 #include <algorithm>
+#include <limits.h>
+
+#define clz(x) __builtin_clz(x)
 
 namespace pbrt {
     struct KDOPEdge { // TODO: Deallocating ? Smart pointers ?
@@ -84,12 +87,13 @@ namespace pbrt {
                 }*/
     }
 
-    inline std::pair<KDOPMeshBase, KDOPMeshBase>
+    template <class T>
+    inline std::pair<T, T>
     KDOPCut(const std::vector<KDOPEdge> &edges, uint32_t M, Float t, const Vector3f &direction,
         const uint32_t directionId) {
         //Warning("t %f", t);
-        KDOPMeshBase left; // TODO: ? Allocate right ? Use unique pointers and shared pointers
-        KDOPMeshBase right;
+        T left; // TODO: ? Allocate right ? Use unique pointers and shared pointers
+        T right;
         std::vector<std::vector<Point3f>> faceVertices;
         for (size_t i = 0; i < 2 * M; ++i) {
             faceVertices.emplace_back(std::vector<Point3f>());
@@ -214,6 +218,19 @@ namespace pbrt {
             SA += std::abs(Dot(directions[i / 2], FSA));
         }
         return SA / 2.0f;
+    }
+
+    inline uint32_t log2_fast(const uint32_t x) {
+        return sizeof(uint32_t) * CHAR_BIT - clz(x - 1);
+    }
+
+    inline const uint32_t getBitOffset(const uint32_t M) {
+        return log2_fast(M + 1);
+        //return (uint32_t) std::ceil(std::log2(M + 1));
+    }
+
+    inline uint32_t getBitMask(const uint32_t M) {
+        return ((uint32_t) 1 << getBitOffset(M)) - 1;
     }
 }
 #endif //PBRT_V3_KDOPMESH_H
