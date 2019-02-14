@@ -17,8 +17,7 @@ namespace pbrt {
         KDOPMesh() : KDOPMeshBase() {};
 
         std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, Float t, const Vector3f &direction, const uint32_t directionId){
-            std::pair<KDOPMeshBase, KDOPMeshBase> pair = KDOPCut(edges, M, t, direction, directionId);
-            return std::make_pair(static_cast<KDOPMesh&>(pair.first), static_cast<KDOPMesh&>(pair.second));
+            return KDOPCut<KDOPMesh>(edges, M, t, direction, directionId);
         }
 
         Float SurfaceArea(const std::vector<Vector3f> &directions) {
@@ -30,7 +29,6 @@ namespace pbrt {
     class RBSP : public GenericRBSP<RBSPNode> {
     public:
 
-        // KdTreeAccel Public Methods
         RBSP(std::vector<std::shared_ptr<Primitive>> p,
              uint32_t isectCost = 80, uint32_t traversalCost = 1,
              Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3,
