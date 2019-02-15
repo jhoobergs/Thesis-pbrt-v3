@@ -4,8 +4,10 @@
 
 #include <core/stats.h>
 #include <core/progressreporter.h>
+#include <bits/random.h>
 #include "paramset.h"
 #include "rbspCluster.h"
+#include <set>
 
 namespace pbrt {
 
@@ -27,7 +29,7 @@ namespace pbrt {
         // RBSPNode Methods
         void InitLeaf(uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices);
 
-        void InitInterior(Vector3f axis, Float s) {
+        void InitInterior(const Vector3f &axis, Float s) {
             split = s;
             splitAxis = axis;
             flags = 0;
@@ -123,8 +125,110 @@ namespace pbrt {
         statParamMaxPrims = maxPrims;
         statNbSplitTests = 0;
 
+        K = nbDirections;
+
         // Start recursive construction of RBSP-tree
         buildTree();
+    }
+
+    uint32_t RBSPCluster::calculateIdOfClosestMean(Vector3f &normal, const std::vector<Vector3f> &means) {
+        //Warning("calculateIdOfClosestMean");
+        uint32_t closest = 0;
+        Float closestAngle = Angle(normal, means[0]);
+        for (uint32_t i = 1; i < means.size(); ++i) {
+            Float currentAngle = Angle(normal, means[i]);
+            if (currentAngle < closestAngle) {
+                closest = i;
+                closestAngle = currentAngle;
+            }
+        }
+        //Warning("returning calculateIdOfClosestMean");
+        return closest;
+    }
+
+    Vector3f RBSPCluster::calculateMeanVector(const std::vector<Vector3f> &vectors) {
+        //Warning("calculateMeanVector");
+        if (vectors.empty())
+            return Vector3f();
+        auto sumVector = Vector3f();
+        for (auto &vector: vectors) {
+            sumVector += vector;
+        }
+        //Warning("returning calculateMeanVector");
+        return Normalize(sumVector);
+    }
+
+    Float RBSPCluster::calculateMaxDifference(const std::vector<Vector3f> &oldMeans, const std::vector<Vector3f> &newMeans) {
+        //Warning("calculateMaxDifference");
+        Float maxDiff = 0;
+        for (uint32_t i = 1; i < oldMeans.size(); ++i) {
+            Vector3f diff = oldMeans[i] - newMeans[i];
+            maxDiff = std::max(maxDiff, Dot(diff, diff));
+        }
+        // Warning("returning calculateMaxDifference");
+        return maxDiff;
+    }
+
+    std::vector<Vector3f> RBSPCluster::calculateClusterMeans(const uint32_t *primNums, const uint32_t np) {
+
+        //Warning("calculateClusterMeans");
+
+        std::vector<Vector3f> clusterMeans, newClusterMeans; // TODO: Cluster
+        std::vector<std::vector<Vector3f>> clusters;
+        /*clusterMeans.emplace_back(1, 0, 0);
+        clusterMeans.emplace_back(0, 1, 0);
+        clusterMeans.emplace_back(0, 0, 1);*/
+
+        std::vector<Vector3f> normals;
+        normals.reserve(np);
+        for (int i = 0; i < np; ++i)
+            normals.emplace_back(PositiveX(primitives[primNums[i]]->Normal()));
+
+
+        if(np <= K) {
+            return normals;
+        }
+
+        //clusterMeans.emplace_back(1, 0, 0); clusters.emplace_back(std::vector<Vector3f>());
+        //clusterMeans.emplace_back(0, 1, 0); clusters.emplace_back(std::vector<Vector3f>());
+        //clusterMeans.emplace_back(0, 0, 1); clusters.emplace_back(std::vector<Vector3f>());
+
+        std::set<uint32_t> nIds;
+        while(nIds.size() < K)
+            nIds.insert(rand()% np);
+
+        for (auto &id: nIds) {
+            clusterMeans.emplace_back(normals[id]);
+            clusters.emplace_back(std::vector<Vector3f>());
+        }
+        newClusterMeans = clusterMeans;
+
+        uint32_t iterations = 0;
+        while((iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) < 0.01) and iterations < 50){
+            //Warning("%d", iterations);
+
+            ++iterations;
+            clusterMeans = newClusterMeans;
+
+            for(auto &n: normals)
+                clusters[calculateIdOfClosestMean(n, clusterMeans)].emplace_back(n);
+            //Warning("ITEMS %d %d %d %d",  clusters[0].size(), clusters[1].size(), clusters[2].size(), np);
+
+            for (int i = 0; i < K; ++i) {
+                //Warning("K, %d %d", i, clusters.size());
+                if(clusters[i].empty()){
+                    //Warning("EMPTY %d %d %d %d", clusters[0].size(), clusters[1].size(), clusters[2].size(), np);
+                    for (int ii = 0; ii < K; ++ii)
+                        clusterMeans[ii] = normals[rand() % normals.size()];
+                    break;
+                }
+                newClusterMeans[i] = calculateMeanVector(clusters[i]);
+                clusters[i].clear();
+                //Warning("Cleared");
+            }
+        }
+
+        return clusterMeans;
     }
 
     void RBSPCluster::printNodes(std::ofstream &os) const {
@@ -135,11 +239,6 @@ namespace pbrt {
 
     void RBSPCluster::buildTree() {
         //Initialize
-        pbrt::BoundsMf rootNodeMBounds;
-        for (auto &d: directions) {
-            rootNodeMBounds.emplace_back(Boundsf());
-        }
-
         // Compute bounds for rbsp-tree construction: CANNOT PRECOMPUTE ALLPRIMBOUNDS
         for (const std::shared_ptr<Primitive> &prim : primitives) {
             bounds = Union(bounds, prim->WorldBound());
@@ -176,7 +275,6 @@ namespace pbrt {
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
 
         uint32_t nodeNum = 0;
-        uint32_t K = 3; // TODO param
         // Allocate working memory for rbsp-tree construction
         std::vector<std::unique_ptr<BoundEdge[]>> edges;
         for (uint32_t i = 0; i < K; ++i)
@@ -196,7 +294,7 @@ namespace pbrt {
                            kDOPMesh.SurfaceArea(), &prims[0]);
         // Warning("Building RBSP: Lets loop");
         while (!stack.empty()) { // || nodeNum > 235000 || nodeNum > 1400000
-            if (nodeNum % 100000 == 0)
+            if (nodeNum % 10000 == 0) // 100000
                 Warning("Nodenum %d", nodeNum);
             reporter.Update();
             RBSPClusterBuildNode currentBuildNode = stack.back();
@@ -239,10 +337,8 @@ namespace pbrt {
             const Float invTotalSA = 1 / currentBuildNode.kdopMeshArea;
             std::pair<KDOPMeshCluster, KDOPMeshCluster> splittedKDOPs;
 
-            std::vector<Vector3f> clusterMeans; // TODO: Cluster
-            clusterMeans.emplace_back(1,0,0);
-            clusterMeans.emplace_back(0,1,0);
-            clusterMeans.emplace_back(0,0,1);
+            std::vector<Vector3f> clusterMeans = calculateClusterMeans(currentBuildNode.primNums, currentBuildNode.nPrimitives); // TODO: Cluster
+
             for (uint32_t k = 0; k < K; ++k) {
                 auto d = clusterMeans[k];
 

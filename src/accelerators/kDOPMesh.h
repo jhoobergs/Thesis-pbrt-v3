@@ -208,7 +208,7 @@ namespace pbrt {
                         if (face[j]->v2 == currentEdge->v2) {
                             std::swap(face[j]->v1, face[j]->v2);
                         }
-                        if (face[j]->v1 == currentEdge->v2) {
+                        if (face[j]->v1 == currentEdge->v2 && !used[j]) {
                             edgeId = j;
                             break;
                         }
