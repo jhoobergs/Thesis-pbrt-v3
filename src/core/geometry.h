@@ -1190,6 +1190,11 @@ namespace pbrt {
     }
 
     template<typename T>
+    inline T Angle(const Vector3<T> &v1, const Vector3<T> &v2) {
+        return std::acos(std::max(std::min((Float) 1.0, Dot(v1, v2)), (Float) -1.0));
+    }
+
+    template<typename T>
     inline T Dot(const Vector3<T> &v1, const Point3<T> &v2) {
         DCHECK(!v1.HasNaNs() && !v2.HasNaNs());
         return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
@@ -1762,6 +1767,17 @@ namespace pbrt {
 
     inline uint32_t calculateMaxDepth(int64_t N) {
         return (uint32_t) std::round(2 + 1.2f * Log2Int(N));
+    }
+
+    inline Vector3f PositiveX(Normal3f n){
+        if(n.x > 0)
+          return Vector3f(n);
+        if(n.x == 0) {
+            if (n.y == 0)
+                return Vector3f(0, 0, 1);
+            return Vector3f(0, n.y / ((n.y > 0) ? 1 : -1), n.z / ((n.y > 0) ? 1 : -1));
+        }
+        return Vector3f(-n.x, -n.y, -n.z);
     }
 
 }  // namespace pbrt
