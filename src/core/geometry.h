@@ -1765,13 +1765,13 @@ namespace pbrt {
 
     inline Vector3f PositiveX(Normal3f n){
         if(n.x > 0)
-          return Vector3f(n);
+          return Normalize(Vector3f(n));
         if(n.x == 0) {
             if (n.y == 0)
-                return Vector3f(0, 0, 1);
-            return Vector3f(0, n.y / ((n.y > 0) ? 1 : -1), n.z / ((n.y > 0) ? 1 : -1));
+                return Normalize(Vector3f(0, 0, 1));
+            return Normalize(Vector3f(0, n.y / ((n.y > 0) ? 1 : -1), n.z / ((n.y > 0) ? 1 : -1)));
         }
-        return Vector3f(-n.x, -n.y, -n.z);
+        return Normalize(Vector3f(-n.x, -n.y, -n.z));
     }
 
 }  // namespace pbrt
