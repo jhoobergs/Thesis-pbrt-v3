@@ -150,6 +150,7 @@ namespace pbrt {
         //Warning("calculateMeanVector");
         if (vectors.empty())
             return Vector3f();
+
         auto sumVector = Vector3f();
         for (auto &vector: vectors) {
             sumVector += vector;
@@ -173,7 +174,7 @@ namespace pbrt {
 
         //Warning("calculateClusterMeans");
 
-        std::vector<Vector3f> clusterMeans, newClusterMeans; // TODO: Cluster
+        std::vector<Vector3f> clusterMeans, newClusterMeans;
         std::vector<std::vector<Vector3f>> clusters;
         /*clusterMeans.emplace_back(1, 0, 0);
         clusterMeans.emplace_back(0, 1, 0);
@@ -204,7 +205,7 @@ namespace pbrt {
         newClusterMeans = clusterMeans;
 
         uint32_t iterations = 0;
-        while((iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) < 0.01) and iterations < 50){
+        while((iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) > 0.0001) and iterations < 50){
             //Warning("%d", iterations);
 
             ++iterations;
@@ -218,14 +219,25 @@ namespace pbrt {
                 //Warning("K, %d %d", i, clusters.size());
                 if(clusters[i].empty()){
                     //Warning("EMPTY %d %d %d %d", clusters[0].size(), clusters[1].size(), clusters[2].size(), np);
-                    for (int ii = 0; ii < K; ++ii)
-                        clusterMeans[ii] = normals[rand() % normals.size()];
+                    std::set<uint32_t> nIds;
+                    while(nIds.size() < K)
+                        nIds.insert(rand()% np);
+                    std::vector<uint32_t> v( nIds.begin(), nIds.end() );
+
+                    for (int ii = 0; ii < K; ++ii) {
+                        auto id = v[ii];
+                        clusterMeans.emplace_back(normals[id]);
+                        clusters[ii].clear();
+                    }
                     break;
                 }
                 newClusterMeans[i] = calculateMeanVector(clusters[i]);
                 clusters[i].clear();
                 //Warning("Cleared");
             }
+        }
+        if(iterations == 50){
+            Warning("NOT CONVERGED");
         }
 
         return clusterMeans;
