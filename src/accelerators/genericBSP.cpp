@@ -5,7 +5,7 @@
 #include <core/stats.h>
 #include <core/progressreporter.h>
 #include "paramset.h"
-#include "accelerators/genericRBSP.h"
+#include "accelerators/genericBSP.h"
 #include <fstream>
 #include <shapes/triangle.h>
 #include <random>
