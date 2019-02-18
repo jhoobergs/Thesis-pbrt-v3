@@ -5,11 +5,11 @@
 #ifndef PBRT_V3_RBSPCLUSTER_H
 #define PBRT_V3_RBSPCLUSTER_H
 
-#include "genericRBSP.h"
+#include "genericBSP.h"
 #include "kDOPMesh.h"
 
 namespace pbrt {
-    struct RBSPClusterNode;
+    struct BSPClusterNode;
 
     struct KDOPMeshCluster : KDOPMeshBase {
         KDOPMeshCluster() : KDOPMeshBase() {};
@@ -42,10 +42,10 @@ namespace pbrt {
     };
 
 
-    class RBSPCluster : public GenericRBSP<RBSPClusterNode> {
+    class BSPCluster : public GenericBSP<BSPClusterNode> {
     public:
 
-        RBSPCluster(std::vector<std::shared_ptr<Primitive>> p,
+        BSPCluster(std::vector<std::shared_ptr<Primitive>> p,
                     uint32_t isectCost = 80, uint32_t traversalCost = 1,
                     Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3);
 
@@ -66,8 +66,8 @@ namespace pbrt {
         uint32_t K;
     };
 
-    struct RBSPClusterBuildNode {
-        RBSPClusterBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines,
+    struct BSPClusterBuildNode {
+        BSPClusterBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines,
                              KDOPMeshCluster kdopMesh,
                              Float kdopMeshArea,
                              uint32_t *primNums, uint32_t parentNum = -1)
@@ -84,7 +84,7 @@ namespace pbrt {
         uint32_t parentNum;
     };
 
-    std::shared_ptr<RBSPCluster> CreateRBSPClusterTreeAccelerator(
+    std::shared_ptr<BSPCluster> CreateBSPClusterTreeAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps);
 }
 

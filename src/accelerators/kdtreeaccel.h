@@ -40,15 +40,15 @@
 
 // accelerators/kdtreeaccel.h*
 #include "pbrt.h"
-#include "accelerators/genericRBSP.h"
-#include "genericRBSP.h"
+#include "accelerators/genericBSP.h"
+#include "genericBSP.h"
 
 namespace pbrt {
 
     // KdTreeAccel Declarations
     struct KdAccelNode;
 
-    class KdTreeAccel : public GenericRBSP<KdAccelNode> {
+    class KdTreeAccel : public GenericBSP<KdAccelNode> {
     public:
 
         // KdTreeAccel Public Methods
@@ -87,11 +87,6 @@ namespace pbrt {
         Bounds3f nodeBounds;
         uint32_t *primNums;
         uint32_t parentNum;
-    };
-
-    struct KdToDo {
-        const KdAccelNode *node;
-        Float tMin, tMax;
     };
 
     std::shared_ptr<KdTreeAccel> CreateKdTreeAccelerator(

@@ -32,7 +32,7 @@ namespace pbrt {
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
 
     struct RBSPNode {
-        // RBSPNode Methods
+        // BSPNode Methods
         void InitLeaf(uint32_t M, uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices);
 
         void InitInterior(uint32_t axis, Float s) {
@@ -117,7 +117,7 @@ namespace pbrt {
                Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, Float splitAlpha,
                uint32_t alphaType,
                uint32_t axisSelectionType, uint32_t axisSelectionAmount)
-            : GenericRBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount) {
+            : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount) {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamnbDirections = nbDirections;
@@ -603,7 +603,7 @@ namespace pbrt {
 
         // Prepare to traverse rbsp-tree for ray
         PBRT_CONSTEXPR uint32_t maxTodo = 64u;
-        RBSPToDo<RBSPNode> todo[maxTodo];
+        BSPToDo<RBSPNode> todo[maxTodo];
         uint32_t todoPos = 0;
 
         // Traverse rbsp-tree nodes in order for ray
@@ -693,7 +693,7 @@ namespace pbrt {
 
         // Prepare to traverse rbsp-tree for ray
         PBRT_CONSTEXPR uint32_t maxTodo = 64;
-        RBSPToDo<RBSPNode> todo[maxTodo];
+        BSPToDo<RBSPNode> todo[maxTodo];
         uint32_t todoPos = 0;
         const RBSPNode *node = &nodes[0];
         while (node != nullptr) {

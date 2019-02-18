@@ -46,7 +46,7 @@
 #include "accelerators/kdtreeaccel.h"
 #include "accelerators/kdtreeaccelOld.h"
 #include "accelerators/rbsp.h"
-#include "accelerators/rbspCluster.h"
+#include "accelerators/bspCluster.h"
 #include "cameras/environment.h"
 #include "cameras/orthographic.h"
 #include "cameras/perspective.h"
@@ -809,16 +809,16 @@ std::shared_ptr<Primitive> MakeAccelerator(
         myfile.close();
         accel = rbsp;
     }
-    else if (name == "rbspcluster") {
-        std::shared_ptr<RBSPCluster> rbsp = CreateRBSPClusterTreeAccelerator(std::move(prims), paramSet);
+    else if (name == "bspcluster") {
+        std::shared_ptr<BSPCluster> bsp = CreateBSPClusterTreeAccelerator(std::move(prims), paramSet);
         std::string filename = PbrtOptions.imageFile;
         std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(".txt");
         Warning("%s", textFile.c_str());
         std::ofstream myfile;
         myfile.open(textFile);
-        myfile << *rbsp.get();
+        myfile << *bsp.get();
         myfile.close();
-        accel = rbsp;
+        accel = bsp;
     }
     else
         Warning("Accelerator \"%s\" unknown.", name.c_str());
