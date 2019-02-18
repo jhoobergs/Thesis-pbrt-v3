@@ -7,7 +7,7 @@
 
 #include <core/geometry.h>
 #include <algorithm>
-#include "genericRBSP.h"
+#include "genericBSP.h"
 #include "kDOPMesh.h"
 
 namespace pbrt {
@@ -26,7 +26,7 @@ namespace pbrt {
     };
 
 
-    class RBSP : public GenericRBSP<RBSPNode> {
+    class RBSP : public GenericBSP<RBSPNode> {
     public:
 
         RBSP(std::vector<std::shared_ptr<Primitive>> p,

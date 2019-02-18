@@ -131,7 +131,7 @@ namespace pbrt {
                              uint32_t isectCost, uint32_t traversalCost, Float emptyBonus,
                              uint32_t maxPrims, uint32_t maxDepth, Float splitAlpha, uint32_t alphaType,
                              uint32_t axisSelectionType, uint32_t axisSelectionAmount)
-            : GenericRBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, 3u, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount) {
+            : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, 3u, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount) {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamMaxDepth = maxDepth;
@@ -466,7 +466,7 @@ namespace pbrt {
         // Prepare to traverse kd-tree for ray
         Vector3f invDir(1 / ray.d.x, 1 / ray.d.y, 1 / ray.d.z);
         PBRT_CONSTEXPR uint32_t maxTodo = 64u;
-        KdToDo todo[maxTodo];
+        BSPToDo<KdAccelNode> todo[maxTodo];
         uint32_t todoPos = 0;
 
         // Traverse kd-tree nodes in order for ray
@@ -553,7 +553,7 @@ namespace pbrt {
         // Prepare to traverse kd-tree for ray
         Vector3f invDir(1 / ray.d.x, 1 / ray.d.y, 1 / ray.d.z);
         PBRT_CONSTEXPR uint32_t maxTodo = 64;
-        KdToDo todo[maxTodo];
+        BSPToDo<KdAccelNode> todo[maxTodo];
         uint32_t todoPos = 0;
         const KdAccelNode *node = &nodes[0];
         while (node != nullptr) {

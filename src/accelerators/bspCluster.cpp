@@ -6,7 +6,7 @@
 #include <core/progressreporter.h>
 #include <bits/random.h>
 #include "paramset.h"
-#include "rbspCluster.h"
+#include "bspCluster.h"
 #include <set>
 
 namespace pbrt {
@@ -25,8 +25,8 @@ namespace pbrt {
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
 
-    struct RBSPClusterNode {
-        // RBSPNode Methods
+    struct BSPClusterNode {
+        // BSPNode Methods
         void InitLeaf(uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices);
 
         void InitInterior(const Vector3f &axis, Float s) {
@@ -49,7 +49,7 @@ namespace pbrt {
 
         uint32_t AboveChild() const { return aboveChild >> 1; }
 
-        uint32_t depth(RBSPClusterNode *nodes, int id = 0) {
+        uint32_t depth(BSPClusterNode *nodes, int id = 0) {
             if (IsLeaf())
                 return 0;
             else
@@ -95,7 +95,7 @@ namespace pbrt {
         Vector3f splitAxis;
     };
 
-    void RBSPClusterNode::InitLeaf(uint32_t *primNums, uint32_t np,
+    void BSPClusterNode::InitLeaf(uint32_t *primNums, uint32_t np,
                                    std::vector<uint32_t> *primitiveIndices) {
         flags = 1;
         nPrims |= (np << 1);
@@ -110,10 +110,10 @@ namespace pbrt {
         }
     }
 
-    RBSPCluster::RBSPCluster(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
+    BSPCluster::BSPCluster(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
                              uint32_t traversalCost,
                              Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
-            : GenericRBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
+            : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
                           0, 0, 0, 0) {
         ProfilePhase _(Prof::AccelConstruction);
 
@@ -131,7 +131,7 @@ namespace pbrt {
         buildTree();
     }
 
-    uint32_t RBSPCluster::calculateIdOfClosestMean(Vector3f &normal, const std::vector<Vector3f> &means) {
+    uint32_t BSPCluster::calculateIdOfClosestMean(Vector3f &normal, const std::vector<Vector3f> &means) {
         //Warning("calculateIdOfClosestMean");
         uint32_t closest = 0;
         Float closestAngle = Angle(normal, means[0]);
@@ -146,7 +146,7 @@ namespace pbrt {
         return closest;
     }
 
-    Vector3f RBSPCluster::calculateMeanVector(const std::vector<Vector3f> &vectors) {
+    Vector3f BSPCluster::calculateMeanVector(const std::vector<Vector3f> &vectors) {
         //Warning("calculateMeanVector");
         if (vectors.empty())
             return Vector3f();
@@ -159,7 +159,7 @@ namespace pbrt {
         return Normalize(sumVector);
     }
 
-    Float RBSPCluster::calculateMaxDifference(const std::vector<Vector3f> &oldMeans, const std::vector<Vector3f> &newMeans) {
+    Float BSPCluster::calculateMaxDifference(const std::vector<Vector3f> &oldMeans, const std::vector<Vector3f> &newMeans) {
         //Warning("calculateMaxDifference");
         Float maxDiff = 0;
         for (uint32_t i = 1; i < oldMeans.size(); ++i) {
@@ -170,7 +170,7 @@ namespace pbrt {
         return maxDiff;
     }
 
-    std::vector<Vector3f> RBSPCluster::calculateClusterMeans(const uint32_t *primNums, const uint32_t np) {
+    std::vector<Vector3f> BSPCluster::calculateClusterMeans(const uint32_t *primNums, const uint32_t np) {
 
         //Warning("calculateClusterMeans");
 
@@ -240,13 +240,13 @@ namespace pbrt {
         return newClusterMeans;
     }
 
-    void RBSPCluster::printNodes(std::ofstream &os) const {
+    void BSPCluster::printNodes(std::ofstream &os) const {
         for (int i = 0; i < nextFreeNode; i++) {
             os << nodes[i].toString(primitiveIndices) << std::endl;
         }
     }
 
-    void RBSPCluster::buildTree() {
+    void BSPCluster::buildTree() {
         //Initialize
         // Compute bounds for rbsp-tree construction: CANNOT PRECOMPUTE ALLPRIMBOUNDS
         for (const std::shared_ptr<Primitive> &prim : primitives) {
@@ -298,7 +298,7 @@ namespace pbrt {
         uint32_t maxPrimsOffset = 0;
         double currentSACost = 0;
 
-        std::vector<RBSPClusterBuildNode> stack;
+        std::vector<BSPClusterBuildNode> stack;
         stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, kDOPMesh,
                            kDOPMesh.SurfaceArea(), &prims[0]);
         // Warning("Building RBSP: Lets loop");
@@ -306,7 +306,7 @@ namespace pbrt {
             if (nodeNum % 10000 == 0) // 100000
                 Warning("Nodenum %d", nodeNum);
             reporter.Update();
-            RBSPClusterBuildNode currentBuildNode = stack.back();
+            BSPClusterBuildNode currentBuildNode = stack.back();
             stack.pop_back();
             CHECK_EQ(nodeNum, nextFreeNode);
 
@@ -318,9 +318,9 @@ namespace pbrt {
             // Get next free node from _nodes_ array
             if (nextFreeNode == nAllocedNodes) {
                 uint32_t nNewAllocNodes = std::max(2u * nAllocedNodes, 512u);
-                auto *n = AllocAligned<RBSPClusterNode>(nNewAllocNodes);
+                auto *n = AllocAligned<BSPClusterNode>(nNewAllocNodes);
                 if (nAllocedNodes > 0) {
-                    memcpy(n, nodes, nAllocedNodes * sizeof(RBSPClusterNode));
+                    memcpy(n, nodes, nAllocedNodes * sizeof(BSPClusterNode));
                     FreeAligned(nodes);
                 }
                 nodes = n;
@@ -453,7 +453,7 @@ namespace pbrt {
         totalSACost = currentSACost / bounds.SurfaceArea();
     }
 
-    bool RBSPCluster::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
+    bool BSPCluster::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
         ProfilePhase p(Prof::AccelIntersect);
         // Compute initial parametric range of ray inside rbsp-tree extent
         Float tMin, tMax;
@@ -463,12 +463,12 @@ namespace pbrt {
 
         // Prepare to traverse rbsp-tree for ray
         PBRT_CONSTEXPR uint32_t maxTodo = 64u;
-        RBSPToDo<RBSPClusterNode> todo[maxTodo];
+        BSPToDo<BSPClusterNode> todo[maxTodo];
         uint32_t todoPos = 0;
 
         // Traverse rbsp-tree nodes in order for ray
         bool hit = false;
-        const RBSPClusterNode *node = &nodes[0];
+        const BSPClusterNode *node = &nodes[0];
         while (node != nullptr) {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
@@ -484,7 +484,7 @@ namespace pbrt {
                                                    inverseProjectedD);
 
                 // Get node children pointers for ray
-                const RBSPClusterNode *firstChild, *secondChild;
+                const BSPClusterNode *firstChild, *secondChild;
                 const bool belowFirst =
                         (projectedO < node->SplitPos()) ||
                         (projectedO == node->SplitPos() && inverseProjectedD <= 0);
@@ -542,7 +542,7 @@ namespace pbrt {
         return hit;
     }
 
-    bool RBSPCluster::IntersectP(const Ray &ray) const {
+    bool BSPCluster::IntersectP(const Ray &ray) const {
         ProfilePhase p(Prof::AccelIntersectP);
         // Compute initial parametric range of ray inside rbsp-tree extent
         Float tMin, tMax;
@@ -552,9 +552,9 @@ namespace pbrt {
 
         // Prepare to traverse rbsp-tree for ray
         PBRT_CONSTEXPR uint32_t maxTodo = 64;
-        RBSPToDo<RBSPClusterNode> todo[maxTodo];
+        BSPToDo<BSPClusterNode> todo[maxTodo];
         uint32_t todoPos = 0;
-        const RBSPClusterNode *node = &nodes[0];
+        const BSPClusterNode *node = &nodes[0];
         while (node != nullptr) {
             nbNodeTraversalsP++;
             ray.stats.rBSPTreeNodeTraversalsP++;
@@ -598,7 +598,7 @@ namespace pbrt {
                                                    inverseProjectedD);
 
                 // Get node children pointers for ray
-                const RBSPClusterNode *firstChild, *secondChild;
+                const BSPClusterNode *firstChild, *secondChild;
                 const bool belowFirst =
                         (projectedO < node->SplitPos()) ||
                         (projectedO == node->SplitPos() && inverseProjectedD <= 0);
@@ -629,7 +629,7 @@ namespace pbrt {
         return false;
     }
 
-    std::shared_ptr<RBSPCluster> CreateRBSPClusterTreeAccelerator(
+    std::shared_ptr<BSPCluster> CreateBSPClusterTreeAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps) {
         uint32_t isectCost = (uint32_t) ps.FindOneInt("intersectcost", 80);
         uint32_t travCost = (uint32_t) ps.FindOneInt("traversalcost", 5);
@@ -638,7 +638,7 @@ namespace pbrt {
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
         uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3); //TODO: this is K?
 
-        return std::make_shared<RBSPCluster>(std::move(prims), isectCost, travCost, emptyBonus,
+        return std::make_shared<BSPCluster>(std::move(prims), isectCost, travCost, emptyBonus,
                                              maxPrims, maxDepth, nbDirections);
     }
 } // namespace pbrt

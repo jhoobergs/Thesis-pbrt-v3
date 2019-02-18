@@ -13,7 +13,7 @@
 
 
 namespace pbrt {
-    struct RBSPNode;
+    struct BSPNode;
 
     enum class EdgeType {
         Start, End
@@ -33,11 +33,11 @@ namespace pbrt {
     };
 
     template<class nodeType>
-    class GenericRBSP : public Aggregate {
+    class GenericBSP : public Aggregate {
     public:
 
         // KdTreeAccel Public Methods
-        GenericRBSP(std::vector<std::shared_ptr<Primitive>> p,
+        GenericBSP(std::vector<std::shared_ptr<Primitive>> p,
                     uint32_t isectCost = 80, uint32_t traversalCost = 1,
                     Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1u, uint32_t nbDirections = 3,
                     Float splitAlpha = 90, uint32_t alphaType = 0, uint32_t axisSelectionType = 0,
@@ -48,19 +48,19 @@ namespace pbrt {
             ProfilePhase _(Prof::AccelConstruction);
             nextFreeNode = nAllocedNodes = 0;
             if (maxDepth == -1)
-                GenericRBSP::maxDepth = calculateMaxDepth(primitives.size());
+                GenericBSP::maxDepth = calculateMaxDepth(primitives.size());
             else
                 this->maxDepth = maxDepth;
             if (axisSelectionAmount == -1)
-                GenericRBSP::axisSelectionAmount = nbDirections;
+                GenericBSP::axisSelectionAmount = nbDirections;
             else
-                GenericRBSP::axisSelectionAmount = axisSelectionAmount;
+                GenericBSP::axisSelectionAmount = axisSelectionAmount;
 
         }
 
         Bounds3f WorldBound() const { return bounds; }
 
-        ~GenericRBSP() { FreeAligned(nodes); };
+        ~GenericBSP() { FreeAligned(nodes); };
 
         virtual bool Intersect(const Ray &ray, SurfaceInteraction *isect) const = 0;
 
@@ -68,7 +68,7 @@ namespace pbrt {
 
         virtual void printNodes(std::ofstream &os) const = 0;
 
-        friend std::ofstream &operator<<(std::ofstream &os, const GenericRBSP<nodeType> &rbspTree) {
+        friend std::ofstream &operator<<(std::ofstream &os, const GenericBSP<nodeType> &rbspTree) {
             os << rbspTree.directions.size() << std::endl;
             for (auto &direction: rbspTree.directions) {
                 os << direction.x << " " << direction.y << " " << direction.z << std::endl;
@@ -109,7 +109,7 @@ namespace pbrt {
     };
 
     template<class nodeType>
-    struct RBSPToDo {
+    struct BSPToDo {
         const nodeType *node;
         Float tMin, tMax;
     };
