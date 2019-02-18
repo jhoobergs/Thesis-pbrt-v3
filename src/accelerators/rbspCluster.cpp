@@ -203,9 +203,9 @@ namespace pbrt {
             clusters.emplace_back(std::vector<Vector3f>());
         }
         newClusterMeans = clusterMeans;
-
+        const uint32_t  maxIterations = 50;
         uint32_t iterations = 0;
-        while((iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) > 0.0001) and iterations < 50){
+        while(iterations < maxIterations && (iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) > 0.0001)){
             //Warning("%d", iterations);
 
             ++iterations;
@@ -236,11 +236,8 @@ namespace pbrt {
                 //Warning("Cleared");
             }
         }
-        if(iterations == 50){
-            Warning("NOT CONVERGED");
-        }
-
-        return clusterMeans;
+        
+        return newClusterMeans;
     }
 
     void RBSPCluster::printNodes(std::ofstream &os) const {
@@ -351,7 +348,7 @@ namespace pbrt {
 
             std::vector<Vector3f> clusterMeans = calculateClusterMeans(currentBuildNode.primNums, currentBuildNode.nPrimitives); // TODO: Cluster
 
-            for (uint32_t k = 0; k < K; ++k) {
+            for (uint32_t k = 0; k < clusterMeans.size(); ++k) {
                 auto d = clusterMeans[k];
 
                 Boundsf directionBounds = Boundsf();
