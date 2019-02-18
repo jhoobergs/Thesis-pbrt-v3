@@ -203,9 +203,9 @@ namespace pbrt {
             clusters.emplace_back(std::vector<Vector3f>());
         }
         newClusterMeans = clusterMeans;
-        const uint32_t  maxIterations = 50;
+        const uint32_t  maxIterations = 500;
         uint32_t iterations = 0;
-        while(iterations < maxIterations && (iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) > 0.0001)){
+        while(iterations < maxIterations && (iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) > 0.001)){
             //Warning("%d", iterations);
 
             ++iterations;
@@ -236,7 +236,7 @@ namespace pbrt {
                 //Warning("Cleared");
             }
         }
-        
+
         return newClusterMeans;
     }
 
