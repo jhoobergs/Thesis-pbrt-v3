@@ -1780,6 +1780,12 @@ namespace pbrt {
         return Normalize(Vector3f(-n.x, -n.y, -n.z));
     }
 
+    struct Plane {
+        Plane(Float t, Vector3f axis) : t(t), axis(axis) {};
+        Float t;
+        Vector3f axis;
+    };
+
 }  // namespace pbrt
 
 #endif  // PBRT_CORE_GEOMETRY_H

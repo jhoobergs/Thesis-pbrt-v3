@@ -6,8 +6,9 @@
 #include <core/progressreporter.h>
 #include <bits/random.h>
 #include "paramset.h"
-#include "bspCluster.h"
+#include "bspPaper.h"
 #include <set>
+#include "bvh.h"
 
 namespace pbrt {
 
@@ -25,7 +26,7 @@ namespace pbrt {
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
 
-    struct BSPClusterNode {
+    struct BSPPaperNode {
         // BSPNode Methods
         void InitLeaf(uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices);
 
@@ -49,7 +50,7 @@ namespace pbrt {
 
         uint32_t AboveChild() const { return aboveChild >> 1; }
 
-        uint32_t depth(BSPClusterNode *nodes, int id = 0) {
+        uint32_t depth(BSPPaperNode *nodes, int id = 0) {
             if (IsLeaf())
                 return 0;
             else
@@ -95,8 +96,8 @@ namespace pbrt {
         Vector3f splitAxis;
     };
 
-    void BSPClusterNode::InitLeaf(uint32_t *primNums, uint32_t np,
-                                  std::vector<uint32_t> *primitiveIndices) {
+    void BSPPaperNode::InitLeaf(uint32_t *primNums, uint32_t np,
+                                std::vector<uint32_t> *primitiveIndices) {
         flags = 1;
         nPrims |= (np << 1);
         // Store primitive ids for leaf node
@@ -110,9 +111,9 @@ namespace pbrt {
         }
     }
 
-    BSPCluster::BSPCluster(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
-                           uint32_t traversalCost,
-                           Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
+    BSPPaper::BSPPaper(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
+                       uint32_t traversalCost,
+                       Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
             : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
                          0, 0, 0, 0) {
         ProfilePhase _(Prof::AccelConstruction);
@@ -125,130 +126,17 @@ namespace pbrt {
         statParamMaxPrims = maxPrims;
         statNbSplitTests = 0;
 
-        K = nbDirections;
-
         // Start recursive construction of RBSP-tree
         buildTree();
     }
 
-    uint32_t BSPCluster::calculateIdOfClosestMean(Vector3f &normal, const std::vector<Vector3f> &means) {
-        //Warning("calculateIdOfClosestMean");
-        uint32_t closest = 0;
-        Float closestAngle = Angle(normal, means[0]);
-        for (uint32_t i = 1; i < means.size(); ++i) {
-            Float currentAngle = Angle(normal, means[i]);
-            if (currentAngle < closestAngle) {
-                closest = i;
-                closestAngle = currentAngle;
-            }
-        }
-        //Warning("returning calculateIdOfClosestMean");
-        return closest;
-    }
-
-    Vector3f BSPCluster::calculateMeanVector(const std::vector<Vector3f> &vectors) {
-        //Warning("calculateMeanVector");
-        if (vectors.empty())
-            return Vector3f();
-
-        auto sumVector = Vector3f();
-        for (auto &vector: vectors) {
-            sumVector += vector;
-        }
-        //Warning("returning calculateMeanVector");
-        return Normalize(sumVector);
-    }
-
-    Float
-    BSPCluster::calculateMaxDifference(const std::vector<Vector3f> &oldMeans, const std::vector<Vector3f> &newMeans) {
-        //Warning("calculateMaxDifference");
-        Float maxDiff = 0;
-        for (uint32_t i = 1; i < oldMeans.size(); ++i) {
-            Vector3f diff = oldMeans[i] - newMeans[i];
-            maxDiff = std::max(maxDiff, Dot(diff, diff));
-        }
-        // Warning("returning calculateMaxDifference");
-        return maxDiff;
-    }
-
-    std::vector<Vector3f> BSPCluster::calculateClusterMeans(const uint32_t *primNums, const uint32_t np) {
-
-        //Warning("calculateClusterMeans");
-
-        std::vector<Vector3f> clusterMeans, newClusterMeans;
-        std::vector<std::vector<Vector3f>> clusters;
-        /*clusterMeans.emplace_back(1, 0, 0);
-        clusterMeans.emplace_back(0, 1, 0);
-        clusterMeans.emplace_back(0, 0, 1);*/
-
-        std::vector<Vector3f> normals;
-        normals.reserve(np);
-        for (int i = 0; i < np; ++i)
-            normals.emplace_back(PositiveX(primitives[primNums[i]]->Normal()));
-
-
-        if (np <= K) {
-            return normals;
-        }
-
-        //clusterMeans.emplace_back(1, 0, 0); clusters.emplace_back(std::vector<Vector3f>());
-        //clusterMeans.emplace_back(0, 1, 0); clusters.emplace_back(std::vector<Vector3f>());
-        //clusterMeans.emplace_back(0, 0, 1); clusters.emplace_back(std::vector<Vector3f>());
-
-        std::set<uint32_t> nIds;
-        while (nIds.size() < K)
-            nIds.insert(rand() % np);
-
-        for (auto &id: nIds) {
-            clusterMeans.emplace_back(normals[id]);
-            clusters.emplace_back(std::vector<Vector3f>());
-        }
-        newClusterMeans = clusterMeans;
-        const uint32_t maxIterations = 500;
-        uint32_t iterations = 0;
-        while (iterations < maxIterations &&
-               (iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) > 0.001)) {
-            //Warning("%d", iterations);
-
-            ++iterations;
-            clusterMeans = newClusterMeans;
-
-            for (auto &n: normals)
-                clusters[calculateIdOfClosestMean(n, clusterMeans)].emplace_back(n);
-            //Warning("ITEMS %d %d %d %d",  clusters[0].size(), clusters[1].size(), clusters[2].size(), np);
-
-            for (int i = 0; i < K; ++i) {
-                //Warning("K, %d %d", i, clusters.size());
-                if (clusters[i].empty()) {
-                    //Warning("EMPTY %d %d %d %d", clusters[0].size(), clusters[1].size(), clusters[2].size(), np);
-                    std::set<uint32_t> nIds;
-                    while (nIds.size() < K)
-                        nIds.insert(rand() % np);
-                    std::vector<uint32_t> v(nIds.begin(), nIds.end());
-
-                    for (int ii = 0; ii < K; ++ii) {
-                        auto id = v[ii];
-                        clusterMeans.emplace_back(normals[id]);
-                        clusters[ii].clear();
-                    }
-                    break;
-                }
-                newClusterMeans[i] = calculateMeanVector(clusters[i]);
-                clusters[i].clear();
-                //Warning("Cleared");
-            }
-        }
-
-        return newClusterMeans;
-    }
-
-    void BSPCluster::printNodes(std::ofstream &os) const {
+    void BSPPaper::printNodes(std::ofstream &os) const {
         for (int i = 0; i < nextFreeNode; i++) {
             os << nodes[i].toString(primitiveIndices) << std::endl;
         }
     }
 
-    void BSPCluster::buildTree() {
+    void BSPPaper::buildTree() {
         //Initialize
         // Compute bounds for rbsp-tree construction: CANNOT PRECOMPUTE ALLPRIMBOUNDS
         for (const std::shared_ptr<Primitive> &prim : primitives) {
@@ -281,6 +169,11 @@ namespace pbrt {
         kDOPMesh.directions.emplace_back(0, 1, 0);
         kDOPMesh.directions.emplace_back(0, 0, 1);
 
+        std::vector<Vector3f> kdDirections;
+        kdDirections.emplace_back(1, 0, 0);
+        kdDirections.emplace_back(0, 1, 0);
+        kdDirections.emplace_back(0, 0, 1);
+
 
         // Building
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
@@ -288,7 +181,7 @@ namespace pbrt {
         uint32_t nodeNum = 0;
         // Allocate working memory for rbsp-tree construction
         std::vector<std::unique_ptr<BoundEdge[]>> edges;
-        for (uint32_t i = 0; i < K; ++i)
+        for (uint32_t i = 0; i < 3; ++i)
             edges.emplace_back(std::unique_ptr<BoundEdge[]>(new BoundEdge[2 * primitives.size()]));
         std::unique_ptr<uint32_t[]> prims(
                 new uint32_t[(maxDepth + 1) * primitives.size()]); // TODO: use vector ?
@@ -300,7 +193,7 @@ namespace pbrt {
         uint32_t maxPrimsOffset = 0;
         double currentSACost = 0;
 
-        std::vector<BSPClusterBuildNode> stack;
+        std::vector<BSPPaperBuildNode> stack;
         stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, kDOPMesh,
                            kDOPMesh.SurfaceArea(), &prims[0]);
         // Warning("Building RBSP: Lets loop");
@@ -308,7 +201,7 @@ namespace pbrt {
             if (nodeNum % 10000 == 0) // 100000
                 Warning("Nodenum %d", nodeNum);
             reporter.Update();
-            BSPClusterBuildNode currentBuildNode = stack.back();
+            BSPPaperBuildNode currentBuildNode = stack.back();
             stack.pop_back();
             CHECK_EQ(nodeNum, nextFreeNode);
 
@@ -320,9 +213,9 @@ namespace pbrt {
             // Get next free node from _nodes_ array
             if (nextFreeNode == nAllocedNodes) {
                 uint32_t nNewAllocNodes = std::max(2u * nAllocedNodes, 512u);
-                auto *n = AllocAligned<BSPClusterNode>(nNewAllocNodes);
+                auto *n = AllocAligned<BSPPaperNode>(nNewAllocNodes);
                 if (nAllocedNodes > 0) {
-                    memcpy(n, nodes, nAllocedNodes * sizeof(BSPClusterNode));
+                    memcpy(n, nodes, nAllocedNodes * sizeof(BSPPaperNode));
                     FreeAligned(nodes);
                 }
                 nodes = n;
@@ -340,6 +233,8 @@ namespace pbrt {
 
             // Choose split axis position for interior node
             uint32_t bestK = -1, bestOffset = -1;
+            Float bestSplitT = 0;
+            Vector3f bestSplitAxis = Vector3f();
             std::pair<KDOPMeshCluster, KDOPMeshCluster> bestSplittedKDOPs;
             std::pair<Float, Float> bestSplittedKDOPAreas = std::make_pair(0, 0);
             Float bestCost = Infinity;
@@ -348,11 +243,9 @@ namespace pbrt {
             const Float invTotalSA = 1 / currentBuildNode.kdopMeshArea;
             std::pair<KDOPMeshCluster, KDOPMeshCluster> splittedKDOPs;
 
-            std::vector<Vector3f> clusterMeans = calculateClusterMeans(currentBuildNode.primNums,
-                                                                       currentBuildNode.nPrimitives); // TODO: Cluster
-
-            for (uint32_t k = 0; k < clusterMeans.size(); ++k) {
-                auto d = clusterMeans[k];
+            // Sweep for kd directions
+            for (uint32_t k = 0; k < 3; ++k) {
+                auto d = kdDirections[k];
 
                 Boundsf directionBounds = Boundsf();
                 for (auto &edge: currentBuildNode.kDOPMesh.edges) {
@@ -401,6 +294,8 @@ namespace pbrt {
                         // Update best split if this is lowest cost so far
                         if (cost < bestCost) {
                             bestCost = cost;
+                            bestSplitT = edgeT;
+                            bestSplitAxis = d;
                             bestK = k;
                             bestOffset = i;
                             bestSplittedKDOPs = splittedKDOPs;
@@ -412,10 +307,49 @@ namespace pbrt {
                 }
                 CHECK(nBelow == currentBuildNode.nPrimitives && nAbove == 0);
             }
+            // Other directions for each triangle
+            std::vector<std::shared_ptr<Primitive>> currentPrimitives;
+            for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                const uint32_t pn = currentBuildNode.primNums[i];
+                currentPrimitives.emplace_back(primitives[pn]);
+            }
+            BVHAccel bvh = BVHAccel(currentPrimitives, 4, 8, 1);
+            for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                const uint32_t pn = currentBuildNode.primNums[i];
+                std::vector<Plane> planes = primitives[pn]->getBSPPaperPlanes();
+                for (auto &plane: planes) {
+                    splittedKDOPs = currentBuildNode.kDOPMesh.cut(
+                            plane.t, plane.axis);
+                    const Float areaBelow = splittedKDOPs.first.SurfaceArea();
+                    const Float areaAbove = splittedKDOPs.second.SurfaceArea();
+                    const Float pBelow = areaBelow * invTotalSA;
+                    const Float pAbove = areaAbove * invTotalSA;
+
+                    auto lr = bvh.getAmountToLeftAndRight(plane);
+
+                    const Float eb = (lr.second == 0 || lr.first == 0) ? emptyBonus : 0;
+                    const Float cost =
+                            traversalCost +
+                            isectCost * (1 - eb) * (pBelow * lr.first + pAbove * lr.second);
+
+                    // Update best split if this is lowest cost so far
+                    if (cost < bestCost) {
+                        bestCost = cost;
+                        bestK = 33; // random number
+                        bestSplitT = plane.t;
+                        bestSplitAxis = plane.axis;
+                        bestSplittedKDOPs = splittedKDOPs;
+                        bestSplittedKDOPAreas.first = areaBelow;
+                        bestSplittedKDOPAreas.second = areaAbove;
+                    }
+                }
+
+            }
+
 
             // Create leaf if no good splits were found
             if (bestCost > oldCost) ++currentBuildNode.badRefines;
-            if ((bestCost > 4 * oldCost && currentBuildNode.nPrimitives < 16) || bestK == -1 ||
+            if ((bestCost > 4 * oldCost && currentBuildNode.nPrimitives < 16) || bestSplitAxis.Length() < 0.5 ||
                 currentBuildNode.badRefines == 3) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
@@ -425,21 +359,29 @@ namespace pbrt {
 
             // Classify primitives with respect to split
             uint32_t n0 = 0, n1 = 0;
-            uint32_t *prims1 = currentBuildNode.primNums; // prims1 needs to be put in de array first, so it isn't overriden by child 0
-            for (uint32_t i = bestOffset + 1; i < 2 * currentBuildNode.nPrimitives; ++i)
-                if (edges[bestK][i].type == EdgeType::End)
-                    prims1[n1++] = edges[bestK][i].primNum;
+            uint32_t *prims1, *prims0;
+            prims1 = currentBuildNode.primNums; // prims1 needs to be put in de array first, so it isn't overriden by child 0
+            if (bestK != 33) {
+                for (uint32_t i = bestOffset + 1; i < 2 * currentBuildNode.nPrimitives; ++i)
+                    if (edges[bestK][i].type == EdgeType::End)
+                        prims1[n1++] = edges[bestK][i].primNum;
 
-            uint32_t *prims0 = prims1 + n1;
-            for (uint32_t i = 0; i < bestOffset; ++i)
-                if (edges[bestK][i].type == EdgeType::Start)
-                    prims0[n0++] = edges[bestK][i].primNum;
+                prims0 = prims1 + n1;
+                for (uint32_t i = 0; i < bestOffset; ++i)
+                    if (edges[bestK][i].type == EdgeType::Start)
+                        prims0[n0++] = edges[bestK][i].primNum;
+            } else {
+                auto lr = bvh.getPrimnumsToLeftAndRight(Plane(bestSplitT, bestSplitAxis));
+                for (auto &primNum: lr.second)
+                    prims1[n1++] = primNum;
+                prims0 = prims1 + n1;
+                for (auto &primNum: lr.first)
+                    prims0[n0++] = primNum;
 
+            }
             // Add child nodes to stack
-            const Float tSplit = edges[bestK][bestOffset].t;
-
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
-            nodes[nodeNum].InitInterior(clusterMeans[bestK], tSplit);
+            nodes[nodeNum].InitInterior(bestSplitAxis, bestSplitT);
 
             stack.emplace_back(
                     currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
@@ -456,7 +398,7 @@ namespace pbrt {
         totalSACost = currentSACost / bounds.SurfaceArea();
     }
 
-    bool BSPCluster::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
+    bool BSPPaper::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
         ProfilePhase p(Prof::AccelIntersect);
         // Compute initial parametric range of ray inside rbsp-tree extent
         Float tMin, tMax;
@@ -466,12 +408,12 @@ namespace pbrt {
 
         // Prepare to traverse rbsp-tree for ray
         PBRT_CONSTEXPR uint32_t maxTodo = 64u;
-        BSPToDo<BSPClusterNode> todo[maxTodo];
+        BSPToDo<BSPPaperNode> todo[maxTodo];
         uint32_t todoPos = 0;
 
         // Traverse rbsp-tree nodes in order for ray
         bool hit = false;
-        const BSPClusterNode *node = &nodes[0];
+        const BSPPaperNode *node = &nodes[0];
         while (node != nullptr) {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
@@ -487,7 +429,7 @@ namespace pbrt {
                                                    inverseProjectedD);
 
                 // Get node children pointers for ray
-                const BSPClusterNode *firstChild, *secondChild;
+                const BSPPaperNode *firstChild, *secondChild;
                 const bool belowFirst =
                         (projectedO < node->SplitPos()) ||
                         (projectedO == node->SplitPos() && inverseProjectedD <= 0);
@@ -545,7 +487,7 @@ namespace pbrt {
         return hit;
     }
 
-    bool BSPCluster::IntersectP(const Ray &ray) const {
+    bool BSPPaper::IntersectP(const Ray &ray) const {
         ProfilePhase p(Prof::AccelIntersectP);
         // Compute initial parametric range of ray inside rbsp-tree extent
         Float tMin, tMax;
@@ -555,9 +497,9 @@ namespace pbrt {
 
         // Prepare to traverse rbsp-tree for ray
         PBRT_CONSTEXPR uint32_t maxTodo = 64;
-        BSPToDo<BSPClusterNode> todo[maxTodo];
+        BSPToDo<BSPPaperNode> todo[maxTodo];
         uint32_t todoPos = 0;
-        const BSPClusterNode *node = &nodes[0];
+        const BSPPaperNode *node = &nodes[0];
         while (node != nullptr) {
             nbNodeTraversalsP++;
             ray.stats.rBSPTreeNodeTraversalsP++;
@@ -601,7 +543,7 @@ namespace pbrt {
                                                    inverseProjectedD);
 
                 // Get node children pointers for ray
-                const BSPClusterNode *firstChild, *secondChild;
+                const BSPPaperNode *firstChild, *secondChild;
                 const bool belowFirst =
                         (projectedO < node->SplitPos()) ||
                         (projectedO == node->SplitPos() && inverseProjectedD <= 0);
@@ -632,7 +574,7 @@ namespace pbrt {
         return false;
     }
 
-    std::shared_ptr<BSPCluster> CreateBSPClusterTreeAccelerator(
+    std::shared_ptr<BSPPaper> CreateBSPPaperTreeAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps) {
         uint32_t isectCost = (uint32_t) ps.FindOneInt("intersectcost", 80);
         uint32_t travCost = (uint32_t) ps.FindOneInt("traversalcost", 5);
@@ -641,7 +583,7 @@ namespace pbrt {
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
         uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3); //TODO: this is K?
 
-        return std::make_shared<BSPCluster>(std::move(prims), isectCost, travCost, emptyBonus,
-                                            maxPrims, maxDepth, nbDirections);
+        return std::make_shared<BSPPaper>(std::move(prims), isectCost, travCost, emptyBonus,
+                                          maxPrims, maxDepth, nbDirections);
     }
 } // namespace pbrt

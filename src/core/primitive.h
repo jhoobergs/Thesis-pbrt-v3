@@ -88,6 +88,11 @@ namespace pbrt {
         virtual Float getSurfaceArea() const {
             return 0;
         };
+
+        virtual std::vector<Plane> getBSPPaperPlanes() const {
+            std::vector<Plane> p;
+            return p;
+        };
     };
 
 // GeometricPrimitive Declarations

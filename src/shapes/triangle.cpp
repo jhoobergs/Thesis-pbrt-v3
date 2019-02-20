@@ -676,6 +676,37 @@ namespace pbrt {
         return Boundsf(min, max);
     }
 
+    std::vector<Plane> Triangle::getBSPPaperPlanes() const {
+        std::vector<Plane> planes;
+
+        Point3f &p0 = mesh->p[v[0]];
+        Point3f &p1 = mesh->p[v[0]];
+        Point3f &p2 = mesh->p[v[0]];
+        Vector3f n = Vector3f(Normal());
+
+        // Auto partition
+        Float t = Dot(n, p0);
+        planes.emplace_back(t, n);
+
+        // 0-1
+        Vector3f axis = Cross(n, p0 - p1);
+        t = Dot(axis, p0);
+        planes.emplace_back(t, axis);
+
+        // 0-2
+        axis = Cross(n, p0 - p2);
+        t = Dot(axis, p0);
+        planes.emplace_back(t, axis);
+
+        // 1-2
+        axis = Cross(n, p1 - p2);
+        t = Dot(axis, p1);
+        planes.emplace_back(t, axis);
+
+        return planes;
+    };
+
+
     std::vector<std::shared_ptr<Shape>> CreateTriangleMeshShape(
             const Transform *o2w, const Transform *w2o, bool reverseOrientation,
             const ParamSet &params,

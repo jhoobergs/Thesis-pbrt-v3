@@ -67,6 +67,11 @@ namespace pbrt {
         bool Intersect(const Ray &ray, SurfaceInteraction *isect) const;
 
         bool IntersectP(const Ray &ray) const;
+
+        std::pair<uint32_t, uint32_t> getAmountToLeftAndRight(const Plane &p) const;
+
+        std::pair<std::vector<uint32_t>, std::vector<uint32_t>> getPrimnumsToLeftAndRight(const Plane &p) const;
+
     private:
         // BVHAccel Private Methods
         BVHBuildNode *iterativeBuild(MemoryArena &arena, int *totalNodes,
@@ -79,6 +84,7 @@ namespace pbrt {
         const int isectCost;
         const int traversalCost;
         std::vector<std::shared_ptr<Primitive>> primitives;
+        std::vector<uint32_t> primNumMapping;
         LinearBVHNode *nodes = nullptr;
     };
 

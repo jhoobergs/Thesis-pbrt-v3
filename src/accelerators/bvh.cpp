@@ -33,11 +33,9 @@
 
 // accelerators/bvh.cpp*
 #include "accelerators/bvh.h"
-#include "interaction.h"
 #include "paramset.h"
 #include "stats.h"
 #include "parallel.h"
-#include <algorithm>
 
 namespace pbrt {
 
@@ -75,56 +73,80 @@ namespace pbrt {
 
     struct BVHBuildNode {
         // BVHBuildNode Public Methods
-        void InitLeaf(int first, int n, const Bounds3f &b) {
+        void InitLeaf(uint32_t first, uint32_t n, const Bounds3f &b) {
             firstPrimOffset = first;
             nPrimitives = n;
             bounds = b;
             children[0] = children[1] = nullptr;
+            leaf = true;
             ++leafNodes;
             ++totalLeafNodes;
             totalPrimitives += n;
         }
 
-        void InitInterior(int axis, BVHBuildNode *c0, BVHBuildNode *c1, const Bounds3f &b) {
+        void InitInterior(uint32_t axis, BVHBuildNode *c0, BVHBuildNode *c1, const Bounds3f &b, uint32_t nPrims) {
             children[0] = c0;
             children[1] = c1;
             splitAxis = axis;
-            nPrimitives = 0;
+            nPrimitives = nPrims;
             bounds = b;
+            leaf = false;
             ++interiorNodes;
         }
 
         int depth() {
-            if (nPrimitives > 0)
+            if (leaf)
                 return 1;
             return 1 + std::max(children[0]->depth(), children[1]->depth());
         }
 
         Bounds3f bounds;
         BVHBuildNode *children[2];
-        int splitAxis, firstPrimOffset, nPrimitives;
+        uint32_t splitAxis, firstPrimOffset, nPrimitives;
+        bool leaf;
     };
 
     struct BVHBuildCentroid {
         // Centroid Public Methods
         BVHBuildCentroid() {}
 
-        BVHBuildCentroid(Float t, int primOffset, int primNum) : t(t), primOffset(primOffset), primNum(primNum) {}
+        BVHBuildCentroid(Float t, uint32_t primOffset, uint32_t primNum) : t(t), primOffset(primOffset),
+                                                                           primNum(primNum) {}
 
         Float t;
-        int primOffset;
-        int primNum;
+        uint32_t primOffset;
+        uint32_t primNum;
     };
 
     struct LinearBVHNode {
+        uint32_t nPrimitives() const { return nPrims >> 2; }
+
+        uint32_t SplitAxis() const { return axis & 3; }
+
+        bool IsLeaf() const { return (axis & 3) == 3; }
+
+        void InitLeaf(uint32_t nPrimitives, Bounds3f boundsf, int primOffset) {
+            axis = 3;
+            nPrims |= (nPrimitives << 2);
+            primitivesOffset = primOffset;
+            bounds = boundsf;
+        }
+
+        void InitInterior(uint32_t nPrimitives, Bounds3f boundsf, uint32_t axs) {
+            axis = axs;
+            nPrims |= (nPrimitives << 2);
+            bounds = boundsf;
+        }
+
         Bounds3f bounds;
         union {
             int primitivesOffset;   // leaf
             int secondChildOffset;  // interior
         };
-        uint16_t nPrimitives;  // 0 -> interior node
-        uint8_t axis;          // interior node: xyz
-        uint8_t pad[1];        // ensure 32 byte total size
+        union {
+            uint32_t nPrims;  //
+            uint32_t axis;          // interior node: xyz
+        };
     };
 
     // BVHAccel Method Definitions
@@ -140,11 +162,15 @@ namespace pbrt {
 
         // Build BVH tree for primitives using _primitiveInfo_
         MemoryArena arena(1024 * 1024);
-
         int totalNodes = 0;
         std::vector<std::shared_ptr<Primitive>> orderedPrims;
         orderedPrims.reserve(primitives.size());
+        primNumMapping.reserve(primitives.size());
+        for (auto &prim: primitives)
+            primNumMapping.emplace_back(0);
+
         BVHBuildNode *root = iterativeBuild(arena, &totalNodes, orderedPrims);
+
         primitives.swap(orderedPrims);
 
         // Compute representation of depth-first traversal of BVH tree
@@ -169,11 +195,12 @@ namespace pbrt {
                                            std::vector<std::shared_ptr<Primitive>> &orderedPrims) {
         // Initialize _primitiveInfo_ array for primitives
         std::vector<BVHPrimitiveInfo> primitiveInfo(primitives.size());
+
         for (size_t i = 0; i < primitives.size(); ++i)
             primitiveInfo[i] = {i, primitives[i]->WorldBound()};
 
         std::unique_ptr<BVHBuildCentroid[]> centroids[3];
-        for (int i = 0; i < 3; ++i)
+        for (uint32_t i = 0; i < 3; ++i)
             centroids[i].reset(new BVHBuildCentroid[primitives.size()]);
         std::unique_ptr<Bounds3f[]> rightToLeftBounds(
                 new Bounds3f[primitives.size()]); // rightToLeftBounds[i] equals the bounds of all triangle to the right of triangle i, including triangle i
@@ -183,7 +210,6 @@ namespace pbrt {
         BVHBuildNode *root = arena.Alloc<BVHBuildNode>();
         std::vector<BVHBuildToDo> stack;
         stack.emplace_back(BVHBuildToDo(root, 0, primitives.size(), nullptr));
-
         while (!stack.empty()) {
             BVHBuildToDo currentBuildNode = stack.back();
             stack.pop_back();
@@ -195,27 +221,28 @@ namespace pbrt {
             for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i)
                 bounds = Union(bounds, primitiveInfo[i].bounds);
 
-            int nPrimitives = currentBuildNode.end - currentBuildNode.start;
+            uint32_t nPrimitives = currentBuildNode.end - currentBuildNode.start;
             if (nPrimitives == 1) {
                 // Create leaf _BVHBuildNode_
-                int firstPrimOffset = orderedPrims.size();
+                uint32_t firstPrimOffset = orderedPrims.size();
                 for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
-                    int primNum = primitiveInfo[i].primitiveNumber;
+                    uint32_t primNum = primitiveInfo[i].primitiveNumber;
                     orderedPrims.push_back(primitives[primNum]);
+                    primNumMapping[orderedPrims.size() - 1] = primNum;
                 }
                 currentBuildNode.node->InitLeaf(firstPrimOffset, nPrimitives, bounds);
             } else {
                 // Choose split axis position for interior node
-                int bestAxis = -1, bestOffset = -1, bestPrimNum = -1;
+                uint32_t bestAxis = -1, bestOffset = -1, bestPrimNum = -1;
                 Bounds3f bestBounds;
                 Float bestCost = Infinity;
                 Float oldCost = isectCost * Float(nPrimitives);
                 Float totalSA = bounds.SurfaceArea();
                 Float invTotalSA = 1 / totalSA;
 
-                for (int dim = 0; dim < 3; dim++) {
-                    for (int i = 0; i < nPrimitives; ++i) {
-                        int pn = primitiveInfo[currentBuildNode.start + i].primitiveNumber;
+                for (uint32_t dim = 0; dim < 3; dim++) {
+                    for (uint32_t i = 0; i < nPrimitives; ++i) {
+                        uint32_t pn = primitiveInfo[currentBuildNode.start + i].primitiveNumber;
                         centroids[dim][i] = BVHBuildCentroid(primitiveInfo[currentBuildNode.start + i].centroid[dim],
                                                              currentBuildNode.start + i, pn);
                     }
@@ -275,17 +302,18 @@ namespace pbrt {
                                        (pi.centroid[bestAxis] == bestCentroid &&
                                         pi.primitiveNumber <= bestPrimNum);
                             });
-                    int mid = pmid - &primitiveInfo[0];
+                    uint32_t mid = pmid - &primitiveInfo[0];
 
-                    currentBuildNode.node->InitInterior(bestAxis, c0, c1, bestBounds);
+                    currentBuildNode.node->InitInterior(bestAxis, c0, c1, bestBounds, nPrimitives);
                     stack.emplace_back(BVHBuildToDo(c0, currentBuildNode.start, mid, currentBuildNode.node));
                     stack.emplace_back(BVHBuildToDo(c1, mid, currentBuildNode.end, currentBuildNode.node));
                 } else {
                     //Create leaf
-                    int firstPrimOffset = orderedPrims.size();
+                    uint32_t firstPrimOffset = orderedPrims.size();
                     for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
-                        int primNum = primitiveInfo[i].primitiveNumber;
+                        uint32_t primNum = primitiveInfo[i].primitiveNumber;
                         orderedPrims.push_back(primitives[primNum]);
+                        primNumMapping[orderedPrims.size() - 1] = primNum;
                     }
                     currentBuildNode.node->InitLeaf(firstPrimOffset, nPrimitives, bounds);
                 }
@@ -299,29 +327,25 @@ namespace pbrt {
                                   float(arena.TotalAllocated()) /
                                   (1024.f * 1024.f));
 
-        Warning("BVH Depth %d", root->depth());
+        //Warning("BVH Depth %d", root->depth());
 
         return root;
     }
 
     int BVHAccel::flattenBVHTree(BVHBuildNode *node, int *offset) {
         LinearBVHNode *linearNode = &nodes[*offset];
-        linearNode->bounds = node->bounds;
-
         int myOffset = (*offset)++;
-        if (node->nPrimitives > 0) {
+        if (node->leaf) {
             CHECK(!node->children[0] && !node->children[1]);
-            CHECK_LT(node->nPrimitives, 65536);
-            linearNode->primitivesOffset = node->firstPrimOffset;
-            linearNode->nPrimitives = node->nPrimitives;
+            CHECK_LT(node->nPrimitives, 65536); // Not really needed anymore
+            linearNode->InitLeaf(node->nPrimitives, node->bounds, node->firstPrimOffset);
         } else {
             // Create interior flattened BVH node
-            linearNode->axis = node->splitAxis;
-            linearNode->nPrimitives = 0;
+            linearNode->InitInterior(node->nPrimitives, node->bounds, node->splitAxis);
             flattenBVHTree(node->children[0], offset);
-            linearNode->secondChildOffset =
-                    flattenBVHTree(node->children[1], offset);
+            linearNode->secondChildOffset = flattenBVHTree(node->children[1], offset);
         }
+
         return myOffset;
     }
 
@@ -342,9 +366,9 @@ namespace pbrt {
             ray.stats.bvhTreeNodeTraversals++;
             // Check ray against BVH node
             if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
-                if (node->nPrimitives > 0) {
+                if (node->IsLeaf()) {
                     // Intersect ray with primitives in leaf BVH node
-                    for (int i = 0; i < node->nPrimitives; ++i)
+                    for (int i = 0; i < node->nPrimitives(); ++i)
                         if (primitives[node->primitivesOffset + i]->Intersect(
                                 ray, isect))
                             hit = true;
@@ -353,7 +377,7 @@ namespace pbrt {
                 } else {
                     // Put far BVH node on _nodesToVisit_ stack, advance to near
                     // node
-                    if (dirIsNeg[node->axis]) {
+                    if (dirIsNeg[node->SplitAxis()]) {
                         nodesToVisit[toVisitOffset++] = currentNodeIndex + 1;
                         currentNodeIndex = node->secondChildOffset;
                     } else {
@@ -382,8 +406,8 @@ namespace pbrt {
             ray.stats.bvhTreeNodeTraversalsP++;
             if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
                 // Process BVH node _node_ for traversal
-                if (node->nPrimitives > 0) {
-                    for (int i = 0; i < node->nPrimitives; ++i) {
+                if (node->IsLeaf()) {
+                    for (int i = 0; i < node->nPrimitives(); ++i) {
                         if (primitives[node->primitivesOffset + i]->IntersectP(
                                 ray)) {
                             return true;
@@ -392,7 +416,7 @@ namespace pbrt {
                     if (toVisitOffset == 0) break;
                     currentNodeIndex = nodesToVisit[--toVisitOffset];
                 } else {
-                    if (dirIsNeg[node->axis]) {
+                    if (dirIsNeg[node->SplitAxis()]) {
                         /// second child first
                         nodesToVisit[toVisitOffset++] = currentNodeIndex + 1;
                         currentNodeIndex = node->secondChildOffset;
@@ -407,6 +431,98 @@ namespace pbrt {
             }
         }
         return false;
+    }
+
+    std::pair<uint32_t, uint32_t> BVHAccel::getAmountToLeftAndRight(const Plane &p) const {
+        uint32_t left = 0, right = 0;
+        uint32_t currentNodeIndex = 0;
+        LinearBVHNode *node;
+        std::vector<uint32_t> stack;
+        stack.emplace_back(0);
+        while (!stack.empty()) {
+            currentNodeIndex = stack.back();
+            stack.pop_back();
+            node = &nodes[currentNodeIndex];
+            Point3f center = (node->bounds.pMin + node->bounds.pMax) / 2;
+            Float maxDiff = node->bounds.Diagonal().Length() / 2;
+            float centerProjection = Dot(p.axis, center);
+            if (centerProjection + maxDiff < p.t) {
+                left += node->nPrimitives();
+            } else if (centerProjection - maxDiff > p.t) {
+                right += node->nPrimitives();
+            } else if (node->IsLeaf()) {
+                for (int i = 0; i < node->nPrimitives(); ++i) {
+                    Boundsf bounds = primitives[node->primitivesOffset + i]->getBounds(p.axis);
+                    if (bounds.min <= p.t)
+                        left += 1;
+                    if (bounds.max >= p.t)
+                        right += 1;
+                }
+            } else {
+                stack.emplace_back(currentNodeIndex + 1);
+                stack.emplace_back(node->secondChildOffset);
+            }
+        }
+
+        return std::make_pair(left, right);
+    }
+
+    std::pair<std::vector<uint32_t>, std::vector<uint32_t>> BVHAccel::getPrimnumsToLeftAndRight(const Plane &p) const {
+        std::vector<uint32_t> left, right;
+        std::pair<uint32_t, uint8_t> currentNodeData = std::make_pair(0, 0);
+        LinearBVHNode *node;
+        std::vector<std::pair<uint32_t, uint8_t>> stack; // (nodeIndex, state: 0=unkown, 1=shouldGoLeft, 2=shouldGoRight)
+        stack.emplace_back(currentNodeData);
+        while (!stack.empty()) {
+            currentNodeData = stack.back();
+            stack.pop_back();
+            node = &nodes[currentNodeData.first];
+            if (currentNodeData.second == 0) {
+                Point3f center = (node->bounds.pMin + node->bounds.pMax) / 2;
+                Float maxDiff = node->bounds.Diagonal().Length() / 2;
+                float centerProjection = Dot(p.axis, center);
+                if (centerProjection + maxDiff < p.t) {
+                    if (node->IsLeaf()) {
+                        for (int i = 0; i < node->nPrimitives(); ++i)
+                            left.emplace_back(primNumMapping[node->primitivesOffset + i]);
+                    } else {
+                        stack.emplace_back(std::make_pair(currentNodeData.first + 1, 1));
+                        stack.emplace_back(std::make_pair(node->secondChildOffset, 1));
+                    }
+                } else if (centerProjection - maxDiff > p.t) {
+                    if (node->IsLeaf()) {
+                        for (int i = 0; i < node->nPrimitives(); ++i)
+                            right.emplace_back(primNumMapping[node->primitivesOffset + i]);
+                    } else {
+                        stack.emplace_back(std::make_pair(currentNodeData.first + 1, 2));
+                        stack.emplace_back(std::make_pair(node->secondChildOffset, 2));
+                    }
+                } else if (node->IsLeaf()) {
+                    for (int i = 0; i < node->nPrimitives(); ++i) {
+                        Boundsf bounds = primitives[node->primitivesOffset + i]->getBounds(p.axis);
+                        if (bounds.min <= p.t)
+                            left.emplace_back(primNumMapping[node->primitivesOffset + i]);
+                        if (bounds.max >= p.t)
+                            right.emplace_back(primNumMapping[node->primitivesOffset + i]);
+                    }
+                } else {
+                    stack.emplace_back(std::make_pair(currentNodeData.first + 1, 0));
+                    stack.emplace_back(std::make_pair(node->secondChildOffset, 0));
+                }
+            } else if (node->IsLeaf()) {
+                if (currentNodeData.second == 1)
+                    for (int i = 0; i < node->nPrimitives(); ++i)
+                        left.emplace_back(primNumMapping[node->primitivesOffset + i]);
+
+                else if (currentNodeData.second == 2)
+                    for (int i = 0; i < node->nPrimitives(); ++i)
+                        right.emplace_back(primNumMapping[node->primitivesOffset + i]);
+            } else {
+                stack.emplace_back(std::make_pair(currentNodeData.first + 1, currentNodeData.second));
+                stack.emplace_back(std::make_pair(node->secondChildOffset, currentNodeData.second));
+            }
+        }
+        return std::make_pair(left, right);
     }
 
     std::shared_ptr<BVHAccel> CreateBVHAccelerator(
