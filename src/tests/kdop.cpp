@@ -6,7 +6,8 @@
 #include "pbrt.h"
 #include "geometry.h"
 #include "accelerators/rbsp.h"
-
+#include "accelerators/bvh.h"
+#include <shapes/triangle.h>
 
 using namespace pbrt;
 
@@ -455,4 +456,110 @@ TEST(kDOP, AreaAfterInPlaneCut) {
     std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 64.433624f, directions[3], 3);
     Warning("SA first %f", result.first.SurfaceArea(directions));
     Warning("SA second %f", result.second.SurfaceArea(directions));
+}
+
+TEST(BVH, amountLeftAndRight1) {
+    std::vector<std::shared_ptr<Primitive>> primitives;
+    Transform identity;
+    int indices[3] = { 0, 1, 2 };
+    Point3f p[3] = {  Point3f( 0,0,0),
+                      Point3f(1,0,0),
+                      Point3f(1,1,0) };
+    auto mesh = CreateTriangleMesh(&identity, &identity, false,
+                                   1, indices, 3, p, nullptr, nullptr, nullptr,
+                                   nullptr, nullptr);
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+    BVHAccel bvh = BVHAccel(primitives);
+    auto plane = Plane(2, Vector3f(1,0,0));
+    auto r = bvh.getAmountToLeftAndRight(plane);
+    EXPECT_EQ(1, r.first);
+    EXPECT_EQ(0, r.second);
+
+    auto lr = bvh.getPrimnumsToLeftAndRight(plane);
+    EXPECT_EQ(1, lr.first.size());
+    EXPECT_EQ(0, lr.first[0]);
+    EXPECT_EQ(0, lr.second.size());
+}
+
+TEST(BVH, amountLeftAndRight2) {
+    std::vector<std::shared_ptr<Primitive>> primitives;
+    Transform identity;
+    int indices[3] = { 0, 1, 2 };
+
+    Point3f p[3] = {  Point3f( 0,0,0),
+                      Point3f(1,0,0),
+                      Point3f(1,1,0) };
+    auto mesh = CreateTriangleMesh(&identity, &identity, false,
+                                   1, indices, 3, p, nullptr, nullptr, nullptr,
+                                   nullptr, nullptr);
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+
+    p[0] = Point3f(3,3,3);
+    p[1] = Point3f(4,3,3);
+    p[2] = Point3f(4,4,3);
+    mesh = CreateTriangleMesh(&identity, &identity, false,
+                                   1, indices, 3, p, nullptr, nullptr, nullptr,
+                                   nullptr, nullptr);
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+
+    BVHAccel bvh = BVHAccel(primitives);
+    auto plane = Plane(2, Vector3f(1,0,0));
+    auto r = bvh.getAmountToLeftAndRight(plane);
+    EXPECT_EQ(1, r.first);
+    EXPECT_EQ(1, r.second);
+
+    auto lr = bvh.getPrimnumsToLeftAndRight(plane);
+    EXPECT_EQ(1, lr.first.size());
+    EXPECT_EQ(0, lr.first[0]);
+    EXPECT_EQ(1, lr.second.size());
+    EXPECT_EQ(1, lr.second[0]);
+}
+
+
+TEST(BVH, amountLeftAndRight3) {
+    std::vector<std::shared_ptr<Primitive>> primitives;
+    Transform identity;
+    int indices[3] = { 0, 1, 2 };
+
+    Point3f p[3] = {  Point3f( 0,0,0),
+                      Point3f(1,0,0),
+                      Point3f(1,1,0) };
+    auto mesh = CreateTriangleMesh(&identity, &identity, false,
+                                   1, indices, 3, p, nullptr, nullptr, nullptr,
+                                   nullptr, nullptr);
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+
+    p[0] = Point3f(3,3,3);
+    p[1] = Point3f(4,3,3);
+    p[2] = Point3f(4,4,3);
+    mesh = CreateTriangleMesh(&identity, &identity, false,
+                              1, indices, 3, p, nullptr, nullptr, nullptr,
+                              nullptr, nullptr);
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+
+    p[0] = Point3f(1.5,3,3);
+    p[1] = Point3f(2.5,3,3);
+    p[2] = Point3f(2.5,4,3);
+    mesh = CreateTriangleMesh(&identity, &identity, false,
+                              1, indices, 3, p, nullptr, nullptr, nullptr,
+                              nullptr, nullptr);
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+
+    BVHAccel bvh = BVHAccel(primitives);
+    auto plane = Plane(2, Vector3f(1,0,0));
+    auto r = bvh.getAmountToLeftAndRight(plane);
+    EXPECT_EQ(2, r.first);
+    EXPECT_EQ(2, r.second);
+
+    auto lr = bvh.getPrimnumsToLeftAndRight(plane);
+    EXPECT_EQ(2, lr.first.size());
+    EXPECT_EQ(true, lr.first[0] == 0 or lr.first[0] == 2);
+    EXPECT_EQ(true, lr.first[1] == 0 or lr.first[1] == 2);
+    EXPECT_EQ(true, lr.first[0] != lr.first[1]);
+
+    EXPECT_EQ(2, lr.second.size());
+    EXPECT_EQ(true, lr.second[0] == 1 or lr.second[0] == 2);
+    EXPECT_EQ(true, lr.second[1] == 1 or lr.second[1] == 2);
+    EXPECT_EQ(true, lr.second[0] != lr.second[1]);
+
 }

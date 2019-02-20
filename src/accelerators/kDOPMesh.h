@@ -57,8 +57,9 @@ namespace pbrt {
         }
     }
 
-    inline void KDOPCutAddEdge(KDOPMeshBase &left, KDOPMeshBase &right, KDOPEdge edge, std::vector<KDOPEdge> &coincidentEdges,
-                           std::vector<std::vector<Point3f>> &faceVertices, Float t, Float t1, Float t2) {
+    inline void
+    KDOPCutAddEdge(KDOPMeshBase &left, KDOPMeshBase &right, KDOPEdge edge, std::vector<KDOPEdge> &coincidentEdges,
+                   std::vector<std::vector<Point3f>> &faceVertices, Float t, Float t1, Float t2) {
         Vector3f d = edge.v2 - edge.v1;
         if (t1 < t && t2 < t) {
             left.addEdge(edge);
@@ -87,10 +88,10 @@ namespace pbrt {
                 }*/
     }
 
-    template <class T>
+    template<class T>
     inline std::pair<T, T>
     KDOPCut(const std::vector<KDOPEdge> &edges, uint32_t M, Float t, const Vector3f &direction,
-        const uint32_t directionId) {
+            const uint32_t directionId) {
         //Warning("t %f", t);
         T left; // TODO: ? Allocate right ? Use unique pointers and shared pointers
         T right;
@@ -108,7 +109,8 @@ namespace pbrt {
             if(std::abs(t2-t) < 0.001 && std::abs(t2/t - 1) < 0.01)
                 t2=t;*/
             if (t1 > t2) {
-                KDOPCutAddEdge(left, right, KDOPEdge(edge.v2, edge.v1, edge.faceId1, edge.faceId2), coincidentEdges, faceVertices, t, t2, t1);
+                KDOPCutAddEdge(left, right, KDOPEdge(edge.v2, edge.v1, edge.faceId1, edge.faceId2), coincidentEdges,
+                               faceVertices, t, t2, t1);
             } else {
                 KDOPCutAddEdge(left, right, edge, coincidentEdges, faceVertices, t, t1, t2);
             }
@@ -232,5 +234,36 @@ namespace pbrt {
     inline uint32_t getBitMask(const uint32_t M) {
         return ((uint32_t) 1 << getBitOffset(M)) - 1;
     }
+
+    struct KDOPMeshCluster : KDOPMeshBase {
+        KDOPMeshCluster() : KDOPMeshBase() {};
+
+        std::pair<KDOPMeshCluster, KDOPMeshCluster> cut(Float t, const Vector3f &direction) {
+            auto directionId = (uint32_t) directions.size();
+            //Warning("SIZE %d", directionId);
+            for (uint32_t i = 0; i < directions.size(); i++) {
+                auto d = directions[i];
+                if (Dot(d, direction) > 0.999961923) {  // cos(0.5°)
+                    directionId = i;
+                    break;
+                }
+            }
+            auto cut = KDOPCut<KDOPMeshCluster>(edges, directions.size(), t, direction, directionId);
+            cut.first.directions = directions;
+            cut.second.directions = directions;
+            if (directionId == directions.size()) {
+                cut.first.directions.emplace_back(direction);
+                cut.second.directions.emplace_back(direction);
+            }
+            return cut;
+        }
+
+        Float SurfaceArea() {
+            return KDOPSurfaceArea(edges, directions);
+        }
+
+        std::vector<Vector3f> directions;
+    };
+
 }
 #endif //PBRT_V3_KDOPMESH_H

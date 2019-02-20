@@ -3,16 +3,7 @@
 //
 
 #include <core/stats.h>
-#include <core/progressreporter.h>
-#include "paramset.h"
-#include "accelerators/genericBSP.h"
-#include <fstream>
-#include <shapes/triangle.h>
-#include <random>
-#include <cmath>
 #include <limits.h>
-#include <string>
-#include <vector>
 
 #define clz(x) __builtin_clz(x)
 namespace pbrt {
