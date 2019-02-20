@@ -38,13 +38,13 @@ namespace pbrt {
 
         // KdTreeAccel Public Methods
         GenericBSP(std::vector<std::shared_ptr<Primitive>> p,
-                    uint32_t isectCost = 80, uint32_t traversalCost = 1,
-                    Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1u, uint32_t nbDirections = 3,
-                    Float splitAlpha = 90, uint32_t alphaType = 0, uint32_t axisSelectionType = 0,
-                    uint32_t axisSelectionAmount = -1u) : primitives(std::move(p)), isectCost(isectCost),
-                                                          traversalCost(traversalCost), emptyBonus(emptyBonus),
-                                                          maxPrims(maxPrims), splitAlpha(splitAlpha),
-                                                          alphaType(alphaType), axisSelectionType(axisSelectionType) {
+                   uint32_t isectCost = 80, uint32_t traversalCost = 1,
+                   Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1u, uint32_t nbDirections = 3,
+                   Float splitAlpha = 90, uint32_t alphaType = 0, uint32_t axisSelectionType = 0,
+                   uint32_t axisSelectionAmount = -1u) : primitives(std::move(p)), isectCost(isectCost),
+                                                         traversalCost(traversalCost), emptyBonus(emptyBonus),
+                                                         maxPrims(maxPrims), splitAlpha(splitAlpha),
+                                                         alphaType(alphaType), axisSelectionType(axisSelectionType) {
             ProfilePhase _(Prof::AccelConstruction);
             nextFreeNode = nAllocedNodes = 0;
             if (maxDepth == -1)

@@ -6,10 +6,8 @@
 #include <core/progressreporter.h>
 #include "paramset.h"
 #include "accelerators/rbsp.h"
-#include <fstream>
 #include <shapes/triangle.h>
 #include <random>
-#include <cmath>
 
 namespace pbrt {
 
@@ -117,7 +115,8 @@ namespace pbrt {
                Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, Float splitAlpha,
                uint32_t alphaType,
                uint32_t axisSelectionType, uint32_t axisSelectionAmount)
-            : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount) {
+            : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
+                         splitAlpha, alphaType, axisSelectionType, axisSelectionAmount) {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamnbDirections = nbDirections;

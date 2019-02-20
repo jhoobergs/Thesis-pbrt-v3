@@ -102,6 +102,8 @@ namespace pbrt {
 
         Boundsf getBounds(Vector3f direction) const;
 
+        std::vector<Plane> getBSPPaperPlanes() const;
+        
     private:
         // Triangle Private Methods
         void GetUVs(Point2f uv[3]) const {

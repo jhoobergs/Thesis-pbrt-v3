@@ -16,7 +16,7 @@ namespace pbrt {
     struct KDOPMesh : KDOPMeshBase {
         KDOPMesh() : KDOPMeshBase() {};
 
-        std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, Float t, const Vector3f &direction, const uint32_t directionId){
+        std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, Float t, const Vector3f &direction, const uint32_t directionId) {
             return KDOPCut<KDOPMesh>(edges, M, t, direction, directionId);
         }
 

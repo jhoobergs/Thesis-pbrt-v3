@@ -35,8 +35,6 @@
 // accelerators/kdtreeaccel.cpp*
 #include "accelerators/kdtreeaccel.h"
 #include "paramset.h"
-#include "stats.h"
-#include <fstream>
 #include <core/progressreporter.h>
 
 namespace pbrt {
@@ -131,7 +129,8 @@ namespace pbrt {
                              uint32_t isectCost, uint32_t traversalCost, Float emptyBonus,
                              uint32_t maxPrims, uint32_t maxDepth, Float splitAlpha, uint32_t alphaType,
                              uint32_t axisSelectionType, uint32_t axisSelectionAmount)
-            : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, 3u, splitAlpha, alphaType, axisSelectionType, axisSelectionAmount) {
+            : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, 3u, splitAlpha,
+                         alphaType, axisSelectionType, axisSelectionAmount) {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamMaxDepth = maxDepth;
@@ -301,30 +300,29 @@ namespace pbrt {
                     means.emplace_back(std::make_pair(sum / currentBuildNode.nPrimitives, axis));
                 }
                 std::sort(means.begin(), means.end());
-                for (uint32_t axis =0; axis < axisSelectionAmount; ++axis) {
+                for (uint32_t axis = 0; axis < axisSelectionAmount; ++axis) {
                     directionsToUse.emplace_back(means[means.size() - 1 - axis].second);
                 }
             } else if (axisSelectionType == 2) {
-                std::vector<std::pair<Float , uint32_t>> amounts;
+                std::vector<std::pair<Float, uint32_t>> amounts;
                 for (uint32_t axis = 0; axis < 3u; ++axis) {
                     amounts.emplace_back(std::make_pair(0, axis));
                 }
                 for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
-                   amounts[closestDirection[i]].first += 1;
+                    amounts[closestDirection[i]].first += 1;
                 }
 
                 std::sort(amounts.begin(), amounts.end());
-                for (uint32_t axis =0; axis < axisSelectionAmount; ++axis) {
+                for (uint32_t axis = 0; axis < axisSelectionAmount; ++axis) {
                     directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
                 }
             } else if (axisSelectionType == 3) {
                 Float f = currentBuildNode.depth * 1.0f / maxDepth;
-                if(f < 0.2){
+                if (f < 0.2) {
                     for (uint32_t axis = 0; axis < 3u; ++axis)
                         directionsToUse.emplace_back(axis);
-                }
-                else{
-                    std::vector<std::pair<Float , uint32_t>> amounts;
+                } else {
+                    std::vector<std::pair<Float, uint32_t>> amounts;
                     for (uint32_t axis = 0; axis < 3u; ++axis) {
                         amounts.emplace_back(std::make_pair(0, axis));
                     }
@@ -334,26 +332,26 @@ namespace pbrt {
 
                     std::sort(amounts.begin(), amounts.end());
                     uint32_t after = 0, before = 0;
-                    if(f <= 0.6){
-                        after = std::max((axisSelectionAmount > 1) ? 1u : 0u, (uint32_t) std::floor(f * axisSelectionAmount));
+                    if (f <= 0.6) {
+                        after = std::max((axisSelectionAmount > 1) ? 1u : 0u,
+                                         (uint32_t) std::floor(f * axisSelectionAmount));
                         before = axisSelectionAmount - after;
                         CHECK(before >= after);
-                    }
-                    else {
-                        before = std::max((axisSelectionAmount > 1) ? 1u : 0u, (uint32_t) std::floor((1-f) * axisSelectionAmount));
+                    } else {
+                        before = std::max((axisSelectionAmount > 1) ? 1u : 0u,
+                                          (uint32_t) std::floor((1 - f) * axisSelectionAmount));
                         after = axisSelectionAmount - before;
                         CHECK(after >= before);
                     }
 
-                    for (uint32_t axis =0; axis < before; ++axis) {
+                    for (uint32_t axis = 0; axis < before; ++axis) {
                         directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
                     }
-                    for (uint32_t axis =0; axis < after; ++axis) {
+                    for (uint32_t axis = 0; axis < after; ++axis) {
                         directionsToUse.emplace_back(amounts[axis].second);
                     }
                 }
             }
-
 
 
             for (auto axis: directionsToUse) {
