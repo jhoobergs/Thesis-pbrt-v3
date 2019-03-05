@@ -91,7 +91,7 @@ namespace pbrt {
 
         Float Area() const;
 
-        Normal3f Normal() const;
+        Normal3f Normal() const override;
 
         using Shape::Sample;  // Bring in the other Sample() overload.
         Interaction Sample(const Point2f &u, Float *pdf) const;
@@ -102,8 +102,8 @@ namespace pbrt {
 
         Boundsf getBounds(Vector3f direction) const;
 
-        std::vector<Plane> getBSPPaperPlanes() const;
-        
+        std::vector<Plane> getBSPPaperPlanes() const override;
+
     private:
         // Triangle Private Methods
         void GetUVs(Point2f uv[3]) const {
