@@ -8,6 +8,7 @@
 #include "paramset.h"
 #include "bspCluster.h"
 #include <set>
+#include <random>
 
 namespace pbrt {
 
@@ -171,6 +172,14 @@ namespace pbrt {
         return maxDiff;
     }
 
+    std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+
+    inline uint32_t random_int(uint32_t from, uint32_t to){
+        std::uniform_real_distribution<> dis(from, to);
+        return uint32_t(dis(gen));
+    }
+
     std::vector<Vector3f> BSPCluster::calculateClusterMeans(const uint32_t *primNums, const uint32_t np) {
 
         //Warning("calculateClusterMeans");
@@ -197,7 +206,7 @@ namespace pbrt {
 
         std::set<uint32_t> nIds;
         while (nIds.size() < K)
-            nIds.insert(rand() % np);
+            nIds.insert(random_int(0,np));
 
         for (auto &id: nIds) {
             clusterMeans.emplace_back(normals[id]);
