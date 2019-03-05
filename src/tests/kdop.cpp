@@ -170,67 +170,67 @@ TEST(kDOP, CutDiag) {
         Warning("%d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1.x, edge.v1.y, edge.v1.z,
                 edge.v2.x, edge.v2.y, edge.v2.z);
         if ((edge.faceId1 == 1 && edge.faceId2 == 4) || (edge.faceId2 == 1 && edge.faceId1 == 4)) {
-            if ((edge.v1-v2).Length() < eps) {
-                EXPECT_FLOAT_EQ(0, (edge.v2-v5).Length());
+            if ((edge.v1 - v2).Length() < eps) {
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v5).Length());
             } else {
-                EXPECT_FLOAT_EQ(0, (edge.v1-v5).Length());
-                EXPECT_FLOAT_EQ(0, (edge.v2-v2).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v1 - v5).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v2).Length());
             }
         } else if ((edge.faceId1 == 1 && edge.faceId2 == 6) || (edge.faceId2 == 1 && edge.faceId1 == 6)) {
-            if ((edge.v1-v1).Length() < eps) {
-                EXPECT_FLOAT_EQ(0, (edge.v2-v3).Length());
+            if ((edge.v1 - v1).Length() < eps) {
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v3).Length());
             } else {
-                EXPECT_FLOAT_EQ(0, (edge.v1-v3).Length());
-                EXPECT_FLOAT_EQ(0, (edge.v2-v1).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v1 - v3).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v1).Length());
             }
         } else if ((edge.faceId1 == 4 && edge.faceId2 == 6) || (edge.faceId2 == 4 && edge.faceId1 == 6)) {
-            if ((edge.v1-v6).Length() < eps) {
-                EXPECT_FLOAT_EQ(0, (edge.v2-v8).Length());
+            if ((edge.v1 - v6).Length() < eps) {
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v8).Length());
             } else {
-                EXPECT_FLOAT_EQ(0, (edge.v1-v8).Length());
-                EXPECT_FLOAT_EQ(0, (edge.v2-v6).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v1 - v8).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v6).Length());
             }
         } else if ((edge.faceId1 == 1 && edge.faceId2 == 3) || (edge.faceId2 == 1 && edge.faceId1 == 3)) {
-            if ((edge.v1-v1).Length() < eps) {
-                EXPECT_FLOAT_EQ(0, (edge.v2-v2).Length());
+            if ((edge.v1 - v1).Length() < eps) {
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v2).Length());
             } else {
-                EXPECT_FLOAT_EQ(0, (edge.v1-v2).Length());
-                EXPECT_FLOAT_EQ(0, (edge.v2-v1).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v1 - v2).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v1).Length());
             }
         } else if ((edge.faceId1 == 1 && edge.faceId2 == 2) || (edge.faceId2 == 1 && edge.faceId1 == 2)) {
-            if ((edge.v1-v3).Length() < eps) {
-                EXPECT_FLOAT_EQ(0, (edge.v2-v5).Length());
+            if ((edge.v1 - v3).Length() < eps) {
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v5).Length());
             } else {
-                EXPECT_FLOAT_EQ(0, (edge.v1-v5).Length());
-                EXPECT_FLOAT_EQ(0, (edge.v2-v3).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v1 - v5).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v3).Length());
             }
         } else if ((edge.faceId1 == 2 && edge.faceId2 == 4) || (edge.faceId2 == 2 && edge.faceId1 == 4)) {
-            if ((edge.v1-v5).Length() < eps) {
-                EXPECT_FLOAT_EQ(0, (edge.v2-v8).Length());
+            if ((edge.v1 - v5).Length() < eps) {
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v8).Length());
             } else {
-                EXPECT_FLOAT_EQ(0, (edge.v1-v8).Length());
-                EXPECT_FLOAT_EQ(0, (edge.v2-v5).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v1 - v8).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v5).Length());
             }
         } else if ((edge.faceId1 == 3 && edge.faceId2 == 4) || (edge.faceId2 == 3 && edge.faceId1 == 4)) {
-            if ((edge.v1-v2).Length() < eps) {
-                EXPECT_FLOAT_EQ(0, (edge.v2-v6).Length());
+            if ((edge.v1 - v2).Length() < eps) {
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v6).Length());
             } else {
-                EXPECT_FLOAT_EQ(0, (edge.v1-v6).Length());
-                EXPECT_FLOAT_EQ(0, (edge.v2-v2).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v1 - v6).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v2).Length());
             }
         } else if ((edge.faceId1 == 2 && edge.faceId2 == 6) || (edge.faceId2 == 2 && edge.faceId1 == 6)) {
-            if ((edge.v1-v3).Length() < eps) {
-                EXPECT_FLOAT_EQ(0, (edge.v2-v8).Length());
+            if ((edge.v1 - v3).Length() < eps) {
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v8).Length());
             } else {
-                EXPECT_FLOAT_EQ(0, (edge.v1-v8).Length());
-                EXPECT_FLOAT_EQ(0, (edge.v2-v3).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v1 - v8).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v3).Length());
             }
         } else if ((edge.faceId1 == 3 && edge.faceId2 == 6) || (edge.faceId2 == 3 && edge.faceId1 == 6)) {
-            if ((edge.v1-v1).Length() < eps) {
-                EXPECT_FLOAT_EQ(0, (edge.v2-v6).Length());
+            if ((edge.v1 - v1).Length() < eps) {
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v6).Length());
             } else {
-                EXPECT_FLOAT_EQ(0, (edge.v1-v6).Length());
-                EXPECT_FLOAT_EQ(0, (edge.v2-v1).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v1 - v6).Length());
+                EXPECT_FLOAT_EQ(0, (edge.v2 - v1).Length());
             }
         } else {
             Warning("WRONG combo: %d and %d", edge.faceId1, edge.faceId2);
@@ -461,105 +461,108 @@ TEST(kDOP, AreaAfterInPlaneCut) {
 TEST(BVH, amountLeftAndRight1) {
     std::vector<std::shared_ptr<Primitive>> primitives;
     Transform identity;
-    int indices[3] = { 0, 1, 2 };
-    Point3f p[3] = {  Point3f( 0,0,0),
-                      Point3f(1,0,0),
-                      Point3f(1,1,0) };
+    int indices[3] = {0, 1, 2};
+    Point3f p[3] = {Point3f(0, 0, 0),
+                    Point3f(1, 0, 0),
+                    Point3f(1, 1, 0)};
     auto mesh = CreateTriangleMesh(&identity, &identity, false,
                                    1, indices, 3, p, nullptr, nullptr, nullptr,
                                    nullptr, nullptr);
-    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0], nullptr, nullptr, nullptr));
     BVHAccel bvh = BVHAccel(primitives);
-    auto plane = Plane(2, Vector3f(1,0,0));
+    auto plane = Plane(2, Vector3f(1, 0, 0));
     auto r = bvh.getAmountToLeftAndRight(plane);
     EXPECT_EQ(1, r.first);
     EXPECT_EQ(0, r.second);
 
-    auto lr = bvh.getPrimnumsToLeftAndRight(plane);
-    EXPECT_EQ(1, lr.first.size());
-    EXPECT_EQ(0, lr.first[0]);
-    EXPECT_EQ(0, lr.second.size());
+    std::vector<uint32_t> left, right;
+    bvh.getPrimnumsToLeftAndRight(plane, left, right);
+    EXPECT_EQ(1, left.size());
+    EXPECT_EQ(0, left[0]);
+    EXPECT_EQ(0, right.size());
 }
 
 TEST(BVH, amountLeftAndRight2) {
     std::vector<std::shared_ptr<Primitive>> primitives;
     Transform identity;
-    int indices[3] = { 0, 1, 2 };
+    int indices[3] = {0, 1, 2};
 
-    Point3f p[3] = {  Point3f( 0,0,0),
-                      Point3f(1,0,0),
-                      Point3f(1,1,0) };
+    Point3f p[3] = {Point3f(0, 0, 0),
+                    Point3f(1, 0, 0),
+                    Point3f(1, 1, 0)};
     auto mesh = CreateTriangleMesh(&identity, &identity, false,
                                    1, indices, 3, p, nullptr, nullptr, nullptr,
                                    nullptr, nullptr);
-    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0], nullptr, nullptr, nullptr));
 
-    p[0] = Point3f(3,3,3);
-    p[1] = Point3f(4,3,3);
-    p[2] = Point3f(4,4,3);
+    p[0] = Point3f(3, 3, 3);
+    p[1] = Point3f(4, 3, 3);
+    p[2] = Point3f(4, 4, 3);
     mesh = CreateTriangleMesh(&identity, &identity, false,
-                                   1, indices, 3, p, nullptr, nullptr, nullptr,
-                                   nullptr, nullptr);
-    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+                              1, indices, 3, p, nullptr, nullptr, nullptr,
+                              nullptr, nullptr);
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0], nullptr, nullptr, nullptr));
 
     BVHAccel bvh = BVHAccel(primitives);
-    auto plane = Plane(2, Vector3f(1,0,0));
+    auto plane = Plane(2, Vector3f(1, 0, 0));
     auto r = bvh.getAmountToLeftAndRight(plane);
     EXPECT_EQ(1, r.first);
     EXPECT_EQ(1, r.second);
 
-    auto lr = bvh.getPrimnumsToLeftAndRight(plane);
-    EXPECT_EQ(1, lr.first.size());
-    EXPECT_EQ(0, lr.first[0]);
-    EXPECT_EQ(1, lr.second.size());
-    EXPECT_EQ(1, lr.second[0]);
+    std::vector<uint32_t> left, right;
+    bvh.getPrimnumsToLeftAndRight(plane, left, right);
+    EXPECT_EQ(1, left.size());
+    EXPECT_EQ(0, left[0]);
+    EXPECT_EQ(1, right.size());
+    EXPECT_EQ(1, right[0]);
 }
 
 
 TEST(BVH, amountLeftAndRight3) {
     std::vector<std::shared_ptr<Primitive>> primitives;
     Transform identity;
-    int indices[3] = { 0, 1, 2 };
+    int indices[3] = {0, 1, 2};
 
-    Point3f p[3] = {  Point3f( 0,0,0),
-                      Point3f(1,0,0),
-                      Point3f(1,1,0) };
+    Point3f p[3] = {Point3f(0, 0, 0),
+                    Point3f(1, 0, 0),
+                    Point3f(1, 1, 0)};
     auto mesh = CreateTriangleMesh(&identity, &identity, false,
                                    1, indices, 3, p, nullptr, nullptr, nullptr,
                                    nullptr, nullptr);
-    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0], nullptr, nullptr, nullptr));
 
-    p[0] = Point3f(3,3,3);
-    p[1] = Point3f(4,3,3);
-    p[2] = Point3f(4,4,3);
-    mesh = CreateTriangleMesh(&identity, &identity, false,
-                              1, indices, 3, p, nullptr, nullptr, nullptr,
-                              nullptr, nullptr);
-    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+    Point3f p2[3] = {Point3f(3, 3, 3),
+                     Point3f(4, 3, 3),
+                     Point3f(4, 4, 3)};
+    auto mesh2 = CreateTriangleMesh(&identity, &identity, false,
+                                    1, indices, 3, p2, nullptr, nullptr, nullptr,
+                                    nullptr, nullptr);
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh2[0], nullptr, nullptr, nullptr));
 
-    p[0] = Point3f(1.5,3,3);
-    p[1] = Point3f(2.5,3,3);
-    p[2] = Point3f(2.5,4,3);
-    mesh = CreateTriangleMesh(&identity, &identity, false,
-                              1, indices, 3, p, nullptr, nullptr, nullptr,
-                              nullptr, nullptr);
-    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh[0],nullptr,nullptr,nullptr));
+    Point3f p3[3] = {Point3f(1.5, 3, 3),
+                     Point3f(2.5, 3, 3),
+                     Point3f(2.5, 4, 3)};
+    auto mesh3 = CreateTriangleMesh(&identity, &identity, false,
+                                    1, indices, 3, p3, nullptr, nullptr, nullptr,
+                                    nullptr, nullptr);
+    primitives.push_back(std::make_shared<GeometricPrimitive>(mesh3[0], nullptr, nullptr, nullptr));
 
     BVHAccel bvh = BVHAccel(primitives);
-    auto plane = Plane(2, Vector3f(1,0,0));
+    auto plane = Plane(2, Vector3f(1, 0, 0));
     auto r = bvh.getAmountToLeftAndRight(plane);
     EXPECT_EQ(2, r.first);
     EXPECT_EQ(2, r.second);
 
-    auto lr = bvh.getPrimnumsToLeftAndRight(plane);
-    EXPECT_EQ(2, lr.first.size());
-    EXPECT_EQ(true, lr.first[0] == 0 or lr.first[0] == 2);
-    EXPECT_EQ(true, lr.first[1] == 0 or lr.first[1] == 2);
-    EXPECT_EQ(true, lr.first[0] != lr.first[1]);
+    std::vector<uint32_t> left, right;
+    bvh.getPrimnumsToLeftAndRight(plane, left, right);
+    EXPECT_EQ(2, left.size());
+    EXPECT_EQ(true, left[0] == 0 or left[0] == 2);
+    EXPECT_EQ(true, left[1] == 0 or left[1] == 2);
+    EXPECT_EQ(true, left[0] != left[1]);
 
-    EXPECT_EQ(2, lr.second.size());
-    EXPECT_EQ(true, lr.second[0] == 1 or lr.second[0] == 2);
-    EXPECT_EQ(true, lr.second[1] == 1 or lr.second[1] == 2);
-    EXPECT_EQ(true, lr.second[0] != lr.second[1]);
+    EXPECT_EQ(2, right.size());
+    EXPECT_EQ(true, right[0] == 1 or right[0] == 2);
+    EXPECT_EQ(true, right[1] == 1 or right[1] == 2);
+    EXPECT_EQ(true, right[0] != right[1]);
 
 }
