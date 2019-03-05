@@ -1,0 +1,64 @@
+LookAt 100 0 0   0 0 0   0 0 1
+Rotate 0 0 0 1
+Camera "perspective" "float fov" [39]
+Film "image"  
+"integer xresolution" [700] "integer yresolution" [700]
+    "string filename" "killeroo-simple.exr"
+
+# zoom in by feet
+# "integer xresolution" [1500] "integer yresolution" [1500]
+#	"float cropwindow" [ .34 .49  .67 .8 ]
+
+Sampler "halton" "integer pixelsamples" [8]
+Accelerator $acc "integer nbDirections" [$accnr] "float splitalpha" [$splitalpha] "integer alphatype" [$alphatype] "integer axisselectiontype" [$axisselectiontype] "integer axisselectionamount" [$axisselectionamount]
+
+Integrator "path" "integer maxdepth" [5]
+
+WorldBegin
+LightSource "distant" "point from" [200 0 0] "point to" [0 0 0]
+
+AttributeBegin
+  Scale 0.05 0.05 0.05
+  Translate 0 0 0
+  Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
+        "float roughness" [.15] 
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/killeroo.pbrt"
+AttributeEnd
+AttributeBegin
+  Scale 0.05 0.05 0.05
+  Translate 0 500 0
+  Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
+        "float roughness" [.15] 
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/killeroo.pbrt"
+AttributeEnd
+AttributeBegin
+  Scale 0.05 0.05 0.05
+  Translate 0 -500 0
+  Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
+        "float roughness" [.15] 
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/killeroo.pbrt"
+AttributeEnd
+AttributeBegin
+  Scale 0.05 0.05 0.05
+  Translate 0 0 200
+  Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
+        "float roughness" [.15] 
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/killeroo.pbrt"
+AttributeEnd
+AttributeBegin
+  Scale 0.05 0.05 0.05
+  Translate 0 500 200
+  Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
+        "float roughness" [.15] 
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/killeroo.pbrt"
+AttributeEnd
+AttributeBegin
+  Scale 0.05 0.05 0.05
+  Translate 0 -500 200
+  Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
+        "float roughness" [.15] 
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/killeroo.pbrt"
+AttributeEnd
+WorldEnd
+
+

@@ -72,10 +72,10 @@ namespace pbrt {
         virtual Boundsf getBounds(Vector3f direction) const {
             Boundsf bounds = Boundsf();
             for(int i = 0; i < 8; i++) {
-                float projection = Dot(direction, WorldBound().Corner(i));
+                Float projection = Dot(direction, WorldBound().Corner(i));
                 if(projection < bounds.min)
                     bounds.min = projection;
-                else if(projection > bounds.max)
+                if(projection > bounds.max)
                     bounds.max = projection;
             }
             return bounds;
@@ -127,6 +127,10 @@ namespace pbrt {
         Float getSurfaceArea() const override {
             return shape->Area();
         }
+
+        std::vector<Plane> getBSPPaperPlanes() const {
+            return shape->getBSPPaperPlanes();
+        };
 
     private:
         // GeometricPrimitive Private Data

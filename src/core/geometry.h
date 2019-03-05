@@ -1766,18 +1766,22 @@ namespace pbrt {
     }
 
     inline uint32_t calculateMaxDepth(int64_t N) {
-        return (uint32_t) std::round(2 + 1.2f * Log2Int(N));
+        return (uint32_t) std::round(2 + 1.6f * Log2Int(N));
     }
 
-    inline Vector3f PositiveX(Normal3f n){
-        if(n.x > 0)
-          return Normalize(Vector3f(n));
-        if(n.x == 0) {
-            if (n.y == 0)
+    inline Vector3f PositiveX(Vector3f v){
+        if(v.x > 0)
+            return Normalize(v);
+        if(v.x == 0) {
+            if (v.y == 0)
                 return Normalize(Vector3f(0, 0, 1));
-            return Normalize(Vector3f(0, n.y / ((n.y > 0) ? 1 : -1), n.z / ((n.y > 0) ? 1 : -1)));
+            return Normalize(Vector3f(0, v.y / ((v.y > 0) ? 1 : -1), v.z / ((v.y > 0) ? 1 : -1)));
         }
-        return Normalize(Vector3f(-n.x, -n.y, -n.z));
+        return Normalize(Vector3f(-v.x, -v.y, -v.z));
+    }
+    
+    inline Vector3f PositiveX(Normal3f n){
+        return PositiveX(Vector3f(n));
     }
 
     struct Plane {

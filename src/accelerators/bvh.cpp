@@ -1,3 +1,5 @@
+#include <utility>
+
 
 /*
     pbrt source code is Copyright(c) 1998-2016
@@ -129,13 +131,13 @@ namespace pbrt {
             axis = 3;
             nPrims |= (nPrimitives << 2);
             primitivesOffset = primOffset;
-            bounds = boundsf;
+            bounds = std::move(boundsf);
         }
 
         void InitInterior(uint32_t nPrimitives, Bounds3f boundsf, uint32_t axs) {
             axis = axs;
             nPrims |= (nPrimitives << 2);
-            bounds = boundsf;
+            bounds = std::move(boundsf);
         }
 
         Bounds3f bounds;
@@ -166,7 +168,7 @@ namespace pbrt {
         std::vector<std::shared_ptr<Primitive>> orderedPrims;
         orderedPrims.reserve(primitives.size());
         primNumMapping.reserve(primitives.size());
-        for (auto &prim: primitives)
+        for (const auto &prim: primitives)
             primNumMapping.emplace_back(0);
 
         BVHBuildNode *root = iterativeBuild(arena, &totalNodes, orderedPrims);
@@ -328,7 +330,7 @@ namespace pbrt {
                                   (1024.f * 1024.f));
 
         //Warning("BVH Depth %d", root->depth());
-
+        CHECK_EQ(root->nPrimitives, primitives.size());
         return root;
     }
 
@@ -433,7 +435,7 @@ namespace pbrt {
         return false;
     }
 
-    std::pair<uint32_t, uint32_t> BVHAccel::getAmountToLeftAndRight(const Plane &p) const {
+    std::pair<uint32_t, uint32_t> BVHAccel:: getAmountToLeftAndRight(const Plane &p) const {
         uint32_t left = 0, right = 0;
         uint32_t currentNodeIndex = 0;
         LinearBVHNode *node;
@@ -443,43 +445,46 @@ namespace pbrt {
             currentNodeIndex = stack.back();
             stack.pop_back();
             node = &nodes[currentNodeIndex];
-            Point3f center = (node->bounds.pMin + node->bounds.pMax) / 2;
             Float maxDiff = node->bounds.Diagonal().Length() / 2;
-            float centerProjection = Dot(p.axis, center);
+            Point3f center = node->bounds.pMin + node->bounds.Diagonal() / 2;
+            Float centerProjection = Dot(p.axis, center);
             if (centerProjection + maxDiff < p.t) {
                 left += node->nPrimitives();
             } else if (centerProjection - maxDiff > p.t) {
                 right += node->nPrimitives();
             } else if (node->IsLeaf()) {
+                uint32_t oldL = left, oldR = right;
                 for (int i = 0; i < node->nPrimitives(); ++i) {
                     Boundsf bounds = primitives[node->primitivesOffset + i]->getBounds(p.axis);
                     if (bounds.min <= p.t)
                         left += 1;
                     if (bounds.max >= p.t)
                         right += 1;
+                    //Warning("%f %f %f", bounds.min, bounds.max, p.t);
+                    CHECK(oldL + oldR + i+1 <= left + right);
                 }
             } else {
                 stack.emplace_back(currentNodeIndex + 1);
                 stack.emplace_back(node->secondChildOffset);
             }
         }
-
+        //Warning("%d %d %d", left, right, primitives.size());
+        CHECK(left + right >= primitives.size());
         return std::make_pair(left, right);
     }
 
-    std::pair<std::vector<uint32_t>, std::vector<uint32_t>> BVHAccel::getPrimnumsToLeftAndRight(const Plane &p) const {
-        std::vector<uint32_t> left, right;
+    void BVHAccel::getPrimnumsToLeftAndRight(const Plane &p, std::vector<uint32_t> &left, std::vector<uint32_t> &right) const {
         std::pair<uint32_t, uint8_t> currentNodeData = std::make_pair(0, 0);
         LinearBVHNode *node;
-        std::vector<std::pair<uint32_t, uint8_t>> stack; // (nodeIndex, state: 0=unkown, 1=shouldGoLeft, 2=shouldGoRight)
+        std::vector<std::pair<uint32_t, uint8_t>> stack; // (nodeIndex, state: 0=unknown, 1=shouldGoLeft, 2=shouldGoRight)
         stack.emplace_back(currentNodeData);
         while (!stack.empty()) {
             currentNodeData = stack.back();
             stack.pop_back();
             node = &nodes[currentNodeData.first];
             if (currentNodeData.second == 0) {
-                Point3f center = (node->bounds.pMin + node->bounds.pMax) / 2;
                 Float maxDiff = node->bounds.Diagonal().Length() / 2;
+                Point3f center = node->bounds.pMin + node->bounds.Diagonal() / 2;
                 float centerProjection = Dot(p.axis, center);
                 if (centerProjection + maxDiff < p.t) {
                     if (node->IsLeaf()) {
@@ -522,7 +527,6 @@ namespace pbrt {
                 stack.emplace_back(std::make_pair(node->secondChildOffset, currentNodeData.second));
             }
         }
-        return std::make_pair(left, right);
     }
 
     std::shared_ptr<BVHAccel> CreateBVHAccelerator(

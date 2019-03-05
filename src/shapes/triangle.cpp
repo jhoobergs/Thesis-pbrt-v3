@@ -661,18 +661,22 @@ namespace pbrt {
     }
 
     Boundsf Triangle::getBounds(pbrt::Vector3f direction) const {
-        Point3f &p = mesh->p[v[0]];
+        Point3f p = mesh->p[v[0]];
+        //Warning("tr b0 %f %f %f", p.x, p.y, p.z);
 
         Float t = Dot(direction, p);
         Float min = t, max = t;
         for (int i = 1; i < 3; i++) {
             p = mesh->p[v[i]];
+            //Warning("tr b%d %f %f %f", i, p.x, p.y, p.z);
+
             t = Dot(direction, p);
             if (t > max)
                 max = t;
-            else
+            else if(t < min)
                 min = t;
         }
+        //Warning("tr b %f %f", min, max);
         return Boundsf(min, max);
     }
 
@@ -680,29 +684,43 @@ namespace pbrt {
         std::vector<Plane> planes;
 
         Point3f &p0 = mesh->p[v[0]];
-        Point3f &p1 = mesh->p[v[0]];
-        Point3f &p2 = mesh->p[v[0]];
+        Point3f &p1 = mesh->p[v[1]];
+        Point3f &p2 = mesh->p[v[2]];
         Vector3f n = Vector3f(Normal());
 
+        Float t;
+        Vector3f axis;
+
         // Auto partition
-        Float t = Dot(n, p0);
-        planes.emplace_back(t, n);
+        if(n.Length() > 0) {
+            n = PositiveX(n);
+            t = Dot(n, p0);
+            planes.emplace_back(t, n);
 
-        // 0-1
-        Vector3f axis = Cross(n, p0 - p1);
-        t = Dot(axis, p0);
-        planes.emplace_back(t, axis);
+            // 0-1
+            axis = Cross(n, p0 - p1);
+            if (axis.Length() > 0) {
+                axis = PositiveX(axis);
+                t = Dot(axis, p0);
+                planes.emplace_back(t, axis);
+            }
 
-        // 0-2
-        axis = Cross(n, p0 - p2);
-        t = Dot(axis, p0);
-        planes.emplace_back(t, axis);
+            // 0-2
+            axis = Cross(n, p0 - p2);
+            if (axis.Length() > 0) {
+                axis = PositiveX(axis);
+                t = Dot(axis, p0);
+                planes.emplace_back(t, axis);
+            }
 
-        // 1-2
-        axis = Cross(n, p1 - p2);
-        t = Dot(axis, p1);
-        planes.emplace_back(t, axis);
-
+            // 1-2
+            axis = Cross(n, p1 - p2);
+            if (axis.Length() > 0) {
+                axis = PositiveX(axis);
+                t = Dot(axis, p1);
+                planes.emplace_back(t, axis);
+            }
+        }
         return planes;
     };
 
