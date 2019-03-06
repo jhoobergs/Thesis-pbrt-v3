@@ -173,12 +173,6 @@ namespace pbrt {
 
         BVHBuildNode *root = iterativeBuild(arena, &totalNodes, orderedPrims);
 
-        for(int i = 0; i < primNumMapping.size(); ++i){
-            for(int j = i+1; j < primNumMapping.size(); ++j){
-                CHECK_NE(primNumMapping[i], primNumMapping[j]);
-            }
-        }
-
         primitives.swap(orderedPrims);
 
         // Compute representation of depth-first traversal of BVH tree
@@ -439,7 +433,7 @@ namespace pbrt {
         return false;
     }
 
-    std::pair<uint32_t, uint32_t> BVHAccel:: getAmountToLeftAndRight(const Plane &p) const {
+    std::pair<uint32_t, uint32_t> BVHAccel::getAmountToLeftAndRight(const Plane &p) const {
         uint32_t left = 0, right = 0;
         uint32_t currentNodeIndex = 0;
         LinearBVHNode *node;
@@ -464,20 +458,17 @@ namespace pbrt {
                         left += 1;
                     if (bounds.max >= p.t)
                         right += 1;
-                    //Warning("%f %f %f", bounds.min, bounds.max, p.t);
-                    CHECK(oldL + oldR + i+1 <= left + right);
                 }
             } else {
                 stack.emplace_back(currentNodeIndex + 1);
                 stack.emplace_back(node->secondChildOffset);
             }
         }
-        //Warning("%d %d %d", left, right, primitives.size());
-        CHECK(left + right >= primitives.size());
         return std::make_pair(left, right);
     }
 
-    void BVHAccel::getPrimnumsToLeftAndRight(const Plane &p, std::vector<uint32_t> &left, std::vector<uint32_t> &right) const {
+    void BVHAccel::getPrimnumsToLeftAndRight(const Plane &p, std::vector<uint32_t> &left,
+                                             std::vector<uint32_t> &right) const {
         std::pair<uint32_t, uint8_t> currentNodeData = std::make_pair(0, 0);
         LinearBVHNode *node;
         std::vector<std::pair<uint32_t, uint8_t>> stack; // (nodeIndex, state: 0=unknown, 1=shouldGoLeft, 2=shouldGoRight)

@@ -34,11 +34,9 @@
 #include "shapes/triangle.h"
 #include "texture.h"
 #include "textures/constant.h"
-#include "paramset.h"
 #include "sampling.h"
 #include "efloat.h"
 #include "ext/rply.h"
-#include <array>
 
 namespace pbrt {
 
@@ -660,21 +658,18 @@ namespace pbrt {
 
     Boundsf Triangle::getBounds(pbrt::Vector3f direction) const {
         Point3f p = mesh->p[v[0]];
-        //Warning("tr b0 %f %f %f", p.x, p.y, p.z);
 
         Float t = Dot(direction, p);
         Float min = t, max = t;
         for (int i = 1; i < 3; i++) {
             p = mesh->p[v[i]];
-            //Warning("tr b%d %f %f %f", i, p.x, p.y, p.z);
 
             t = Dot(direction, p);
             if (t > max)
                 max = t;
-            else if(t < min)
+            else if (t < min)
                 min = t;
         }
-        //Warning("tr b %f %f", min, max);
         return Boundsf(min, max);
     }
 
@@ -690,7 +685,7 @@ namespace pbrt {
         Vector3f axis;
 
         // Auto partition
-        if(n.Length() > 0) {
+        if (n.Length() > 0) {
             n = PositiveX(n);
             t = Dot(n, p0);
             planes.emplace_back(t, n);

@@ -138,62 +138,7 @@ namespace pbrt {
         }
     }
 
-    inline void compare(BSPPaperBuildNode node, uint32_t* prims0, uint32_t n0, uint32_t* prims1, uint32_t n1){
-        for(int i = 0; i < node.nPrimitives; ++i){
-            bool found = false;
-            for(int j = 0; j < n0; ++j){
-                if(prims0[j] == node.primNums[i]){
-                    found = true;
-                    break;
-                }
-            }
-            if(!found) {
-                for (int j = 0; j < n1; ++j) {
-                    if (prims1[j] == node.primNums[i]) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found){
-                    CHECK_EQ(-1, i);
-                }
-            }
-        }
-    }
-
-    inline void compare2(const std::vector<std::shared_ptr<Primitive>> &primitives, BSPPaperBuildNode node, Float bestSplitT, Vector3f bestSplitAxis, const std::vector<uint32_t> &left, std::vector<uint32_t> right){
-        for(int i = 0; i < node.nPrimitives; ++i){
-            bool found = false;
-            for(auto &primNum: left){
-                if(primNum == node.primNums[i]){
-                    found = true;
-                    break;
-                }
-            }
-            if(!found) {
-                for (auto &primNum: right) {
-                    if (primNum == node.primNums[i]) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found){
-                    CHECK_EQ(-4, i);
-                }
-            }
-        }
-        for(auto &primNum: left){
-            auto d1m = primitives[primNum]->getBounds(bestSplitAxis);
-            CHECK_LE(d1m.min, bestSplitT);
-        }
-        for(auto &primNum: right){
-            auto d1m = primitives[primNum]->getBounds(bestSplitAxis);
-            CHECK_GE(d1m.max, bestSplitT);
-        }
-    }
-
     void BSPPaper::buildTree() {
-        std::set<uint32_t> usedPrimNums;
         //Initialize
         // Compute bounds for rbsp-tree construction: CANNOT PRECOMPUTE ALLPRIMBOUNDS
         for (const std::shared_ptr<Primitive> &prim : primitives) {
@@ -283,17 +228,8 @@ namespace pbrt {
             // Initialize leaf node if termination criteria met
             if (currentBuildNode.nPrimitives <= maxPrims || currentBuildNode.depth == 0) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
-                std::set<uint32_t> newItems;
-                for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
-                    usedPrimNums.insert(currentBuildNode.primNums[i]);
-                    newItems.insert(currentBuildNode.primNums[i]);
-                }
-                CHECK_EQ(newItems.size(), currentBuildNode.nPrimitives);
-                uint32_t bef = primitiveIndices.size();
                 nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);
-                if(currentBuildNode.nPrimitives > 1)
-                    CHECK_EQ(bef + currentBuildNode.nPrimitives, primitiveIndices.size());
                 continue;
             }
 
@@ -305,26 +241,7 @@ namespace pbrt {
             std::pair<Float, Float> bestSplittedKDOPAreas = std::make_pair(0, 0);
             Float bestCost = Infinity;
             Float oldCost = isectCost * Float(currentBuildNode.nPrimitives);
-            // Float totalSA = currentBuildNode.kDOPMesh.SurfaceArea(directions);
             const Float invTotalSA = 1 / currentBuildNode.kdopMeshArea;
-            //if(std::isinf(invTotalSA)){
-                /*Warning("num: %d area: %f edges: %d parent: %d, amount: %d", nodeNum, currentBuildNode.kdopMeshArea, currentBuildNode.kDOPMesh.edges.size(), currentBuildNode.parentNum, currentBuildNode.nPrimitives);
-                if(currentBuildNode.nPrimitives == 2){
-                    Warning("PRIM: %f %f %f vs %f %f %f", primitives[0]->WorldBound().pMin.x, primitives[0]->WorldBound().pMin.y,
-                            primitives[0]->WorldBound().pMin.z, primitives[0]->WorldBound().pMax.x, primitives[0]->WorldBound().pMax.y,
-                            primitives[0]->WorldBound().pMax.z);
-                    Warning("PRIM: %f %f %f vs %f %f %f", primitives[1]->WorldBound().pMin.x, primitives[1]->WorldBound().pMin.y,
-                            primitives[1]->WorldBound().pMin.z, primitives[1]->WorldBound().pMax.x, primitives[1]->WorldBound().pMax.y,
-                            primitives[1]->WorldBound().pMax.z);
-                }
-                for(auto direction: currentBuildNode.kDOPMesh.directions)
-                    Warning("DIR: %f %f %f", direction.x, direction.y, direction.z);
-                for(auto edge: currentBuildNode.kDOPMesh.edges) {
-                    Warning("EDGE: %f %f %f & %f %f %f", edge.v1.x, edge.v1.y, edge.v1.z,
-                            edge.v2.x, edge.v2.y, edge.v2.z);
-                }*/
-                //}
-            //CHECK(currentBuildNode.kdopMeshArea > 0);
             std::pair<KDOPMeshCluster, KDOPMeshCluster> splittedKDOPs;
 
             // Sweep for kd directions
@@ -401,18 +318,13 @@ namespace pbrt {
             for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
                 const uint32_t pn = currentBuildNode.primNums[i];
                 std::vector<Plane> planes = primitives[pn]->getBSPPaperPlanes();
-                //Warning("%d", planes.size());
                 for (const auto &plane: planes) {
-                    //Warning("plane");
-                    CHECK(plane.axis.Length() > 0.5);
-                    CHECK(plane.axis.Length() < 1.2);
                     Boundsf directionBounds = Boundsf();
                     for (auto &edge: currentBuildNode.kDOPMesh.edges) {
                         Vector3f p = plane.axis;
                         Boundsf b = edge.getBounds(p);
                         directionBounds = Union(directionBounds, b);
                     }
-
 
                     if (plane.t > directionBounds.min &&
                         plane.t < directionBounds.max) {
@@ -423,15 +335,11 @@ namespace pbrt {
                         const Float pBelow = areaBelow * invTotalSA;
                         const Float pAbove = areaAbove * invTotalSA;
                         auto lr = bvh.getAmountToLeftAndRight(plane);
-                        //auto lr = std::make_pair(currentBuildNode.nPrimitives / 2, currentBuildNode.nPrimitives / 2 + 1);
-                        //Warning("%d %d %d", lr.first, lr.second, currentBuildNode.nPrimitives);
-                        CHECK(lr.first + lr.second >= currentBuildNode.nPrimitives);
 
                         const Float eb = (lr.second == 0 || lr.first == 0) ? emptyBonus : 0;
                         const Float cost =
                                 traversalCost +
                                 isectCost * (1 - eb) * (pBelow * lr.first + pAbove * lr.second);
-                        // Warning("%f vs %f", bestCost, cost);
                         // Update best split if this is lowest cost so far
                         if (cost < bestCost) {
                             bestCost = cost;
@@ -442,9 +350,7 @@ namespace pbrt {
                             bestSplittedKDOPAreas.first = areaBelow;
                             bestSplittedKDOPAreas.second = areaAbove;
                         }
-                    }/* else {
-                        Warning("INVALID");
-                    }*/
+                    }
                 }
             }
 
@@ -454,17 +360,8 @@ namespace pbrt {
             if ((bestCost > 4 * oldCost && currentBuildNode.nPrimitives < 16) || bestK == -1 ||
                 currentBuildNode.badRefines == 3) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
-                std::set<uint32_t> newItems;
-                for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
-                    usedPrimNums.insert(currentBuildNode.primNums[i]);
-                    newItems.insert(currentBuildNode.primNums[i]);
-                }
-                CHECK_EQ(newItems.size(), currentBuildNode.nPrimitives);
-                uint32_t bef = primitiveIndices.size();
                 nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);
-                if(currentBuildNode.nPrimitives > 1)
-                    CHECK_EQ(bef + currentBuildNode.nPrimitives, primitiveIndices.size());
                 continue;
             }
 
@@ -474,7 +371,7 @@ namespace pbrt {
             prims1 = currentBuildNode.primNums; // prims1 needs to be put in de array first, so it isn't overriden by child 0
             if (bestK != 33) {
                 nbKdNodes++;
-                if (nbKdNodes % 100 == 0)
+                if (nbKdNodes % 10000 == 0)
                     Warning("KD nodes %d", nbKdNodes);
                 for (uint32_t i = bestOffset + 1; i < 2 * currentBuildNode.nPrimitives; ++i)
                     if (edges[bestK][i].type == EdgeType::End)
@@ -486,108 +383,36 @@ namespace pbrt {
                         prims0[n0++] = edges[bestK][i].primNum;
             } else {
                 nbBSPNodes++;
-                if (nbBSPNodes % 100 == 0)
+                if (nbBSPNodes % 10000 == 0)
                     Warning("BSP nodes %d", nbBSPNodes);
                 std::vector<uint32_t> left, right;
-                /*for(uint32_t primNum = 0; primNum < currentBuildNode.nPrimitives / 2; primNum++)
-                    left.emplace_back(currentBuildNode.primNums[primNum]);
-                for(uint32_t primNum = currentBuildNode.nPrimitives - currentBuildNode.nPrimitives / 2 - 1; primNum < currentBuildNode.nPrimitives; primNum++)
-                    right.emplace_back(currentBuildNode.primNums[primNum]);*/
-
                 bvh.getPrimnumsToLeftAndRight(Plane(bestSplitT, bestSplitAxis), left, right);
                 std::transform(left.begin(), left.end(), left.begin(),
-                           [&currentBuildNode](uint32_t index) -> uint32_t { return currentBuildNode.primNums[index]; });
+                               [&currentBuildNode](
+                                       uint32_t index) -> uint32_t { return currentBuildNode.primNums[index]; });
                 std::transform(right.begin(), right.end(), right.begin(),
-                           [&currentBuildNode](uint32_t index) -> uint32_t { return currentBuildNode.primNums[index]; });
+                               [&currentBuildNode](
+                                       uint32_t index) -> uint32_t { return currentBuildNode.primNums[index]; });
 
-
-            CHECK(left.size() + right.size() >= currentBuildNode.nPrimitives);
-                //compare2(primitives, currentBuildNode, bestSplitT, bestSplitAxis, left, right);
-                std::set<uint32_t> currentUsedPrimNums;
 
                 for (uint32_t primNum: right) {
                     prims1[n1++] = primNum;
-                    currentUsedPrimNums.insert(primNum);
-                    /*if(primitives[primNum]->getBounds(bestSplitAxis).max < bestSplitT)
-                      Warning("WRONG %f %f", primitives[primNum]->getBounds(bestSplitAxis).max, bestSplitT);
-                    else
-                      Warning("RIGHT %f %f", primitives[primNum]->getBounds(bestSplitAxis).max, bestSplitT);*/
-                    //CHECK_GE(primitives[primNum]->getBounds(bestSplitAxis).min, bestSplitT);
-                    //CHECK_GE(primitives[primNum]->getBounds(bestSplitAxis).max, bestSplitT);
                 }
                 prims0 = prims1 + n1;
                 for (uint32_t primNum: left) {
                     prims0[n0++] = primNum;
-                    currentUsedPrimNums.insert(primNum);
                 }
-                //Warning("n0 %d n1 %d", n0, n1);
-                //compare(currentBuildNode, prims0, n0, prims1, n1);
-                CHECK(n0 + n1 >= currentBuildNode.nPrimitives);
-                CHECK_EQ(currentBuildNode.nPrimitives, currentUsedPrimNums.size());
             }
             // Add child nodes to stack
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
             nodes[nodeNum].InitInterior(bestSplitAxis, bestSplitT);
-            /*Warning("SPLITTING: %f %f %f %f %d %d", bestSplitT, bestSplitAxis.x, bestSplitAxis.y, bestSplitAxis.z, n0, n1);
-            if(currentBuildNode.nPrimitives == 4){
-                auto d1m = Dot(bestSplitAxis, primitives[0]->WorldBound().pMin);
-                auto d1M = Dot(bestSplitAxis, primitives[0]->WorldBound().pMax);
-                auto d2m = Dot(bestSplitAxis, primitives[1]->WorldBound().pMin);
-                auto d2M = Dot(bestSplitAxis, primitives[1]->WorldBound().pMax);
-                Warning("PRIM: %f vs %f",d1m, d1M);
-                Warning("PRIM: %f vs %f", d2m, d2M);
-            }
-            for(const auto &edge: currentBuildNode.kDOPMesh.edges) {
-                auto dv1 = Dot(bestSplitAxis, edge.v1);
-                auto dv2 = Dot(bestSplitAxis, edge.v2);
-                Warning("EDGE: %f vs %f", dv1, dv2);
-            }*/
+            stack.emplace_back(
+                    currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
+                    bestSplittedKDOPs.second, bestSplittedKDOPAreas.second, prims1, nodeNum);
+            stack.emplace_back(
+                    currentBuildNode.depth - 1, n0, currentBuildNode.badRefines,
+                    bestSplittedKDOPs.first, bestSplittedKDOPAreas.first, prims0);
 
-            bool shouldSwap = false;
-            bool wrong = false;
-            for(int i = 0; i < n0; i++){
-                auto d1m = primitives[prims0[i]]->getBounds(bestSplitAxis);
-                //Warning("%f %f", d1m.min, d1m.max);
-                if(d1m.min > bestSplitT){
-                    //Warning("in");
-                    shouldSwap = true;
-                } else if(d1m.min < bestSplitT && shouldSwap){
-                    //CHECK_EQ(-1,-2);
-                    //Warning("WRONG");
-                    wrong = true;
-                }
-            }
-            CHECK(!wrong);
-            CHECK(!shouldSwap);
-
-            //if(!shouldSwap) {
-                for (int i = 0; i < n1; i++) {
-                    auto d1m = primitives[prims1[i]]->getBounds(bestSplitAxis);
-                    if (d1m.max < bestSplitT) {
-                        shouldSwap = true;
-                    } else if(d1m.max > bestSplitT && shouldSwap){
-                        CHECK_EQ(-1,-3);
-                    }
-                }
-            //}
-            //shouldSwap = false;
-            CHECK(!shouldSwap);
-            if(shouldSwap){
-                stack.emplace_back(
-                        currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
-                        bestSplittedKDOPs.first, bestSplittedKDOPAreas.first, prims1, nodeNum);
-                stack.emplace_back(
-                        currentBuildNode.depth - 1, n0, currentBuildNode.badRefines,
-                        bestSplittedKDOPs.second, bestSplittedKDOPAreas.second, prims0);
-            }
-            else {
-                stack.emplace_back(
-                        currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
-                        bestSplittedKDOPs.second, bestSplittedKDOPAreas.second, prims1, nodeNum);
-                stack.emplace_back(
-                        currentBuildNode.depth - 1, n0, currentBuildNode.badRefines,
-                        bestSplittedKDOPs.first, bestSplittedKDOPAreas.first, prims0);
-            }
 
             ++nodeNum;
         }
@@ -595,7 +420,6 @@ namespace pbrt {
         statDepth = nodes[0].depth(nodes, 0);
         nbNodes = nodeNum;
         totalSACost = currentSACost / bounds.SurfaceArea();
-        CHECK_EQ(usedPrimNums.size(), primitives.size());
     }
 
     bool BSPPaper::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
