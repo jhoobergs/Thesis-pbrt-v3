@@ -173,6 +173,12 @@ namespace pbrt {
 
         BVHBuildNode *root = iterativeBuild(arena, &totalNodes, orderedPrims);
 
+        for(int i = 0; i < primNumMapping.size(); ++i){
+            for(int j = i+1; j < primNumMapping.size(); ++j){
+                CHECK_NE(primNumMapping[i], primNumMapping[j]);
+            }
+        }
+
         primitives.swap(orderedPrims);
 
         // Compute representation of depth-first traversal of BVH tree
@@ -227,11 +233,9 @@ namespace pbrt {
             if (nPrimitives == 1) {
                 // Create leaf _BVHBuildNode_
                 uint32_t firstPrimOffset = orderedPrims.size();
-                for (int i = currentBuildNode.start; i < currentBuildNode.end; ++i) {
-                    uint32_t primNum = primitiveInfo[i].primitiveNumber;
-                    orderedPrims.push_back(primitives[primNum]);
-                    primNumMapping[orderedPrims.size() - 1] = primNum;
-                }
+                uint32_t primNum = primitiveInfo[currentBuildNode.start].primitiveNumber;
+                orderedPrims.push_back(primitives[primNum]);
+                primNumMapping[firstPrimOffset] = primNum;
                 currentBuildNode.node->InitLeaf(firstPrimOffset, nPrimitives, bounds);
             } else {
                 // Choose split axis position for interior node
