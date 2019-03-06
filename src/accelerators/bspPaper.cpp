@@ -387,6 +387,7 @@ namespace pbrt {
                     Warning("BSP nodes %d", nbBSPNodes);
                 std::vector<uint32_t> left, right;
                 bvh.getPrimnumsToLeftAndRight(Plane(bestSplitT, bestSplitAxis), left, right);
+                // Map zero based primNums in BVH to currentBuildNode based primNums
                 std::transform(left.begin(), left.end(), left.begin(),
                                [&currentBuildNode](
                                        uint32_t index) -> uint32_t { return currentBuildNode.primNums[index]; });
@@ -605,7 +606,7 @@ namespace pbrt {
         Float emptyBonus = ps.FindOneFloat("emptybonus", 0);
         uint32_t maxPrims = (uint32_t) ps.FindOneInt("maxprims", 1);
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
-        uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3); //TODO: this is K?
+        uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3);
 
         return std::make_shared<BSPPaper>(std::move(prims), isectCost, travCost, emptyBonus,
                                           maxPrims, maxDepth, nbDirections);
