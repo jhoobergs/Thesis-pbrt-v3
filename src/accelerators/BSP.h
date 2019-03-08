@@ -100,7 +100,7 @@ namespace pbrt {
 
     struct BSPBuildNode {
         BSPBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines,
-                     KDOPMeshCluster kdopMesh,
+                     KDOPMeshWithDirections kdopMesh,
                      Float kdopMeshArea,
                      uint32_t *primNums, uint32_t parentNum = -1)
                 : depth(depth),
@@ -110,7 +110,7 @@ namespace pbrt {
         uint32_t depth;
         uint32_t nPrimitives;
         uint32_t badRefines;
-        KDOPMeshCluster kDOPMesh;
+        KDOPMeshWithDirections kDOPMesh;
         Float kdopMeshArea;
         uint32_t *primNums;
         uint32_t parentNum;

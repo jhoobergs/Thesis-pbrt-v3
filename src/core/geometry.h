@@ -44,7 +44,8 @@
 #include <iterator>
 
 namespace pbrt {
-
+    struct KDOPEdge;
+    struct KDOPMeshBase;
     template<typename T>
     inline bool isNaN(const T x) {
         return std::isnan(x);
@@ -994,6 +995,34 @@ namespace pbrt {
         friend std::ostream &operator<<(std::ostream &os, const Bounds3<T> &b) {
             os << "[ " << b.pMin << " - " << b.pMax << " ]";
             return os;
+        }
+
+        void toKDOPMesh(KDOPMeshBase &kDOPMesh, std::vector<Vector3f> &directions){
+
+            Point3f v1 = Point3f(pMin);
+            Point3f v2 = Point3f(pMin.x, pMin.y, pMax.z);
+            Point3f v3 = Point3f(pMin.x, pMax.y, pMin.z);
+            Point3f v4 = Point3f(pMax.x, pMin.y, pMin.z);
+            Point3f v5 = Point3f(pMin.x, pMax.y, pMax.z);
+            Point3f v6 = Point3f(pMax.x, pMin.y, pMax.z);
+            Point3f v7 = Point3f(pMax.x, pMax.y, pMin.z);
+            Point3f v8 = Point3f(pMax);
+
+            kDOPMesh.addEdge(KDOPEdge(v1, v2, 1, 3));
+            kDOPMesh.addEdge(KDOPEdge(v1, v3, 1, 5));
+            kDOPMesh.addEdge(KDOPEdge(v1, v4, 3, 5));
+            kDOPMesh.addEdge(KDOPEdge(v2, v5, 1, 4));
+            kDOPMesh.addEdge(KDOPEdge(v2, v6, 3, 4));
+            kDOPMesh.addEdge(KDOPEdge(v3, v5, 1, 2));
+            kDOPMesh.addEdge(KDOPEdge(v3, v7, 2, 5));
+            kDOPMesh.addEdge(KDOPEdge(v4, v6, 0, 3));
+            kDOPMesh.addEdge(KDOPEdge(v4, v7, 0, 5));
+            kDOPMesh.addEdge(KDOPEdge(v5, v8, 2, 4));
+            kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
+            kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
+            directions.emplace_back(1, 0, 0);
+            directions.emplace_back(0, 1, 0);
+            directions.emplace_back(0, 0, 1);
         }
 
         // Bounds3 Public Data
