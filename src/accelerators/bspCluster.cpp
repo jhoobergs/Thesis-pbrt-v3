@@ -99,9 +99,6 @@ namespace pbrt {
 
         std::vector<Vector3f> clusterMeans, newClusterMeans;
         std::vector<std::vector<Vector3f>> clusters;
-        /*clusterMeans.emplace_back(1, 0, 0);
-        clusterMeans.emplace_back(0, 1, 0);
-        clusterMeans.emplace_back(0, 0, 1);*/
 
         std::vector<Vector3f> normals;
         normals.reserve(np);
@@ -112,10 +109,6 @@ namespace pbrt {
         if (np <= K) {
             return normals;
         }
-
-        //clusterMeans.emplace_back(1, 0, 0); clusters.emplace_back(std::vector<Vector3f>());
-        //clusterMeans.emplace_back(0, 1, 0); clusters.emplace_back(std::vector<Vector3f>());
-        //clusterMeans.emplace_back(0, 0, 1); clusters.emplace_back(std::vector<Vector3f>());
 
         std::set<uint32_t> nIds;
         while (nIds.size() < K)
@@ -130,22 +123,18 @@ namespace pbrt {
         uint32_t iterations = 0;
         while (iterations < maxIterations &&
                (iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) > 0.001)) {
-            //Warning("%d", iterations);
 
             ++iterations;
             clusterMeans = newClusterMeans;
 
             for (auto &n: normals)
                 clusters[calculateIdOfClosestMean(n, clusterMeans)].emplace_back(n);
-            //Warning("ITEMS %d %d %d %d",  clusters[0].size(), clusters[1].size(), clusters[2].size(), np);
 
             for (int i = 0; i < K; ++i) {
-                //Warning("K, %d %d", i, clusters.size());
                 if (clusters[i].empty()) {
-                    //Warning("EMPTY %d %d %d %d", clusters[0].size(), clusters[1].size(), clusters[2].size(), np);
                     std::set<uint32_t> nIds;
                     while (nIds.size() < K)
-                        nIds.insert(rand() % np);
+                        nIds.insert(random_int(0,np));
                     std::vector<uint32_t> v(nIds.begin(), nIds.end());
 
                     for (int ii = 0; ii < K; ++ii) {
@@ -171,32 +160,8 @@ namespace pbrt {
             bounds = Union(bounds, prim->WorldBound());
         }
 
-        KDOPMeshCluster kDOPMesh;
-        Point3f v1 = Point3f(bounds.pMin);
-        Point3f v2 = Point3f(bounds.pMin.x, bounds.pMin.y, bounds.pMax.z);
-        Point3f v3 = Point3f(bounds.pMin.x, bounds.pMax.y, bounds.pMin.z);
-        Point3f v4 = Point3f(bounds.pMax.x, bounds.pMin.y, bounds.pMin.z);
-        Point3f v5 = Point3f(bounds.pMin.x, bounds.pMax.y, bounds.pMax.z);
-        Point3f v6 = Point3f(bounds.pMax.x, bounds.pMin.y, bounds.pMax.z);
-        Point3f v7 = Point3f(bounds.pMax.x, bounds.pMax.y, bounds.pMin.z);
-        Point3f v8 = Point3f(bounds.pMax);
-
-        kDOPMesh.addEdge(KDOPEdge(v1, v2, 1, 3));
-        kDOPMesh.addEdge(KDOPEdge(v1, v3, 1, 5));
-        kDOPMesh.addEdge(KDOPEdge(v1, v4, 3, 5));
-        kDOPMesh.addEdge(KDOPEdge(v2, v5, 1, 4));
-        kDOPMesh.addEdge(KDOPEdge(v2, v6, 3, 4));
-        kDOPMesh.addEdge(KDOPEdge(v3, v5, 1, 2));
-        kDOPMesh.addEdge(KDOPEdge(v3, v7, 2, 5));
-        kDOPMesh.addEdge(KDOPEdge(v4, v6, 0, 3));
-        kDOPMesh.addEdge(KDOPEdge(v4, v7, 0, 5));
-        kDOPMesh.addEdge(KDOPEdge(v5, v8, 2, 4));
-        kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
-        kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
-        kDOPMesh.directions.emplace_back(1, 0, 0);
-        kDOPMesh.directions.emplace_back(0, 1, 0);
-        kDOPMesh.directions.emplace_back(0, 0, 1);
-
+        KDOPMeshWithDirections kDOPMesh;
+        bounds.toKDOPMesh(kDOPMesh, kDOPMesh.directions);
 
         // Building
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
@@ -256,13 +221,13 @@ namespace pbrt {
 
             // Choose split axis position for interior node
             uint32_t bestK = -1, bestOffset = -1;
-            std::pair<KDOPMeshCluster, KDOPMeshCluster> bestSplittedKDOPs;
+            std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> bestSplittedKDOPs;
             std::pair<Float, Float> bestSplittedKDOPAreas = std::make_pair(0, 0);
             Float bestCost = Infinity;
             Float oldCost = isectCost * Float(currentBuildNode.nPrimitives);
             // Float totalSA = currentBuildNode.kDOPMesh.SurfaceArea(directions);
             const Float invTotalSA = 1 / currentBuildNode.kdopMeshArea;
-            std::pair<KDOPMeshCluster, KDOPMeshCluster> splittedKDOPs;
+            std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> splittedKDOPs;
 
             std::vector<Vector3f> clusterMeans = calculateClusterMeans(currentBuildNode.primNums,
                                                                        currentBuildNode.nPrimitives); // TODO: Cluster

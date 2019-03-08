@@ -235,10 +235,10 @@ namespace pbrt {
         return ((uint32_t) 1 << getBitOffset(M)) - 1;
     }
 
-    struct KDOPMeshCluster : KDOPMeshBase {
-        KDOPMeshCluster() : KDOPMeshBase() {};
+    struct KDOPMeshWithDirections : KDOPMeshBase {
+        KDOPMeshWithDirections() : KDOPMeshBase() {};
 
-        std::pair<KDOPMeshCluster, KDOPMeshCluster> cut(Float t, const Vector3f &direction) {
+        std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> cut(Float t, const Vector3f &direction) {
             auto directionId = (uint32_t) directions.size();
             //Warning("SIZE %d", directionId);
             for (uint32_t i = 0; i < directions.size(); i++) {
@@ -248,7 +248,7 @@ namespace pbrt {
                     break;
                 }
             }
-            auto cut = KDOPCut<KDOPMeshCluster>(edges, directions.size(), t, direction, directionId);
+            auto cut = KDOPCut<KDOPMeshWithDirections>(edges, directions.size(), t, direction, directionId);
             cut.first.directions = directions;
             cut.second.directions = directions;
             if (directionId == directions.size()) {

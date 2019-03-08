@@ -167,27 +167,8 @@ namespace pbrt {
         }
 
         KDOPMesh kDOPMesh;
-        Point3f v1 = Point3f(bounds.pMin);
-        Point3f v2 = Point3f(bounds.pMin.x, bounds.pMin.y, bounds.pMax.z);
-        Point3f v3 = Point3f(bounds.pMin.x, bounds.pMax.y, bounds.pMin.z);
-        Point3f v4 = Point3f(bounds.pMax.x, bounds.pMin.y, bounds.pMin.z);
-        Point3f v5 = Point3f(bounds.pMin.x, bounds.pMax.y, bounds.pMax.z);
-        Point3f v6 = Point3f(bounds.pMax.x, bounds.pMin.y, bounds.pMax.z);
-        Point3f v7 = Point3f(bounds.pMax.x, bounds.pMax.y, bounds.pMin.z);
-        Point3f v8 = Point3f(bounds.pMax);
-
-        kDOPMesh.addEdge(KDOPEdge(v1, v2, 1, 3));
-        kDOPMesh.addEdge(KDOPEdge(v1, v3, 1, 5));
-        kDOPMesh.addEdge(KDOPEdge(v1, v4, 3, 5));
-        kDOPMesh.addEdge(KDOPEdge(v2, v5, 1, 4));
-        kDOPMesh.addEdge(KDOPEdge(v2, v6, 3, 4));
-        kDOPMesh.addEdge(KDOPEdge(v3, v5, 1, 2));
-        kDOPMesh.addEdge(KDOPEdge(v3, v7, 2, 5));
-        kDOPMesh.addEdge(KDOPEdge(v4, v6, 0, 3));
-        kDOPMesh.addEdge(KDOPEdge(v4, v7, 0, 5));
-        kDOPMesh.addEdge(KDOPEdge(v5, v8, 2, 4));
-        kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
-        kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
+        std::vector<Vector3f> directionsOfKdop;
+        bounds.toKDOPMesh(kDOPMesh, directionsOfKdop);
 
         // Building
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
