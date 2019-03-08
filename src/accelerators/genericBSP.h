@@ -13,8 +13,6 @@
 
 
 namespace pbrt {
-    struct BSPNode;
-
     enum class EdgeType {
         Start, End
     };

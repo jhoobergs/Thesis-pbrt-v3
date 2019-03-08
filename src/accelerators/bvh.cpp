@@ -451,7 +451,6 @@ namespace pbrt {
             } else if (centerProjection - maxDiff > p.t) {
                 right += node->nPrimitives();
             } else if (node->IsLeaf()) {
-                uint32_t oldL = left, oldR = right;
                 for (int i = 0; i < node->nPrimitives(); ++i) {
                     Boundsf bounds = primitives[node->primitivesOffset + i]->getBounds(p.axis);
                     if (bounds.min <= p.t)

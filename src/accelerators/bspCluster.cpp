@@ -12,8 +12,6 @@
 
 namespace pbrt {
 
-    STAT_COUNTER("Accelerator/RBSP-tree node traversals during intersect", nbNodeTraversals);
-    STAT_COUNTER("Accelerator/RBSP-tree node traversals during intersectP", nbNodeTraversalsP);
     STAT_COUNTER("Accelerator/RBSP-tree nodes", nbNodes);
     STAT_COUNTER("Accelerator/RBSP-tree build: splitTests", statNbSplitTests);
     STAT_COUNTER("Accelerator/RBSP-tree param:directions", statParamnbDirections);
@@ -26,95 +24,10 @@ namespace pbrt {
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
 
-    struct BSPClusterNode {
-        // BSPNode Methods
-        void InitLeaf(uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices);
-
-        void InitInterior(const Vector3f &axis, Float s) {
-            split = s;
-            splitAxis = axis;
-            flags = 0;
-        }
-
-        void setAboveChild(uint32_t ac) {
-            aboveChild |= (ac << 1);
-        }
-
-        Float SplitPos() const { return split; }
-
-        uint32_t nPrimitives() const { return nPrims >> 1; }
-
-        Vector3f SplitAxis() const { return splitAxis; }
-
-        bool IsLeaf() const { return (flags & 1) == 1; }
-
-        uint32_t AboveChild() const { return aboveChild >> 1; }
-
-        uint32_t depth(BSPClusterNode *nodes, int id = 0) {
-            if (IsLeaf())
-                return 0;
-            else
-                return 1 + std::max(nodes[AboveChild()].depth(nodes, AboveChild()),
-                                    nodes[id + 1].depth(nodes, id + 1));
-        }
-
-        std::string toString(const std::vector<uint32_t> &primitiveIndices) {
-            std::stringstream ss;
-            if (IsLeaf()) {
-                uint32_t np = nPrimitives();
-                ss << "L " << np;
-                if (np == 1) {
-                    ss << " " << onePrimitive;
-                } else {
-                    for (int i = 0; i < np; i++) {
-                        uint32_t primitiveIndex =
-                                primitiveIndices[primitiveIndicesOffset + i];
-                        ss << " " << primitiveIndex;
-                    }
-                }
-            } else {
-                ss << "I " << SplitAxis().x << " " << SplitAxis().y << " " << SplitAxis().z << " " << SplitPos() << " "
-                   << AboveChild();
-            }
-
-
-            return ss.str();
-        }
-
-        union {
-            Float split;                 // Interior
-            uint32_t onePrimitive;            // Leaf
-            uint32_t primitiveIndicesOffset;  // Leaf
-        };
-
-    private:
-        union {
-            uint32_t flags;       // Both
-            uint32_t nPrims;      // Leaf
-            uint32_t aboveChild;  // Interior
-        };
-        Vector3f splitAxis;
-    };
-
-    void BSPClusterNode::InitLeaf(uint32_t *primNums, uint32_t np,
-                                  std::vector<uint32_t> *primitiveIndices) {
-        flags = 1;
-        nPrims |= (np << 1);
-        // Store primitive ids for leaf node
-        if (np == 0)
-            onePrimitive = 0;
-        else if (np == 1u)
-            onePrimitive = primNums[0];
-        else {
-            primitiveIndicesOffset = primitiveIndices->size();
-            for (uint32_t i = 0; i < np; ++i) primitiveIndices->push_back(primNums[i]);
-        }
-    }
-
     BSPCluster::BSPCluster(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
                            uint32_t traversalCost,
                            Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
-            : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
+            : BSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
                          0, 0, 0, 0) {
         ProfilePhase _(Prof::AccelConstruction);
 
@@ -251,12 +164,6 @@ namespace pbrt {
         return newClusterMeans;
     }
 
-    void BSPCluster::printNodes(std::ofstream &os) const {
-        for (int i = 0; i < nextFreeNode; i++) {
-            os << nodes[i].toString(primitiveIndices) << std::endl;
-        }
-    }
-
     void BSPCluster::buildTree() {
         //Initialize
         // Compute bounds for rbsp-tree construction: CANNOT PRECOMPUTE ALLPRIMBOUNDS
@@ -309,7 +216,7 @@ namespace pbrt {
         uint32_t maxPrimsOffset = 0;
         double currentSACost = 0;
 
-        std::vector<BSPClusterBuildNode> stack;
+        std::vector<BSPBuildNode> stack;
         stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, kDOPMesh,
                            kDOPMesh.SurfaceArea(), &prims[0]);
         // Warning("Building RBSP: Lets loop");
@@ -317,7 +224,7 @@ namespace pbrt {
             if (nodeNum % 10000 == 0) // 100000
                 Warning("Nodenum %d", nodeNum);
             reporter.Update();
-            BSPClusterBuildNode currentBuildNode = stack.back();
+            BSPBuildNode currentBuildNode = stack.back();
             stack.pop_back();
             CHECK_EQ(nodeNum, nextFreeNode);
 
@@ -329,9 +236,9 @@ namespace pbrt {
             // Get next free node from _nodes_ array
             if (nextFreeNode == nAllocedNodes) {
                 uint32_t nNewAllocNodes = std::max(2u * nAllocedNodes, 512u);
-                auto *n = AllocAligned<BSPClusterNode>(nNewAllocNodes);
+                auto *n = AllocAligned<BSPNode>(nNewAllocNodes);
                 if (nAllocedNodes > 0) {
-                    memcpy(n, nodes, nAllocedNodes * sizeof(BSPClusterNode));
+                    memcpy(n, nodes, nAllocedNodes * sizeof(BSPNode));
                     FreeAligned(nodes);
                 }
                 nodes = n;
@@ -463,182 +370,6 @@ namespace pbrt {
         statDepth = nodes[0].depth(nodes, 0);
         nbNodes = nodeNum;
         totalSACost = currentSACost / bounds.SurfaceArea();
-    }
-
-    bool BSPCluster::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
-        ProfilePhase p(Prof::AccelIntersect);
-        // Compute initial parametric range of ray inside rbsp-tree extent
-        Float tMin, tMax;
-        if (!bounds.IntersectP(ray, &tMin, &tMax)) {
-            return false;
-        }
-
-        // Prepare to traverse rbsp-tree for ray
-        PBRT_CONSTEXPR uint32_t maxTodo = 64u;
-        BSPToDo<BSPClusterNode> todo[maxTodo];
-        uint32_t todoPos = 0;
-
-        // Traverse rbsp-tree nodes in order for ray
-        bool hit = false;
-        const BSPClusterNode *node = &nodes[0];
-        while (node != nullptr) {
-            // Bail out if we found a hit closer than the current node
-            if (ray.tMax < tMin) break;
-            nbNodeTraversals++;
-            ray.stats.rBSPTreeNodeTraversals++;
-            if (!node->IsLeaf()) {
-                // Process rbsp-tree interior node
-
-                // Compute parametric distance along ray to split plane
-                const Vector3f axis = node->SplitAxis();
-                Float projectedO, inverseProjectedD;
-                const Float tPlane = planeDistance(axis, node->SplitPos(), ray, projectedO,
-                                                   inverseProjectedD);
-
-                // Get node children pointers for ray
-                const BSPClusterNode *firstChild, *secondChild;
-                const bool belowFirst =
-                        (projectedO < node->SplitPos()) ||
-                        (projectedO == node->SplitPos() && inverseProjectedD <= 0);
-                if (belowFirst) {
-                    firstChild = node + 1;
-                    secondChild = &nodes[node->AboveChild()];
-                } else {
-                    firstChild = &nodes[node->AboveChild()];
-                    secondChild = node + 1;
-                }
-
-                // Advance to next child node, possibly enqueue other child
-                if (tPlane > tMax || tPlane <= 0)
-                    node = firstChild;
-                else if (tPlane < tMin)
-                    node = secondChild;
-                else {
-                    // Enqueue _secondChild_ in todo list
-                    todo[todoPos].node = secondChild;
-                    todo[todoPos].tMin = tPlane;
-                    todo[todoPos].tMax = tMax;
-                    ++todoPos;
-                    node = firstChild;
-                    tMax = tPlane;
-                }
-            } else {
-                // Check for intersections inside leaf node
-                const uint32_t nPrimitives = node->nPrimitives();
-                if (nPrimitives == 1) {
-                    const std::shared_ptr<Primitive> &p =
-                            primitives[node->onePrimitive];
-                    // Check one primitive inside leaf node
-                    if (p->Intersect(ray, isect)) hit = true;
-                } else {
-                    for (uint32_t i = 0; i < nPrimitives; ++i) {
-                        const uint32_t index =
-                                primitiveIndices[node->primitiveIndicesOffset + i];
-                        const std::shared_ptr<Primitive> &p = primitives[index];
-                        // Check one primitive inside leaf node
-                        if (p->Intersect(ray, isect)) hit = true;
-                    }
-                }
-
-
-                // Grab next node to process from todo list
-                if (todoPos > 0) {
-                    --todoPos;
-                    node = todo[todoPos].node;
-                    tMin = todo[todoPos].tMin;
-                    tMax = todo[todoPos].tMax;
-                } else
-                    break;
-            }
-        }
-        return hit;
-    }
-
-    bool BSPCluster::IntersectP(const Ray &ray) const {
-        ProfilePhase p(Prof::AccelIntersectP);
-        // Compute initial parametric range of ray inside rbsp-tree extent
-        Float tMin, tMax;
-        if (!bounds.IntersectP(ray, &tMin, &tMax)) {
-            return false;
-        }
-
-        // Prepare to traverse rbsp-tree for ray
-        PBRT_CONSTEXPR uint32_t maxTodo = 64;
-        BSPToDo<BSPClusterNode> todo[maxTodo];
-        uint32_t todoPos = 0;
-        const BSPClusterNode *node = &nodes[0];
-        while (node != nullptr) {
-            nbNodeTraversalsP++;
-            ray.stats.rBSPTreeNodeTraversalsP++;
-            if (node->IsLeaf()) {
-                // Check for shadow ray intersections inside leaf node
-                const uint32_t nPrimitives = node->nPrimitives();
-                if (nPrimitives == 1) {
-                    const std::shared_ptr<Primitive> &p =
-                            primitives[node->onePrimitive];
-                    if (p->IntersectP(ray)) {
-                        return true;
-                    }
-                } else {
-                    for (uint32_t i = 0; i < nPrimitives; ++i) {
-                        const uint32_t primitiveIndex =
-                                primitiveIndices[node->primitiveIndicesOffset + i];
-                        const std::shared_ptr<Primitive> &prim =
-                                primitives[primitiveIndex];
-                        if (prim->IntersectP(ray)) {
-                            return true;
-                        }
-                    }
-                }
-
-                // Grab next node to process from todo list
-                if (todoPos > 0) {
-                    --todoPos;
-                    node = todo[todoPos].node;
-                    tMin = todo[todoPos].tMin;
-                    tMax = todo[todoPos].tMax;
-                } else {
-                    break;
-                }
-            } else {
-                // Process rbsp-tree interior node
-
-                // Compute parametric distance along ray to split plane
-                const Vector3f axis = node->SplitAxis();
-                Float projectedO, inverseProjectedD;
-                const Float tPlane = planeDistance(axis, node->SplitPos(), ray, projectedO,
-                                                   inverseProjectedD);
-
-                // Get node children pointers for ray
-                const BSPClusterNode *firstChild, *secondChild;
-                const bool belowFirst =
-                        (projectedO < node->SplitPos()) ||
-                        (projectedO == node->SplitPos() && inverseProjectedD <= 0);
-                if (belowFirst) {
-                    firstChild = node + 1;
-                    secondChild = &nodes[node->AboveChild()];
-                } else {
-                    firstChild = &nodes[node->AboveChild()];
-                    secondChild = node + 1;
-                }
-
-                // Advance to next child node, possibly enqueue other child
-                if (tPlane > tMax || tPlane <= 0)
-                    node = firstChild;
-                else if (tPlane < tMin)
-                    node = secondChild;
-                else {
-                    // Enqueue _secondChild_ in todo list
-                    todo[todoPos].node = secondChild;
-                    todo[todoPos].tMin = tPlane;
-                    todo[todoPos].tMax = tMax;
-                    ++todoPos;
-                    node = firstChild;
-                    tMax = tPlane;
-                }
-            }
-        }
-        return false;
     }
 
     std::shared_ptr<BSPCluster> CreateBSPClusterTreeAccelerator(
