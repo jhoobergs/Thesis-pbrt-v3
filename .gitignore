@@ -11,3 +11,7 @@ cmake-build-debug
 results
 
 build-double/
+
+scenes/geometry/museum/
+
+scenes/geometry/sponza/
