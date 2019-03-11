@@ -332,7 +332,10 @@ namespace pbrt {
             ++nodeNum;
         }
         reporter.Done();
+        Warning("Done building");
         statDepth = nodes[0].depth(nodes, 0);
+        Warning("END Done building");
+
         nbNodes = nodeNum;
         totalSACost = currentSACost / bounds.SurfaceArea();
     }
