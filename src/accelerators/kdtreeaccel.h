@@ -58,7 +58,7 @@ namespace pbrt {
                     uint32_t alphaType = 0,
                     uint32_t axisSelectionType = 0, uint32_t axisSelectionAmount = -1);
 
-        Bounds3f WorldBound() const { return bounds; }
+        Bounds3f WorldBound() const override { return bounds; }
 
         bool Intersect(const Ray &ray, SurfaceInteraction *isect) const override;
 

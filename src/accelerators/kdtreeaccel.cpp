@@ -110,6 +110,57 @@ namespace pbrt {
             return ss.str();
         }
 
+        std::pair<Float, bool >intersectInterior(const Ray &ray, const Vector3f &invDir) const {
+            uint32_t axis = this->SplitAxis();
+            Float tPlane = planeDistance(this->SplitPos(), ray, invDir, axis);
+
+            // Get node children pointers for ray
+            bool belowFirst =
+                    (ray.o[axis] < this->SplitPos()) ||
+                    (ray.o[axis] == this->SplitPos() && ray.d[axis] <= 0);
+            return std::make_pair(tPlane, belowFirst);
+        }
+
+        bool intersectLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices, SurfaceInteraction *isect) const {
+            bool hit = false;
+            uint32_t nPrimitives = this->nPrimitives();
+            if (nPrimitives == 1) {
+                const std::shared_ptr<Primitive> &p =
+                        primitives[this->onePrimitive];
+                // Check one primitive inside leaf node
+                if (p->Intersect(ray, isect)) hit = true;
+            } else {
+                for (uint32_t i = 0; i < nPrimitives; ++i) {
+                    uint32_t index =
+                            primitiveIndices[this->primitiveIndicesOffset + i];
+                    const std::shared_ptr<Primitive> &p = primitives[index];
+                    // Check one primitive inside leaf node
+                    if (p->Intersect(ray, isect)) hit = true;
+                }
+            }
+            return hit;
+        }
+
+        bool intersectPLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices) const {
+            uint32_t nPrimitives = this->nPrimitives();
+            if (nPrimitives == 1) {
+                const std::shared_ptr<Primitive> &p =
+                        primitives[this->onePrimitive];
+                if (p->IntersectP(ray)) return true;
+            } else {
+                for (uint32_t i = 0; i < nPrimitives; ++i) {
+                    uint32_t primitiveIndex =
+                            primitiveIndices[this->primitiveIndicesOffset + i];
+                    const std::shared_ptr<Primitive> &prim =
+                            primitives[primitiveIndex];
+                    if (prim->IntersectP(ray)) return true;
+                }
+            }
+
+            return false;
+        }
+
+
         union {
             Float split;                 // Interior
             uint32_t onePrimitive;            // Leaf
@@ -479,14 +530,12 @@ namespace pbrt {
                 // Process kd-tree interior node
 
                 // Compute parametric distance along ray to split plane
-                uint32_t axis = node->SplitAxis();
-                Float tPlane = planeDistance(node->SplitPos(), ray, invDir, axis);
+                const std::pair<Float, bool> intersection = node->intersectInterior(ray, invDir);
+                const Float tPlane = intersection.first;
+                const bool belowFirst = intersection.second;
 
                 // Get node children pointers for ray
                 const KdAccelNode *firstChild, *secondChild;
-                bool belowFirst =
-                        (ray.o[axis] < node->SplitPos()) ||
-                        (ray.o[axis] == node->SplitPos() && ray.d[axis] <= 0);
                 if (belowFirst) {
                     firstChild = node + 1;
                     secondChild = &nodes[node->AboveChild()];
@@ -511,21 +560,8 @@ namespace pbrt {
                 }
             } else {
                 // Check for intersections inside leaf node
-                uint32_t nPrimitives = node->nPrimitives();
-                if (nPrimitives == 1) {
-                    const std::shared_ptr<Primitive> &p =
-                            primitives[node->onePrimitive];
-                    // Check one primitive inside leaf node
-                    if (p->Intersect(ray, isect)) hit = true;
-                } else {
-                    for (uint32_t i = 0; i < nPrimitives; ++i) {
-                        uint32_t index =
-                                primitiveIndices[node->primitiveIndicesOffset + i];
-                        const std::shared_ptr<Primitive> &p = primitives[index];
-                        // Check one primitive inside leaf node
-                        if (p->Intersect(ray, isect)) hit = true;
-                    }
-                }
+                if(node->intersectLeaf(ray, primitives, primitiveIndices, isect))
+                    hit = true;
 
                 // Grab next node to process from todo list
                 if (todoPos > 0) {
@@ -559,24 +595,8 @@ namespace pbrt {
             ray.stats.kdTreeNodeTraversalsP++;
             if (node->IsLeaf()) {
                 // Check for shadow ray intersections inside leaf node
-                uint32_t nPrimitives = node->nPrimitives();
-                if (nPrimitives == 1) {
-                    const std::shared_ptr<Primitive> &p =
-                            primitives[node->onePrimitive];
-                    if (p->IntersectP(ray)) {
-                        return true;
-                    }
-                } else {
-                    for (uint32_t i = 0; i < nPrimitives; ++i) {
-                        uint32_t primitiveIndex =
-                                primitiveIndices[node->primitiveIndicesOffset + i];
-                        const std::shared_ptr<Primitive> &prim =
-                                primitives[primitiveIndex];
-                        if (prim->IntersectP(ray)) {
-                            return true;
-                        }
-                    }
-                }
+                if(node->intersectPLeaf(ray, primitives, primitiveIndices))
+                    return true;
 
                 // Grab next node to process from todo list
                 if (todoPos > 0) {
@@ -591,14 +611,12 @@ namespace pbrt {
                 // Process kd-tree interior node
 
                 // Compute parametric distance along ray to split plane
-                uint32_t axis = node->SplitAxis();
-                Float tPlane = planeDistance(node->SplitPos(), ray, invDir, axis);
+                const std::pair<Float, bool> intersection = node->intersectInterior(ray, invDir);
+                const Float tPlane = intersection.first;
+                const bool belowFirst = intersection.second;
 
                 // Get node children pointers for ray
                 const KdAccelNode *firstChild, *secondChild;
-                bool belowFirst =
-                        (ray.o[axis] < node->SplitPos()) ||
-                        (ray.o[axis] == node->SplitPos() && ray.d[axis] <= 0);
                 if (belowFirst) {
                     firstChild = node + 1;
                     secondChild = &nodes[node->AboveChild()];

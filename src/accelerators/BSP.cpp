@@ -10,7 +10,6 @@
 #include "geometry.h"
 
 namespace pbrt {
-
     void BSPNode::InitLeaf(uint32_t *primNums, uint32_t np,
                            std::vector<uint32_t> *primitiveIndices) {
         flags = 1u;
@@ -41,6 +40,7 @@ namespace pbrt {
     }
 
     bool BSP::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
+        Warning("Intersecting");
         ProfilePhase p(Prof::AccelIntersect);
         // Compute initial parametric range of ray inside rbsp-tree extent
         Float tMin, tMax;
@@ -64,16 +64,12 @@ namespace pbrt {
                 // Process rbsp-tree interior node
 
                 // Compute parametric distance along ray to split plane
-                const Vector3f axis = node->SplitAxis();
-                Float projectedO, inverseProjectedD;
-                const Float tPlane = planeDistance(axis, node->SplitPos(), ray, projectedO,
-                                                   inverseProjectedD);
+                const std::pair<Float, bool> intersection = node->intersectInterior(ray, Vector3f(0,0,0));
+                const Float tPlane = intersection.first;
+                const bool belowFirst = intersection.second;
 
                 // Get node children pointers for ray
                 const BSPNode *firstChild, *secondChild;
-                const bool belowFirst =
-                        (projectedO < node->SplitPos()) ||
-                        (projectedO == node->SplitPos() && inverseProjectedD <= 0);
                 if (belowFirst) {
                     firstChild = node + 1;
                     secondChild = &nodes[node->AboveChild()];
@@ -98,22 +94,8 @@ namespace pbrt {
                 }
             } else {
                 // Check for intersections inside leaf node
-                const uint32_t nPrimitives = node->nPrimitives();
-                if (nPrimitives == 1) {
-                    const std::shared_ptr<Primitive> &p =
-                            primitives[node->onePrimitive];
-                    // Check one primitive inside leaf node
-                    if (p->Intersect(ray, isect)) hit = true;
-                } else {
-                    for (uint32_t i = 0; i < nPrimitives; ++i) {
-                        const uint32_t index =
-                                primitiveIndices[node->primitiveIndicesOffset + i];
-                        const std::shared_ptr<Primitive> &p = primitives[index];
-                        // Check one primitive inside leaf node
-                        if (p->Intersect(ray, isect)) hit = true;
-                    }
-                }
-
+                if(node->intersectLeaf(ray, primitives, primitiveIndices, isect))
+                    hit = true;
 
                 // Grab next node to process from todo list
                 if (todoPos > 0) {
@@ -145,24 +127,8 @@ namespace pbrt {
             ray.stats.rBSPTreeNodeTraversalsP++;
             if (node->IsLeaf()) {
                 // Check for shadow ray intersections inside leaf node
-                const uint32_t nPrimitives = node->nPrimitives();
-                if (nPrimitives == 1) {
-                    const std::shared_ptr<Primitive> &p =
-                            primitives[node->onePrimitive];
-                    if (p->IntersectP(ray)) {
-                        return true;
-                    }
-                } else {
-                    for (uint32_t i = 0; i < nPrimitives; ++i) {
-                        const uint32_t primitiveIndex =
-                                primitiveIndices[node->primitiveIndicesOffset + i];
-                        const std::shared_ptr<Primitive> &prim =
-                                primitives[primitiveIndex];
-                        if (prim->IntersectP(ray)) {
-                            return true;
-                        }
-                    }
-                }
+                if(node->intersectPLeaf(ray, primitives, primitiveIndices))
+                    return true;
 
                 // Grab next node to process from todo list
                 if (todoPos > 0) {
@@ -177,16 +143,12 @@ namespace pbrt {
                 // Process rbsp-tree interior node
 
                 // Compute parametric distance along ray to split plane
-                const Vector3f axis = node->SplitAxis();
-                Float projectedO, inverseProjectedD;
-                const Float tPlane = planeDistance(axis, node->SplitPos(), ray, projectedO,
-                                                   inverseProjectedD);
+                const std::pair<Float, bool> intersection = node->intersectInterior(ray, Vector3f(0,0,0));
+                const Float tPlane = intersection.first;
+                const bool belowFirst = intersection.second;
 
                 // Get node children pointers for ray
                 const BSPNode *firstChild, *secondChild;
-                const bool belowFirst =
-                        (projectedO < node->SplitPos()) ||
-                        (projectedO == node->SplitPos() && inverseProjectedD <= 0);
                 if (belowFirst) {
                     firstChild = node + 1;
                     secondChild = &nodes[node->AboveChild()];

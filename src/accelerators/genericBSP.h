@@ -13,6 +13,20 @@
 
 
 namespace pbrt {
+    struct TreeNode {
+        virtual bool IsLeaf() const = 0;
+
+        virtual uint32_t AboveChild() const = 0;
+
+        virtual std::string toString(const std::vector<uint32_t> &primitiveIndices) = 0;
+
+        virtual std::pair<Float, bool>intersectInterior(const Ray &ray, const Vector3f &invDir) const = 0;
+
+        virtual bool intersectLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices, SurfaceInteraction *isect) const = 0;
+
+        virtual bool intersectPLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices) const = 0;
+    };
+
     enum class EdgeType {
         Start, End
     };
@@ -56,13 +70,13 @@ namespace pbrt {
 
         }
 
-        Bounds3f WorldBound() const { return bounds; }
+        Bounds3f WorldBound() const override { return bounds; }
 
-        ~GenericBSP() { FreeAligned(nodes); };
+        ~GenericBSP() override { FreeAligned(nodes); };
 
-        virtual bool Intersect(const Ray &ray, SurfaceInteraction *isect) const = 0;
+        bool Intersect(const Ray &ray, SurfaceInteraction *isect) const override = 0;
 
-        virtual bool IntersectP(const Ray &ray) const = 0;
+        bool IntersectP(const Ray &ray) const override = 0;
 
         virtual void printNodes(std::ofstream &os) const = 0;
 
