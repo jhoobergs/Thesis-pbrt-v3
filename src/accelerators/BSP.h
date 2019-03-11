@@ -64,6 +64,59 @@ namespace pbrt {
             return ss.str();
         }
 
+        std::pair<Float, bool> intersectInterior(const Ray &ray, const Vector3f &invDir) const {
+            const Vector3f axis = this->SplitAxis();
+            Float projectedO, inverseProjectedD;
+            const Float tPlane = planeDistance(axis, this->SplitPos(), ray, projectedO,
+                                               inverseProjectedD);
+
+            // Get node children pointers for ray
+            const bool belowFirst =
+                    (projectedO < this->SplitPos()) ||
+                    (projectedO == this->SplitPos() && inverseProjectedD <= 0);
+
+            return std::make_pair(tPlane, belowFirst);
+        }
+
+        bool intersectLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices, SurfaceInteraction *isect) const{
+            bool hit = false;
+            const uint32_t nPrimitives = this->nPrimitives();
+            if (nPrimitives == 1) {
+                const std::shared_ptr<Primitive> &p =
+                        primitives[this->onePrimitive];
+                // Check one primitive inside leaf node
+                if (p->Intersect(ray, isect)) hit = true;
+            } else {
+                for (uint32_t i = 0; i < nPrimitives; ++i) {
+                    const uint32_t index =
+                            primitiveIndices[this->primitiveIndicesOffset + i];
+                    const std::shared_ptr<Primitive> &p = primitives[index];
+                    // Check one primitive inside leaf node
+                    if (p->Intersect(ray, isect)) hit = true;
+                }
+            }
+            return hit;
+        }
+
+        bool intersectPLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices) const{
+            const uint32_t nPrimitives = this->nPrimitives();
+            if (nPrimitives == 1) {
+                const std::shared_ptr<Primitive> &p =
+                        primitives[this->onePrimitive];
+                if (p->IntersectP(ray)) return true;
+
+            } else {
+                for (uint32_t i = 0; i < nPrimitives; ++i) {
+                    const uint32_t primitiveIndex =
+                            primitiveIndices[this->primitiveIndicesOffset + i];
+                    const std::shared_ptr<Primitive> &prim =
+                            primitives[primitiveIndex];
+                    if (prim->IntersectP(ray)) return true;
+                }
+            }
+            return false;
+        }
+
         union {
             Float split;                 // Interior
             uint32_t onePrimitive;            // Leaf
@@ -87,9 +140,10 @@ namespace pbrt {
              Float splitAlpha = 90, uint32_t alphaType = 0, uint32_t axisSelectionType = 0,
              uint32_t axisSelectionAmount = -1u);
 
-        virtual bool Intersect(const Ray &ray, SurfaceInteraction *isect) const override;
+        bool Intersect(const Ray &ray, SurfaceInteraction *isect) const override;
 ;
-        virtual bool IntersectP(const Ray &ray) const override;
+
+        bool IntersectP(const Ray &ray) const override;
 
         void printNodes(std::ofstream &os) const override;
 

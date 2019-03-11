@@ -1782,7 +1782,7 @@ namespace pbrt {
         return ret;
     }
 
-    inline Float planeDistance(const Float splitPos, const Ray &ray, Vector3f &invDir, uint32_t axis) {
+    inline Float planeDistance(const Float splitPos, const Ray &ray, const Vector3f &invDir, uint32_t axis) {
         return (splitPos - ray.o[axis]) * invDir[axis];
     }
 
