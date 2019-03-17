@@ -222,7 +222,8 @@ Spectrum G(const Scene &scene, Sampler &sampler, const Vertex &v0,
     if (v0.IsOnSurface()) g *= AbsDot(v0.ns(), d);
     if (v1.IsOnSurface()) g *= AbsDot(v1.ns(), d);
     VisibilityTester vis(v0.GetInteraction(), v1.GetInteraction());
-    return g * vis.Tr(scene, sampler);
+    auto gstats = GeneralStats();
+    return g * vis.Tr(scene, sampler, gstats);
 }
 
 Float MISWeight(const Scene &scene, Vertex *lightVertices,
@@ -477,7 +478,8 @@ Spectrum ConnectBDPT(
                 DCHECK(!L.HasNaNs());
                 // Only check visibility after we know that the path would
                 // make a non-zero contribution.
-                if (!L.IsBlack()) L *= vis.Tr(scene, sampler);
+                auto g = GeneralStats();
+                if (!L.IsBlack()) L *= vis.Tr(scene, sampler, g);
             }
         }
     } else if (s == 1) {
@@ -502,7 +504,8 @@ Spectrum ConnectBDPT(
                 L = pt.beta * pt.f(sampled, TransportMode::Radiance) * sampled.beta;
                 if (pt.IsOnSurface()) L *= AbsDot(wi, pt.ns());
                 // Only check visibility if the path would carry radiance.
-                if (!L.IsBlack()) L *= vis.Tr(scene, sampler);
+                auto g = GeneralStats();
+                if (!L.IsBlack()) L *= vis.Tr(scene, sampler, g);
             }
         }
     } else {

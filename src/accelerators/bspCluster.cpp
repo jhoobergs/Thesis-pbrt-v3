@@ -194,7 +194,7 @@ namespace pbrt {
             CHECK_EQ(nodeNum, nextFreeNode);
 
             if (currentBuildNode.parentNum != -1)
-                nodes[currentBuildNode.parentNum].setAboveChild(nodeNum);
+                treeSetAboveChild(&nodes[currentBuildNode.parentNum], (nodeNum));
 
             maxPrimsOffset = std::max(maxPrimsOffset, (uint32_t) (currentBuildNode.primNums - &prims[0]));
 
@@ -214,8 +214,10 @@ namespace pbrt {
             // Initialize leaf node if termination criteria met
             if (currentBuildNode.nPrimitives <= maxPrims || currentBuildNode.depth == 0) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
-                nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
-                                          &primitiveIndices);
+                treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
+                             &primitiveIndices);
+                /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
+                                          &primitiveIndices);*/
                 continue;
             }
 
@@ -299,8 +301,10 @@ namespace pbrt {
             if ((bestCost > 4 * oldCost && currentBuildNode.nPrimitives < 16) || bestK == -1 ||
                 currentBuildNode.badRefines == 3) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
-                nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
-                                          &primitiveIndices);
+                treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
+                             &primitiveIndices);
+                /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
+                                          &primitiveIndices);*/
                 continue;
             }
 
@@ -320,7 +324,7 @@ namespace pbrt {
             const Float tSplit = edges[bestK][bestOffset].t;
 
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
-            nodes[nodeNum].InitInterior(clusterMeans[bestK], tSplit);
+            treeInitInterior(&nodes[nodeNum], clusterMeans[bestK], tSplit);
 
             stack.emplace_back(
                     currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
@@ -333,7 +337,7 @@ namespace pbrt {
         }
         reporter.Done();
         Warning("Done building");
-        statDepth = nodes[0].depth(nodes, 0);
+        statDepth = treeDepth(&nodes[0], nodes, 0);
         Warning("END Done building");
 
         nbNodes = nodeNum;

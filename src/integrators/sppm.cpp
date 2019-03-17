@@ -199,7 +199,7 @@ void SPPMIntegrator::Render(const Scene &scene) {
                             pixel.Ld += beta * isect.Le(wo);
                         pixel.Ld +=
                             beta * UniformSampleOneLight(isect, scene, arena,
-                                                         *tileSampler);
+                                                         *tileSampler, ray.stats); //TDOO: ray stats won't be right for this integrator
 
                         // Possibly create visible point and end camera path
                         bool isDiffuse = bsdf.NumComponents(BxDFType(

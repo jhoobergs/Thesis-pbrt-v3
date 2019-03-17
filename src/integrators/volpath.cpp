@@ -88,8 +88,8 @@ Spectrum VolPathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             // Handle scattering at point in medium for volumetric path tracer
             const Distribution1D *lightDistrib =
                 lightDistribution->Lookup(mi.p);
-            L += beta * UniformSampleOneLight(mi, scene, arena, sampler, true,
-                                              lightDistrib);
+            L += beta * UniformSampleOneLight(mi, scene, arena, sampler, ray.stats, true,
+                                              lightDistrib); // TODO ray stats won't be right for this integrator
 
             Vector3f wo = -ray.d, wi;
             mi.phase->Sample_p(wo, &wi, sampler.Get2D());
@@ -124,8 +124,8 @@ Spectrum VolPathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             // contribution
             const Distribution1D *lightDistrib =
                 lightDistribution->Lookup(isect.p);
-            L += beta * UniformSampleOneLight(isect, scene, arena, sampler,
-                                              true, lightDistrib);
+            L += beta * UniformSampleOneLight(isect, scene, arena, sampler, ray.stats,
+                                              true, lightDistrib);  // TODO ray stats won't be right for this integrator
 
             // Sample BSDF to get new path direction
             Vector3f wo = -ray.d, wi;
@@ -160,8 +160,8 @@ Spectrum VolPathIntegrator::Li(const RayDifferential &r, const Scene &scene,
                 // Account for the attenuated direct subsurface scattering
                 // component
                 L += beta *
-                     UniformSampleOneLight(pi, scene, arena, sampler, true,
-                                           lightDistribution->Lookup(pi.p));
+                     UniformSampleOneLight(pi, scene, arena, sampler, ray.stats, true,
+                                           lightDistribution->Lookup(pi.p)); // TODO ray stats won't be right for this integrator
 
                 // Account for the indirect subsurface scattering component
                 Spectrum f = pi.bsdf->Sample_f(pi.wo, &wi, sampler.Get2D(),

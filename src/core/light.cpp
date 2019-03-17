@@ -56,16 +56,20 @@ Light::Light(int flags, const Transform &LightToWorld,
 
 Light::~Light() {}
 
-bool VisibilityTester::Unoccluded(const Scene &scene) const {
-    return !scene.IntersectP(p0.SpawnRayTo(p1));
+bool VisibilityTester::Unoccluded(const Scene &scene, GeneralStats& stats) const {
+    auto r = p0.SpawnRayTo(p1);
+    r.stats.rays = 0;
+    stats += r.stats;
+    return !scene.IntersectP(r);
 }
 
-Spectrum VisibilityTester::Tr(const Scene &scene, Sampler &sampler) const {
+Spectrum VisibilityTester::Tr(const Scene &scene, Sampler &sampler, GeneralStats& stats) const {
     Ray ray(p0.SpawnRayTo(p1));
     Spectrum Tr(1.f);
     while (true) {
         SurfaceInteraction isect;
         bool hitSurface = scene.Intersect(ray, &isect);
+        stats += ray.stats;
         // Handle opaque surface along ray's path
         if (hitSurface && isect.primitive->GetMaterial() != nullptr)
             return Spectrum(0.0f);

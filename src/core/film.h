@@ -105,7 +105,12 @@ class Film {
                      (p.y - croppedPixelBounds.pMin.y) * width;
         return pixels[offset];
     }
-    void WriteGeneralStatMatrix(std::function<uint64_t (GeneralStats &g)> f, std::string name);
+    void WriteGeneralStatMatrix(std::function<uint64_t(GeneralStats &g)> f, const std::string &name);
+
+    void WriteGeneralStatMapImage(std::function<const std::map<uint32_t, uint32_t>(GeneralStats &g)> f,
+                                  const std::string &name);
+
+    void WriteGeneralStatMap(std::function<const std::map<uint32_t , uint32_t> (GeneralStats &g)> f, const std::string &name);
 };
 
 class FilmTile {
