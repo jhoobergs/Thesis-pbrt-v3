@@ -30,4 +30,5 @@ python ../../plots/heatmap_single.py $RESULTS_DIR"/output-primitiveIntersections
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-kdTreeNodeTraversals.txt" $RESULTS_DIR"/heatmap-kdTreeNodeTraversals.png"
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-bvhTreeNodeTraversals.txt" $RESULTS_DIR"/heatmap-bvhTreeNodeTraversals.png"
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-rBSPTreeNodeTraversals.txt" $RESULTS_DIR"/heatmap-rBSPTreeNodeTraversals.png"
-
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-leafNodeIntersectionMeanAmount.txt" $RESULTS_DIR"/heatmap-leafNodeIntersectionMeanAmount.png" 
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-leafNodeIntersectionPMeanAmount.txt" $RESULTS_DIR"/heatmap-leafNodeIntersectionPMeanAmount.png" 

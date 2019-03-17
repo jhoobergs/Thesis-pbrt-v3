@@ -55,12 +55,14 @@ bool Scene::IntersectP(const Ray &ray) const {
 }
 
 bool Scene::IntersectTr(Ray ray, Sampler &sampler, SurfaceInteraction *isect,
-                        Spectrum *Tr) const {
+                        Spectrum *Tr, GeneralStats &stats) const {
     *Tr = Spectrum(1.f);
     while (true) {
         bool hitSurface = Intersect(ray, isect);
         // Accumulate beam transmittance for ray segment
         if (ray.medium) *Tr *= ray.medium->Tr(ray, sampler);
+
+        stats += ray.stats;
 
         // Initialize next ray segment or terminate transmittance computation
         if (!hitSurface) return false;

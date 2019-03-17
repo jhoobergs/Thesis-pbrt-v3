@@ -48,6 +48,7 @@
 #include "accelerators/rbsp.h"
 #include "accelerators/bspCluster.h"
 #include "accelerators/bspPaper.h"
+#include "accelerators/bspPaperKd.h"
 #include "cameras/environment.h"
 #include "cameras/orthographic.h"
 #include "cameras/perspective.h"
@@ -819,6 +820,17 @@ std::shared_ptr<Primitive> MakeAccelerator(
     }
     else if (name == "bsppaper") {
         std::shared_ptr<BSPPaper> bsp = CreateBSPPaperTreeAccelerator(std::move(prims), paramSet);
+        std::string filename = PbrtOptions.imageFile;
+        std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(".txt");
+        Warning("%s", textFile.c_str());
+        std::ofstream myfile;
+        myfile.open(textFile);
+        myfile << *bsp.get();
+        myfile.close();
+        accel = bsp;
+    }
+    else if (name == "bsppaperkd") {
+        std::shared_ptr<BSPPaperKd> bsp = CreateBSPPaperKdTreeAccelerator(std::move(prims), paramSet);
         std::string filename = PbrtOptions.imageFile;
         std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(".txt");
         Warning("%s", textFile.c_str());

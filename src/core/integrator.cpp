@@ -53,7 +53,7 @@ Integrator::~Integrator() {}
 // Integrator Utility Functions
 Spectrum UniformSampleAllLights(const Interaction &it, const Scene &scene,
                                 MemoryArena &arena, Sampler &sampler,
-                                const std::vector<int> &nLightSamples,
+                                const std::vector<int> &nLightSamples, GeneralStats& stats,
                                 bool handleMedia) {
     ProfilePhase p(Prof::DirectLighting);
     Spectrum L(0.f);
@@ -68,13 +68,13 @@ Spectrum UniformSampleAllLights(const Interaction &it, const Scene &scene,
             Point2f uLight = sampler.Get2D();
             Point2f uScattering = sampler.Get2D();
             L += EstimateDirect(it, uScattering, *light, uLight, scene, sampler,
-                                arena, handleMedia);
+                                arena, stats, handleMedia);
         } else {
             // Estimate direct lighting using sample arrays
             Spectrum Ld(0.f);
             for (int k = 0; k < nSamples; ++k)
                 Ld += EstimateDirect(it, uScatteringArray[k], *light,
-                                     uLightArray[k], scene, sampler, arena,
+                                     uLightArray[k], scene, sampler, arena, stats,
                                      handleMedia);
             L += Ld / nSamples;
         }
@@ -83,7 +83,7 @@ Spectrum UniformSampleAllLights(const Interaction &it, const Scene &scene,
 }
 
 Spectrum UniformSampleOneLight(const Interaction &it, const Scene &scene,
-                               MemoryArena &arena, Sampler &sampler,
+                               MemoryArena &arena, Sampler &sampler, GeneralStats& stats,
                                bool handleMedia, const Distribution1D *lightDistrib) {
     ProfilePhase p(Prof::DirectLighting);
     // Randomly choose a single light to sample, _light_
@@ -102,13 +102,13 @@ Spectrum UniformSampleOneLight(const Interaction &it, const Scene &scene,
     Point2f uLight = sampler.Get2D();
     Point2f uScattering = sampler.Get2D();
     return EstimateDirect(it, uScattering, *light, uLight,
-                          scene, sampler, arena, handleMedia) / lightPdf;
+                          scene, sampler, arena, stats, handleMedia) / lightPdf;
 }
 
 Spectrum EstimateDirect(const Interaction &it, const Point2f &uScattering,
                         const Light &light, const Point2f &uLight,
                         const Scene &scene, Sampler &sampler,
-                        MemoryArena &arena, bool handleMedia, bool specular) {
+                        MemoryArena &arena, GeneralStats& stats, bool handleMedia, bool specular) {
     BxDFType bsdfFlags =
         specular ? BSDF_ALL : BxDFType(BSDF_ALL & ~BSDF_SPECULAR);
     Spectrum Ld(0.f);
@@ -140,10 +140,10 @@ Spectrum EstimateDirect(const Interaction &it, const Point2f &uScattering,
         if (!f.IsBlack()) {
             // Compute effect of visibility for light source sample
             if (handleMedia) {
-                Li *= visibility.Tr(scene, sampler);
+                Li *= visibility.Tr(scene, sampler, stats);
                 VLOG(2) << "  after Tr, Li: " << Li;
             } else {
-              if (!visibility.Unoccluded(scene)) {
+              if (!visibility.Unoccluded(scene, stats)) {
                 VLOG(2) << "  shadow ray blocked";
                 Li = Spectrum(0.f);
               } else
@@ -198,7 +198,7 @@ Spectrum EstimateDirect(const Interaction &it, const Point2f &uScattering,
             Ray ray = it.SpawnRay(wi);
             Spectrum Tr(1.f);
             bool foundSurfaceInteraction =
-                handleMedia ? scene.IntersectTr(ray, sampler, &lightIsect, &Tr)
+                handleMedia ? scene.IntersectTr(ray, sampler, &lightIsect, &Tr, stats)
                             : scene.Intersect(ray, &lightIsect);
 
             // Add light contribution from material sampling
@@ -209,6 +209,7 @@ Spectrum EstimateDirect(const Interaction &it, const Point2f &uScattering,
             } else
                 Li = light.Le(ray);
             if (!Li.IsBlack()) Ld += f * Li * Tr * weight / scatteringPdf;
+            stats += ray.stats;
         }
     }
     return Ld;
@@ -373,6 +374,7 @@ Spectrum SamplerIntegrator::SpecularReflect(
             rd.ryDirection =
                 wi - dwody + 2.f * Vector3f(Dot(wo, ns) * dndy + dDNdy * ns);
         }
+        ray.stats += rd.stats;
         return f * Li(rd, scene, sampler, arena, depth + 1) * AbsDot(wi, ns) /
                pdf;
     } else
@@ -454,6 +456,7 @@ Spectrum SamplerIntegrator::SpecularTransmit(
             rd.ryDirection =
                 wi - eta * dwody + Vector3f(mu * dndy + dmudy * ns);
         }
+        ray.stats += rd.stats;
         L = f * Li(rd, scene, sampler, arena, depth + 1) * AbsDot(wi, ns) / pdf;
     }
     return L;

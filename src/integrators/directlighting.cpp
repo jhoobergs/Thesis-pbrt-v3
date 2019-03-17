@@ -73,8 +73,12 @@ Spectrum DirectLightingIntegrator::Li(const RayDifferential &ray,
 
     // Compute scattering functions for surface interaction
     isect.ComputeScatteringFunctions(ray, arena);
-    if (!isect.bsdf)
-        return Li(isect.SpawnRay(ray.d), scene, sampler, arena, depth);
+    if (!isect.bsdf) {
+        auto r = isect.SpawnRay(ray.d);
+        auto res= Li(r, scene, sampler, arena, depth);
+        ray.stats += r.stats;
+        return res;
+    }
     Vector3f wo = isect.wo;
     // Compute emitted light if ray hit an area light source
     L += isect.Le(wo);
@@ -82,9 +86,9 @@ Spectrum DirectLightingIntegrator::Li(const RayDifferential &ray,
         // Compute direct lighting for _DirectLightingIntegrator_ integrator
         if (strategy == LightStrategy::UniformSampleAll)
             L += UniformSampleAllLights(isect, scene, arena, sampler,
-                                        nLightSamples);
+                                        nLightSamples, ray.stats);
         else
-            L += UniformSampleOneLight(isect, scene, arena, sampler);
+            L += UniformSampleOneLight(isect, scene, arena, sampler, ray.stats);
     }
     if (depth + 1 < maxDepth) {
         // Trace rays for specular reflection and refraction

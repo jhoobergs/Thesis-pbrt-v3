@@ -13,7 +13,7 @@
 
 
 namespace pbrt {
-    struct TreeNode {
+    /*struct TreeNodeInterface {
         virtual bool IsLeaf() const = 0;
 
         virtual uint32_t AboveChild() const = 0;
@@ -25,7 +25,53 @@ namespace pbrt {
         virtual bool intersectLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices, SurfaceInteraction *isect) const = 0;
 
         virtual bool intersectPLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices) const = 0;
-    };
+
+        virtual void setAboveChild(uint32_t ac) = 0;
+
+        virtual Float SplitPos() const = 0;
+
+        virtual uint32_t nPrimitives() const = 0;
+
+        virtual Vector3f SplitAxis() const = 0;
+
+        virtual void InitLeaf(uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices) = 0;
+
+        virtual void InitInterior(const Vector3f &axis, Float s) = 0;
+
+        virtual void InitInterior(uint32_t &axis, Float s) = 0;
+
+        virtual uint32_t depth(TreeNodeInterface *nodes, int id = 0) const = 0;
+    };*/
+
+    //struct TreeNode {
+        /*bool IsLeaf() const {return false;};
+
+        uint32_t AboveChild() const {return 0;};
+
+        std::string toString(const std::vector<uint32_t> &primitiveIndices) { return ""; };
+
+        std::pair<Float, bool>intersectInterior(const Ray &ray, const Vector3f &invDir) const { return std::make_pair(0,false); };
+
+        bool intersectLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices, SurfaceInteraction *isect) const { return false; };
+
+        bool intersectPLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices) const { return false; };
+
+        void setAboveChild(uint32_t ac) {};
+
+        Float SplitPos() const { return 0; };
+
+        uint32_t nPrimitives() const { return 0; };
+
+        Vector3f SplitAxis() const { Vector3f(0,0,0); };
+
+        void InitLeaf(uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices) {};
+
+        virtual void InitInterior(const Vector3f &axis, Float s) {};
+
+        virtual void InitInterior(uint32_t &axis, Float s) {};
+
+        virtual uint32_t depth(TreeNodeInterface *nodes, int id = 0) const {return 0;};*/
+    //};
 
     enum class EdgeType {
         Start, End
