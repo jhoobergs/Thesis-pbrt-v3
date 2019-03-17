@@ -633,6 +633,7 @@ namespace pbrt {
             } else {
                 // Check for intersections inside leaf node
                 const uint32_t nPrimitives = node->nPrimitives(M);
+                ray.stats.insertLeafNodeIntersection(nPrimitives);
                 if (nPrimitives == 1) {
                     const std::shared_ptr<Primitive> &p =
                             primitives[node->onePrimitive];
@@ -682,6 +683,7 @@ namespace pbrt {
             if (node->IsLeaf(M)) {
                 // Check for shadow ray intersections inside leaf node
                 const uint32_t nPrimitives = node->nPrimitives(M);
+                ray.stats.insertLeafNodeIntersectionP(nPrimitives);
                 if (nPrimitives == 1) {
                     const std::shared_ptr<Primitive> &p =
                             primitives[node->onePrimitive];

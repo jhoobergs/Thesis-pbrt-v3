@@ -10,7 +10,7 @@
 #include "geometry.h"
 
 namespace pbrt {
-    void BSPNode::InitLeaf(uint32_t *primNums, uint32_t np,
+    /*void BSPNode::InitLeaf(uint32_t *primNums, uint32_t np,
                            std::vector<uint32_t> *primitiveIndices) {
         flags = 1u;
         nPrims |= (np << 1u);
@@ -23,7 +23,7 @@ namespace pbrt {
             primitiveIndicesOffset = primitiveIndices->size();
             for (uint32_t i = 0; i < np; ++i) primitiveIndices->push_back(primNums[i]);
         }
-    }
+    }*/
 
     BSP::BSP(std::vector<std::shared_ptr<Primitive>> p,
              uint32_t isectCost, uint32_t traversalCost,
@@ -35,12 +35,11 @@ namespace pbrt {
 
     void BSP::printNodes(std::ofstream &os) const {
         for (int i = 0; i < nextFreeNode; i++) {
-            os << nodes[i].toString(primitiveIndices) << std::endl;
+            os << nodes[i].toString(primitiveIndices) << std::endl; // TODO
         }
     }
 
     bool BSP::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
-        Warning("Intersecting");
         ProfilePhase p(Prof::AccelIntersect);
         // Compute initial parametric range of ray inside rbsp-tree extent
         Float tMin, tMax;
@@ -60,11 +59,11 @@ namespace pbrt {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
             ray.stats.rBSPTreeNodeTraversals++;
-            if (!node->IsLeaf()) {
+            if (!treeIsLeaf(node)) {
                 // Process rbsp-tree interior node
 
                 // Compute parametric distance along ray to split plane
-                const std::pair<Float, bool> intersection = node->intersectInterior(ray, Vector3f(0,0,0));
+                const std::pair<Float, bool> intersection = treeIntersectInterior(node, ray, Vector3f(0,0,0));
                 const Float tPlane = intersection.first;
                 const bool belowFirst = intersection.second;
 
@@ -72,9 +71,9 @@ namespace pbrt {
                 const BSPNode *firstChild, *secondChild;
                 if (belowFirst) {
                     firstChild = node + 1;
-                    secondChild = &nodes[node->AboveChild()];
+                    secondChild = &nodes[treeAboveChild(node)];
                 } else {
-                    firstChild = &nodes[node->AboveChild()];
+                    firstChild = &nodes[treeAboveChild(node)];
                     secondChild = node + 1;
                 }
 
@@ -94,7 +93,7 @@ namespace pbrt {
                 }
             } else {
                 // Check for intersections inside leaf node
-                if(node->intersectLeaf(ray, primitives, primitiveIndices, isect))
+                if(treeIntersectLeaf(node, ray, primitives, primitiveIndices, isect))
                     hit = true;
 
                 // Grab next node to process from todo list
@@ -125,9 +124,9 @@ namespace pbrt {
         const BSPNode *node = &nodes[0];
         while (node != nullptr) {
             ray.stats.rBSPTreeNodeTraversalsP++;
-            if (node->IsLeaf()) {
+            if (treeIsLeaf(node)) {
                 // Check for shadow ray intersections inside leaf node
-                if(node->intersectPLeaf(ray, primitives, primitiveIndices))
+                if(treeIntersectPLeaf(node, ray, primitives, primitiveIndices))
                     return true;
 
                 // Grab next node to process from todo list
@@ -143,7 +142,7 @@ namespace pbrt {
                 // Process rbsp-tree interior node
 
                 // Compute parametric distance along ray to split plane
-                const std::pair<Float, bool> intersection = node->intersectInterior(ray, Vector3f(0,0,0));
+                const std::pair<Float, bool> intersection = treeIntersectInterior(node, ray, Vector3f(0,0,0));
                 const Float tPlane = intersection.first;
                 const bool belowFirst = intersection.second;
 
@@ -151,9 +150,9 @@ namespace pbrt {
                 const BSPNode *firstChild, *secondChild;
                 if (belowFirst) {
                     firstChild = node + 1;
-                    secondChild = &nodes[node->AboveChild()];
+                    secondChild = &nodes[treeAboveChild(node)];
                 } else {
-                    firstChild = &nodes[node->AboveChild()];
+                    firstChild = &nodes[treeAboveChild(node)];
                     secondChild = node + 1;
                 }
 

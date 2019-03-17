@@ -124,6 +124,7 @@ namespace pbrt {
         bool intersectLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices, SurfaceInteraction *isect) const {
             bool hit = false;
             uint32_t nPrimitives = this->nPrimitives();
+            ray.stats.insertLeafNodeIntersection(nPrimitives);
             if (nPrimitives == 1) {
                 const std::shared_ptr<Primitive> &p =
                         primitives[this->onePrimitive];
@@ -143,6 +144,7 @@ namespace pbrt {
 
         bool intersectPLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices) const {
             uint32_t nPrimitives = this->nPrimitives();
+            ray.stats.insertLeafNodeIntersectionP(nPrimitives);
             if (nPrimitives == 1) {
                 const std::shared_ptr<Primitive> &p =
                         primitives[this->onePrimitive];

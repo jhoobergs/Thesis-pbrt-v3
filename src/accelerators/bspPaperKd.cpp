@@ -1,12 +1,12 @@
 //
-// Created by jesse on 13.02.19.
+// Created by jesse on 17.03.19.
 //
 
+#include "bspPaperKd.h"
 #include <core/stats.h>
 #include <core/progressreporter.h>
 #include <bits/random.h>
 #include "paramset.h"
-#include "bspPaper.h"
 #include <set>
 #include "bvh.h"
 
@@ -26,11 +26,11 @@ namespace pbrt {
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
     STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
 
-    BSPPaper::BSPPaper(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
+    BSPPaperKd::BSPPaperKd(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
                        uint32_t traversalCost,
-                       Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
-            : BSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
-                         0, 0, 0, 0) {
+                       Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, uint32_t kdTravCost)
+            : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
+                  0, 0, 0, 0), kdTraversalCost(kdTravCost) {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamnbDirections = nbDirections;
@@ -45,9 +45,16 @@ namespace pbrt {
         buildTree();
     }
 
-    void BSPPaper::buildTree() {
+    void BSPPaperKd::printNodes(std::ofstream &os) const {
+        for (int i = 0; i < nextFreeNode; i++) {
+            os << nodes[i].toString(primitiveIndices) << std::endl; // TODO
+        }
+    }
+
+    void BSPPaperKd::buildTree() {
+        const Float BSP_ALPHA = 0.1;
         //Initialize
-        // Compute bounds for rbsp-tree construction:
+        // Compute bounds for rbsp-tree construction
         std::vector<Bounds3f> allPrimBounds;
         allPrimBounds.reserve(primitives.size());
         for (const std::shared_ptr<Primitive> &prim : primitives) {
@@ -95,16 +102,16 @@ namespace pbrt {
             CHECK_EQ(nodeNum, nextFreeNode);
 
             if (currentBuildNode.parentNum != -1)
-                treeSetAboveChild(&nodes[currentBuildNode.parentNum], nodeNum);
+                nodes[currentBuildNode.parentNum].setAboveChild(nodeNum);
 
             maxPrimsOffset = std::max(maxPrimsOffset, (uint32_t) (currentBuildNode.primNums - &prims[0]));
 
             // Get next free node from _nodes_ array
             if (nextFreeNode == nAllocedNodes) {
                 uint32_t nNewAllocNodes = std::max(2u * nAllocedNodes, 512u);
-                auto *n = AllocAligned<BSPNode>(nNewAllocNodes);
+                auto *n = AllocAligned<BSPKdNode>(nNewAllocNodes);
                 if (nAllocedNodes > 0) {
-                    memcpy(n, nodes, nAllocedNodes * sizeof(BSPNode));
+                    memcpy(n, nodes, nAllocedNodes * sizeof(BSPKdNode));
                     FreeAligned(nodes);
                 }
                 nodes = n;
@@ -115,20 +122,18 @@ namespace pbrt {
             // Initialize leaf node if termination criteria met
             if (currentBuildNode.nPrimitives <= maxPrims || currentBuildNode.depth == 0) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
-                treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
+                nodes[nodeNum++].initLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
-                /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
-                                          &primitiveIndices);*/
                 continue;
             }
 
             // Choose split axis position for interior node
-            uint32_t bestK = -1, bestOffset = -1;
-            Float bestSplitT = 0;
-            Vector3f bestSplitAxis = Vector3f();
-            std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> bestSplittedKDOPs;
-            std::pair<Float, Float> bestSplittedKDOPAreas = std::make_pair(0, 0);
-            Float bestCost = Infinity;
+            uint32_t bestK = -1, bestOffset = -1, bestKFixed = -1;
+            Float bestSplitT = 0, bestSplitTFixed = 0;
+            Vector3f bestSplitAxis = Vector3f(), bestSplitAxisFixed = Vector3f();
+            std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> bestSplittedKDOPs, bestSplittedKDOPsFixed;
+            std::pair<Float, Float> bestSplittedKDOPAreas = std::make_pair(0, 0), bestSplittedKDOPAreasFixed = std::make_pair(0, 0);
+            Float bestCost = Infinity, bestCostFixed = Infinity;
             Float oldCost = isectCost * Float(currentBuildNode.nPrimitives);
             const Float invTotalSA = 1 / currentBuildNode.kdopMeshArea;
             std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> splittedKDOPs;
@@ -178,7 +183,7 @@ namespace pbrt {
 
                         const Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
                         const Float cost =
-                                traversalCost +
+                                kdTraversalCost +
                                 isectCost * (1 - eb) * (pBelow * nBelow + pAbove * nAbove);
 
                         // Update best split if this is lowest cost so far
@@ -226,9 +231,9 @@ namespace pbrt {
                         auto lr = bvh.getAmountToLeftAndRight(plane);
 
                         const Float eb = (lr.second == 0 || lr.first == 0) ? emptyBonus : 0;
-                        const Float cost =
-                                traversalCost +
-                                isectCost * (1 - eb) * (pBelow * lr.first + pAbove * lr.second);
+                        const Float costIntersection = isectCost * (1 - eb) * (pBelow * lr.first + pAbove * lr.second);
+                        const Float costFixed = traversalCost + costIntersection;
+                        const Float cost = BSP_ALPHA*isectCost*(currentBuildNode.nPrimitives - 1) + kdTraversalCost + costIntersection;
                         // Update best split if this is lowest cost so far
                         if (cost < bestCost) {
                             bestCost = cost;
@@ -239,17 +244,26 @@ namespace pbrt {
                             bestSplittedKDOPAreas.first = areaBelow;
                             bestSplittedKDOPAreas.second = areaAbove;
                         }
+                        if(costFixed < bestCostFixed){
+                            bestCostFixed = costFixed;
+                            bestKFixed = 33;
+                            bestSplitTFixed = plane.t;
+                            bestSplitAxisFixed = plane.axis;
+                            bestSplittedKDOPsFixed = splittedKDOPs;
+                            bestSplittedKDOPAreasFixed.first = areaBelow;
+                            bestSplittedKDOPAreasFixed.second = areaAbove;
+                        }
                     }
                 }
             }
 
 
             // Create leaf if no good splits were found
-            if (bestCost > oldCost) ++currentBuildNode.badRefines;
-            if ((bestCost > 4 * oldCost && currentBuildNode.nPrimitives < 16) || bestK == -1 ||
+            if (bestCost > oldCost && bestCostFixed > oldCost) ++currentBuildNode.badRefines;
+            if ((bestCost > 4 * oldCost && bestCostFixed > 4 * oldCost && currentBuildNode.nPrimitives < 16) || (bestK == -1 && bestKFixed == -1) ||
                 currentBuildNode.badRefines == 3) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
-                treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
+                nodes[nodeNum++].initLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
@@ -260,7 +274,7 @@ namespace pbrt {
             uint32_t n0 = 0, n1 = 0;
             uint32_t *prims1, *prims0;
             prims1 = currentBuildNode.primNums; // prims1 needs to be put in de array first, so it isn't overriden by child 0
-            if (bestK != 33) {
+            if (bestK != -1 && bestK != 33) {
                 nbKdNodes++;
                 if (nbKdNodes % 10000 == 0)
                     Warning("KD nodes %d", nbKdNodes);
@@ -277,7 +291,10 @@ namespace pbrt {
                 if (nbBSPNodes % 10000 == 0)
                     Warning("BSP nodes %d", nbBSPNodes);
                 std::vector<uint32_t> left, right;
-                bvh.getPrimnumsToLeftAndRight(Plane(bestSplitT, bestSplitAxis), left, right);
+                if(bestK != -1)
+                    bvh.getPrimnumsToLeftAndRight(Plane(bestSplitT, bestSplitAxis), left, right);
+                else
+                    bvh.getPrimnumsToLeftAndRight(Plane(bestSplitTFixed, bestSplitAxisFixed), left, right);
                 // Map zero based primNums in BVH to currentBuildNode based primNums
                 std::transform(left.begin(), left.end(), left.begin(),
                                [&currentBuildNode](
@@ -296,14 +313,33 @@ namespace pbrt {
                 }
             }
             // Add child nodes to stack
-            currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
-            treeInitInterior(&nodes[nodeNum], bestSplitAxis, bestSplitT);
-            stack.emplace_back(
-                    currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
-                    bestSplittedKDOPs.second, bestSplittedKDOPAreas.second, prims1, nodeNum);
-            stack.emplace_back(
-                    currentBuildNode.depth - 1, n0, currentBuildNode.badRefines,
-                    bestSplittedKDOPs.first, bestSplittedKDOPAreas.first, prims0);
+            if(bestK != -1) {
+                if(bestK == 33) {
+                    currentSACost += (BSP_ALPHA * isectCost * (currentBuildNode.nPrimitives - 1) + kdTraversalCost) *
+                                     currentBuildNode.kdopMeshArea;
+                    nodes[nodeNum].initInterior(bestSplitAxis, bestSplitT);
+                }
+                else {
+                    currentSACost += kdTraversalCost * currentBuildNode.kdopMeshArea;
+                    nodes[nodeNum].initInteriorKd(bestK, bestSplitT);
+                }
+                stack.emplace_back(
+                        currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
+                        bestSplittedKDOPs.second, bestSplittedKDOPAreas.second, prims1, nodeNum);
+                stack.emplace_back(
+                        currentBuildNode.depth - 1, n0, currentBuildNode.badRefines,
+                        bestSplittedKDOPs.first, bestSplittedKDOPAreas.first, prims0);
+            } else {
+                currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
+                nodes[nodeNum].initInterior(bestSplitAxisFixed, bestSplitTFixed);
+                stack.emplace_back(
+                        currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
+                        bestSplittedKDOPsFixed.second, bestSplittedKDOPAreasFixed.second, prims1, nodeNum);
+                stack.emplace_back(
+                        currentBuildNode.depth - 1, n0, currentBuildNode.badRefines,
+                        bestSplittedKDOPsFixed.first, bestSplittedKDOPAreasFixed.first, prims0);
+            }
+
 
 
             ++nodeNum;
@@ -314,16 +350,161 @@ namespace pbrt {
         totalSACost = currentSACost / bounds.SurfaceArea();
     }
 
-    std::shared_ptr<BSPPaper> CreateBSPPaperTreeAccelerator(
+    bool BSPPaperKd::Intersect(const Ray &ray, SurfaceInteraction *isect) const {
+
+        ProfilePhase p(Prof::AccelIntersect);
+        // Compute initial parametric range of ray inside rbsp-tree extent
+        Float tMin, tMax;
+        if (!bounds.IntersectP(ray, &tMin, &tMax)) {
+            return false;
+        }
+
+        // Prepare to traverse rbsp-tree for ray
+        Vector3f invDir(1 / ray.d.x, 1 / ray.d.y, 1 / ray.d.z);
+        PBRT_CONSTEXPR uint32_t maxTodo = 64u;
+        BSPToDo<BSPKdNode> todo[maxTodo];
+        uint32_t todoPos = 0;
+
+        // Traverse rbsp-tree nodes in order for ray
+        bool hit = false;
+        const BSPKdNode *node = &nodes[0];
+        while (node != nullptr) {
+            // Bail out if we found a hit closer than the current node
+            if (ray.tMax < tMin) break;
+            if(node->isKdNode())
+                ray.stats.kdTreeNodeTraversals++;
+            else
+                ray.stats.rBSPTreeNodeTraversals++;
+            if (!node->isLeaf()) {
+                // Process rbsp-tree interior node
+
+                // Compute parametric distance along ray to split plane
+                const std::pair<Float, bool> intersection = node->intersectInterior(ray, invDir);
+                const Float tPlane = intersection.first;
+                const bool belowFirst = intersection.second;
+
+                // Get node children pointers for ray
+                const BSPKdNode *firstChild, *secondChild;
+                if (belowFirst) {
+                    firstChild = node + 1;
+                    secondChild = &nodes[node->AboveChild()];
+                } else {
+                    firstChild = &nodes[node->AboveChild()];
+                    secondChild = node + 1;
+                }
+
+                // Advance to next child node, possibly enqueue other child
+                if (tPlane > tMax || tPlane <= 0)
+                    node = firstChild;
+                else if (tPlane < tMin)
+                    node = secondChild;
+                else {
+                    // Enqueue _secondChild_ in todo list
+                    todo[todoPos].node = secondChild;
+                    todo[todoPos].tMin = tPlane;
+                    todo[todoPos].tMax = tMax;
+                    ++todoPos;
+                    node = firstChild;
+                    tMax = tPlane;
+                }
+            } else {
+                // Check for intersections inside leaf node
+                if(node->intersectLeaf(ray, primitives, primitiveIndices, isect))
+                    hit = true;
+
+                // Grab next node to process from todo list
+                if (todoPos > 0) {
+                    --todoPos;
+                    node = todo[todoPos].node;
+                    tMin = todo[todoPos].tMin;
+                    tMax = todo[todoPos].tMax;
+                } else
+                    break;
+            }
+        }
+        return hit;
+    }
+
+    bool BSPPaperKd::IntersectP(const Ray &ray) const {
+        ProfilePhase p(Prof::AccelIntersectP);
+        // Compute initial parametric range of ray inside rbsp-tree extent
+        Float tMin, tMax;
+        if (!bounds.IntersectP(ray, &tMin, &tMax)) {
+            return false;
+        }
+
+        // Prepare to traverse rbsp-tree for ray
+        PBRT_CONSTEXPR uint32_t maxTodo = 64;
+        BSPToDo<BSPKdNode> todo[maxTodo];
+        uint32_t todoPos = 0;
+        const BSPKdNode *node = &nodes[0];
+        while (node != nullptr) {
+            if(node->isKdNode())
+                ray.stats.kdTreeNodeTraversalsP++;
+            else
+                ray.stats.rBSPTreeNodeTraversalsP++;
+            if (node->isLeaf()) {
+                // Check for shadow ray intersections inside leaf node
+                if (node->intersectPLeaf(ray, primitives, primitiveIndices))
+                    return true;
+
+                // Grab next node to process from todo list
+                if (todoPos > 0) {
+                    --todoPos;
+                    node = todo[todoPos].node;
+                    tMin = todo[todoPos].tMin;
+                    tMax = todo[todoPos].tMax;
+                } else {
+                    break;
+                }
+            } else {
+                // Process rbsp-tree interior node
+
+                // Compute parametric distance along ray to split plane
+                const std::pair<Float, bool> intersection = node->intersectInterior(ray, Vector3f(0,0,0));
+                const Float tPlane = intersection.first;
+                const bool belowFirst = intersection.second;
+
+                // Get node children pointers for ray
+                const BSPKdNode *firstChild, *secondChild;
+                if (belowFirst) {
+                    firstChild = node + 1;
+                    secondChild = &nodes[node->AboveChild()];
+                } else {
+                    firstChild = &nodes[node->AboveChild()];
+                    secondChild = node + 1;
+                }
+
+                // Advance to next child node, possibly enqueue other child
+                if (tPlane > tMax || tPlane <= 0)
+                    node = firstChild;
+                else if (tPlane < tMin)
+                    node = secondChild;
+                else {
+                    // Enqueue _secondChild_ in todo list
+                    todo[todoPos].node = secondChild;
+                    todo[todoPos].tMin = tPlane;
+                    todo[todoPos].tMax = tMax;
+                    ++todoPos;
+                    node = firstChild;
+                    tMax = tPlane;
+                }
+            }
+        }
+        return false;
+    }
+
+    std::shared_ptr<BSPPaperKd> CreateBSPPaperKdTreeAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps) {
         uint32_t isectCost = (uint32_t) ps.FindOneInt("intersectcost", 80);
         uint32_t travCost = (uint32_t) ps.FindOneInt("traversalcost", 5);
+        uint32_t kdTravCost = (uint32_t) ps.FindOneInt("kdtraversalcost", 1);
         Float emptyBonus = ps.FindOneFloat("emptybonus", 0);
         uint32_t maxPrims = (uint32_t) ps.FindOneInt("maxprims", 1);
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
         uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3);
 
-        return std::make_shared<BSPPaper>(std::move(prims), isectCost, travCost, emptyBonus,
-                                          maxPrims, maxDepth, nbDirections);
+        return std::make_shared<BSPPaperKd>(std::move(prims), isectCost, travCost, emptyBonus,
+                                          maxPrims, maxDepth, nbDirections, kdTravCost);
     }
-} // namespace pbrt
+}

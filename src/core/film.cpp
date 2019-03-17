@@ -177,9 +177,14 @@ void Film::WriteGeneralStats(){
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rBSPTreeNodeTraversalsP; },"rBSPTreeNodeTraversalsP");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversals; },"bvhTreeNodeTraversals");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversalsP; },"bvhTreeNodeTraversalsP");
+    WriteGeneralStatMapImage([](GeneralStats &stats) {return stats.leafNodeIntersectionsByAmount; }, "leafNodeIntersectionMeanAmount");
+    WriteGeneralStatMapImage([](GeneralStats &stats) {return stats.leafNodeIntersectionsPByAmount; }, "leafNodeIntersectionPMeanAmount");
+    WriteGeneralStatMap([](GeneralStats &stats) {return stats.leafNodeIntersectionsByAmount; }, "leafNodeIntersectionAmountMap");
+    WriteGeneralStatMap([](GeneralStats &stats) {return stats.leafNodeIntersectionsPByAmount; }, "leafNodeIntersectionPAmountMap");
+
 }
 
-void Film::WriteGeneralStatMatrix(std::function<uint64_t (GeneralStats &g)> f, std::string name){
+void Film::WriteGeneralStatMatrix(std::function<uint64_t (GeneralStats &g)> f, const std::string &name){
     int x = 0;
     std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(".txt");
     // Warning("%s", textFile.c_str());
@@ -197,6 +202,61 @@ void Film::WriteGeneralStatMatrix(std::function<uint64_t (GeneralStats &g)> f, s
             x=0;
         }
     }
+    myfile.close();
+}
+
+void Film::WriteGeneralStatMapImage(std::function<const std::map<uint32_t , uint32_t> (GeneralStats &g)> f, const std::string &name){
+    int x = 0;
+    std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(".txt");
+    // Warning("%s", textFile.c_str());
+    std::ofstream myfile;
+    myfile.open(textFile);
+
+    for (Point2i p : croppedPixelBounds) {
+        Pixel &pixel = GetPixel(p);
+        if(x > 0)
+            myfile << " ";
+        const std::map<uint32_t , uint32_t> m = f(pixel.stats);
+        uint64_t total = 0;
+        uint64_t nbNodes = 0;
+        for(auto &myPair: m){
+            total += myPair.first * myPair.second;
+            nbNodes += myPair.second;
+        }
+        double mean = total / (1.0 * nbNodes);
+        if(total == 0 && nbNodes == 0)
+            mean = 0;
+        myfile << mean;
+        x++;
+        if(x == croppedPixelBounds.Diagonal().x){
+            myfile << "\n";
+            x=0;
+        }
+    }
+    myfile.close();
+}
+
+void Film::WriteGeneralStatMap(std::function<const std::map<uint32_t , uint32_t> (GeneralStats &g)> f, const std::string &name){
+    int x = 0;
+    std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(".txt");
+    // Warning("%s", textFile.c_str());
+    std::ofstream myfile;
+    myfile.open(textFile);
+
+    GeneralStats g;
+    for (Point2i p : croppedPixelBounds) {
+        Pixel &pixel = GetPixel(p);
+
+        const std::map<uint32_t , uint32_t> m = f(pixel.stats);
+        for(auto &myPair: m){
+            g.insertLeafNodeIntersection(myPair.first, myPair.second); // use normal as bookkeeper
+        }
+    }
+
+    for(auto &myPair: g.leafNodeIntersectionsByAmount){
+        myfile << myPair.first << " " << myPair.second << std::endl;
+    }
+
     myfile.close();
 }
 

@@ -88,10 +88,10 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         SurfaceInteraction isect;
         bool foundIntersection = scene.Intersect(ray, &isect);
 
-        if(first) {
+        /*if(first) {
             r.stats += ray.stats;
             first = true;
-        }
+        }*/
 
         // Possibly add emitted light at intersection
         if (bounces == 0 || specularBounce) {
@@ -113,6 +113,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         isect.ComputeScatteringFunctions(ray, arena, true);
         if (!isect.bsdf) {
             VLOG(2) << "Skipping intersection due to null bsdf";
+            r.stats += ray.stats;
             ray = isect.SpawnRay(ray.d);
             bounces--;
             continue;
@@ -126,7 +127,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             0) {
             ++totalPaths;
             Spectrum Ld = beta * UniformSampleOneLight(isect, scene, arena,
-                                                       sampler, false, distrib);
+                                                       sampler, r.stats, false, distrib);
             VLOG(2) << "Sampled direct lighting Ld = " << Ld;
             if (Ld.IsBlack()) ++zeroRadiancePaths;
             CHECK_GE(Ld.y(), 0.f);
@@ -153,6 +154,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             // medium.
             etaScale *= (Dot(wo, isect.n) > 0) ? (eta * eta) : 1 / (eta * eta);
         }
+        r.stats += ray.stats;
         ray = isect.SpawnRay(wi);
 
         // Account for subsurface scattering, if applicable
@@ -166,7 +168,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             beta *= S / pdf;
 
             // Account for the direct subsurface scattering component
-            L += beta * UniformSampleOneLight(pi, scene, arena, sampler, false,
+            L += beta * UniformSampleOneLight(pi, scene, arena, sampler, r.stats, false,
                                               lightDistribution->Lookup(pi.p));
 
             // Account for the indirect subsurface scattering component
@@ -176,6 +178,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             beta *= f * AbsDot(wi, pi.shading.n) / pdf;
             DCHECK(!std::isinf(beta.y()));
             specularBounce = (flags & BSDF_SPECULAR) != 0;
+            r.stats += ray.stats;
             ray = pi.SpawnRay(wi);
         }
 
@@ -188,6 +191,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             beta /= 1 - q;
             DCHECK(!std::isinf(beta.y()));
         }
+        r.stats += ray.stats;
     }
     ReportValue(pathLength, bounces);
     return L;

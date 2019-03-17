@@ -42,6 +42,7 @@
 #include "pbrt.h"
 #include "stringprint.h"
 #include <iterator>
+#include <map>
 
 namespace pbrt {
     struct KDOPEdge;
@@ -1089,7 +1090,7 @@ namespace pbrt {
         GeneralStats() : GeneralStats(0, 0, 0, 0, 0, 0, 0, 0, 0) {}
 
         friend GeneralStats operator+(const GeneralStats &a, const GeneralStats &b) {
-            return GeneralStats(a.rays + b.rays,
+            auto stats = GeneralStats(a.rays + b.rays,
                                 a.primitiveIntersections + b.primitiveIntersections,
                                 a.primitiveIntersectionsP + b.primitiveIntersectionsP,
                                 a.kdTreeNodeTraversals + b.kdTreeNodeTraversals,
@@ -1098,6 +1099,19 @@ namespace pbrt {
                                 a.rBSPTreeNodeTraversalsP + b.rBSPTreeNodeTraversalsP,
                                 a.bvhTreeNodeTraversals + b.bvhTreeNodeTraversals,
                                 a.bvhTreeNodeTraversalsP + b.bvhTreeNodeTraversalsP);
+            for(const auto &myPair : a.leafNodeIntersectionsByAmount){
+                stats.insertLeafNodeIntersection(myPair.first, myPair.second);
+            }
+            for(const auto &myPair : b.leafNodeIntersectionsByAmount){
+                stats.insertLeafNodeIntersection(myPair.first, myPair.second);
+            }
+            for(const auto &myPair : a.leafNodeIntersectionsPByAmount){
+                stats.insertLeafNodeIntersectionP(myPair.first, myPair.second);
+            }
+            for(const auto &myPair : b.leafNodeIntersectionsPByAmount){
+                stats.insertLeafNodeIntersectionP(myPair.first, myPair.second);
+            }
+
         }
 
         GeneralStats &operator+=(const GeneralStats &rhs) {
@@ -1110,7 +1124,29 @@ namespace pbrt {
             this->rBSPTreeNodeTraversalsP += rhs.rBSPTreeNodeTraversalsP;
             this->bvhTreeNodeTraversals += rhs.bvhTreeNodeTraversals;
             this->bvhTreeNodeTraversalsP += rhs.bvhTreeNodeTraversalsP;
+            for(const auto &myPair : rhs.leafNodeIntersectionsByAmount){
+                this->insertLeafNodeIntersection(myPair.first, myPair.second);
+            }
+            for(const auto &myPair : rhs.leafNodeIntersectionsPByAmount){
+                this->insertLeafNodeIntersectionP(myPair.first, myPair.second);
+            }
             return *this;
+        }
+
+        void insertLeafNodeIntersection(uint32_t amountOfPrimitives, uint32_t amount = 1){
+            auto search = this->leafNodeIntersectionsByAmount.find(amountOfPrimitives);
+            if(search != this->leafNodeIntersectionsByAmount.end())
+                this->leafNodeIntersectionsByAmount[amountOfPrimitives] += amount;
+            else
+                this->leafNodeIntersectionsByAmount[amountOfPrimitives] = amount;
+        }
+
+        void insertLeafNodeIntersectionP(uint32_t amountOfPrimitives, uint32_t amount = 1){
+            auto search = this->leafNodeIntersectionsPByAmount.find(amountOfPrimitives);
+            if(search != this->leafNodeIntersectionsPByAmount.end())
+                this->leafNodeIntersectionsPByAmount[amountOfPrimitives] += amount;
+            else
+                this->leafNodeIntersectionsPByAmount[amountOfPrimitives] = amount;
         }
 
         uint64_t rays;
@@ -1122,6 +1158,8 @@ namespace pbrt {
         uint64_t rBSPTreeNodeTraversalsP;
         uint64_t bvhTreeNodeTraversals;
         uint64_t bvhTreeNodeTraversalsP;
+        std::map<uint32_t, uint32_t> leafNodeIntersectionsByAmount;
+        std::map<uint32_t, uint32_t> leafNodeIntersectionsPByAmount;
     };
 
 // Ray Declarations
