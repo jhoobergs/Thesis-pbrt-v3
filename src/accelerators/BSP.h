@@ -6,7 +6,6 @@
 #define PBRT_V3_BSP_H
 
 #include "genericBSP.h"
-#include "kDOPMesh.h"
 
 namespace pbrt {
     template<class T>
@@ -201,25 +200,6 @@ namespace pbrt {
 
         protected:
 
-    };
-
-
-    struct BSPBuildNode {
-        BSPBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines,
-                     KDOPMeshWithDirections kdopMesh,
-                     Float kdopMeshArea,
-                     uint32_t *primNums, uint32_t parentNum = -1)
-                : depth(depth),
-                  nPrimitives(nPrimitives), badRefines(badRefines),
-                  kDOPMesh(std::move(kdopMesh)), kdopMeshArea(kdopMeshArea), primNums(primNums), parentNum(parentNum) {}
-
-        uint32_t depth;
-        uint32_t nPrimitives;
-        uint32_t badRefines;
-        KDOPMeshWithDirections kDOPMesh;
-        Float kdopMeshArea;
-        uint32_t *primNums;
-        uint32_t parentNum;
     };
 };
 

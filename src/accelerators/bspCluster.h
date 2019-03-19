@@ -19,14 +19,6 @@ namespace pbrt {
         void buildTree() override;
 
     private:
-        std::vector<Vector3f> calculateClusterMeans(const uint32_t *primNums, const uint32_t np);
-
-        uint32_t calculateIdOfClosestMean(Vector3f &normal, const std::vector<Vector3f> &means);
-
-        Vector3f calculateMeanVector(const std::vector<Vector3f> &vectors);
-
-        Float calculateMaxDifference(const std::vector<Vector3f> &oldMeans, const std::vector<Vector3f> &newMeans);
-
         uint32_t K;
     };
 
