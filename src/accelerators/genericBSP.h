@@ -10,6 +10,7 @@
 #include <core/primitive.h>
 #include <fstream>
 #include <core/stats.h>
+#include "kDOPMesh.h"
 
 
 namespace pbrt {
@@ -170,6 +171,24 @@ namespace pbrt {
     struct BSPToDo {
         const nodeType *node;
         Float tMin, tMax;
+    };
+
+    struct BSPBuildNode {
+        BSPBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines,
+                     KDOPMeshWithDirections kdopMesh,
+                     Float kdopMeshArea,
+                     uint32_t *primNums, uint32_t parentNum = -1)
+                : depth(depth),
+                  nPrimitives(nPrimitives), badRefines(badRefines),
+                  kDOPMesh(std::move(kdopMesh)), kdopMeshArea(kdopMeshArea), primNums(primNums), parentNum(parentNum) {}
+
+        uint32_t depth;
+        uint32_t nPrimitives;
+        uint32_t badRefines;
+        KDOPMeshWithDirections kDOPMesh;
+        Float kdopMeshArea;
+        uint32_t *primNums;
+        uint32_t parentNum;
     };
 }
 #endif //PBRT_V3_GENERIC_RBSP_H
