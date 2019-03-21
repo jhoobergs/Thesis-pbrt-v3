@@ -13,7 +13,7 @@ namespace pbrt {
     public:
 
         BSPClusterWithKd(std::vector<std::shared_ptr<Primitive>> p,
-        uint32_t isectCost = 80, uint32_t traversalCost = 1,
+        uint32_t isectCost = 80, uint32_t traversalCost = 5,
                 Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3);
 
     protected:
