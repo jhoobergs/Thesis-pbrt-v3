@@ -102,6 +102,7 @@ namespace pbrt {
         }
 
         // Prepare to traverse rbsp-tree for ray
+        Vector3f invDir(1 / ray.d.x, 1 / ray.d.y, 1 / ray.d.z);
         PBRT_CONSTEXPR uint32_t maxTodo = 64;
         BSPToDo<BSPKdNode> todo[maxTodo];
         uint32_t todoPos = 0;
@@ -129,7 +130,7 @@ namespace pbrt {
                 // Process rbsp-tree interior node
 
                 // Compute parametric distance along ray to split plane
-                const std::pair<Float, bool> intersection = node->intersectInterior(ray, Vector3f(0,0,0));
+                const std::pair<Float, bool> intersection = node->intersectInterior(ray, invDir);
                 const Float tPlane = intersection.first;
                 const bool belowFirst = intersection.second;
 
