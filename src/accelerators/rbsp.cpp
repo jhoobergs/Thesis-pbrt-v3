@@ -185,44 +185,6 @@ namespace pbrt {
         for (uint32_t i = 0; i < primitives.size(); ++i) {
             prims[i] = i;
         }
-        // Precalculate normals
-        std::vector<std::vector<Float>> directionDotNormals; // for each direction a vector with for each primitive the dot product between it's normal and the direction
-        std::vector<std::vector<bool>> angleMatrix; // for each direction a vector with for each primitive whether it should be checked
-        std::vector<uint32_t> closestDirection; // for each primitive, the index of the closest direction
-
-        auto splitAlphaCos0 = (Float) std::abs(std::cos(splitAlpha * M_PI / 180));
-        auto splitAlphaCos1 = (Float) std::abs(std::cos((90 - splitAlpha) * M_PI / 180));
-        for (uint32_t axis = 0; axis < directions.size(); ++axis) {
-            std::vector<Float> dotNormals;
-            directionDotNormals.emplace_back(dotNormals);
-            std::vector<bool> angleVector;
-            angleMatrix.emplace_back(angleVector);
-        }
-        for (uint32_t i = 0; i < primitives.size(); ++i) {
-            Normal3f n = primitives[i]->Normal();
-            for (uint32_t axis = 0; axis < directions.size(); ++axis)
-                directionDotNormals[axis].emplace_back(std::abs(Dot(n, directions[axis])));
-
-            uint32_t best = 0;
-            for (uint32_t axis = 1; axis < directions.size(); ++axis)
-                if (directionDotNormals[axis][i] > directionDotNormals[best][i])
-                    best = axis;
-            closestDirection.emplace_back(best);
-
-            if (alphaType == 1)
-                for (uint32_t axis = 0; axis < directions.size(); ++axis)
-                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] >= splitAlphaCos0);
-            else if (alphaType == 2)
-                for (uint32_t axis = 0; axis < directions.size(); ++axis)
-                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1);
-            else if (alphaType == 3)
-                for (uint32_t axis = 0; axis < directions.size(); ++axis)
-                    angleMatrix[axis].emplace_back(directionDotNormals[axis][i] <= splitAlphaCos1 or
-                                                   directionDotNormals[axis][i] >= splitAlphaCos0);
-            else if (alphaType == 0)
-                for (uint32_t axis = 0; axis < directions.size(); ++axis)
-                    angleMatrix[axis].emplace_back(true);
-        }
 
 
         uint32_t maxPrimsOffset = 0;
@@ -278,148 +240,9 @@ namespace pbrt {
             std::pair<KDOPMesh, KDOPMesh> splittedKDOPs;
 
             const uint32_t depth = maxDepth - currentBuildNode.depth;
-            std::vector<uint32_t> directionsToUse;
-            if (axisSelectionType == 0) {
-                for (uint32_t axis = 0; axis < M; ++axis)
-                    directionsToUse.emplace_back(axis);
-                std::shuffle(directionsToUse.begin(), directionsToUse.end(), std::mt19937(std::random_device()()));
-                directionsToUse.erase(directionsToUse.begin() + axisSelectionAmount, directionsToUse.end());
-            } else if (axisSelectionType == 1) {
-                std::vector<std::pair<Float, uint32_t>> means;
-                for (uint32_t axis = 0; axis < M; ++axis) {
-                    Float sum = 0;
-                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
-                        sum += directionDotNormals[axis][currentBuildNode.primNums[i]];
-                    }
-                    means.emplace_back(std::make_pair(sum / currentBuildNode.nPrimitives, axis));
-                }
-                std::sort(means.begin(), means.end());
-                for (uint32_t axis = 0; axis < axisSelectionAmount; ++axis) {
-                    directionsToUse.emplace_back(means[means.size() - 1 - axis].second);
-                }
-            } else if (axisSelectionType == 2) {
-                std::vector<std::pair<Float, uint32_t>> amounts;
-                for (uint32_t axis = 0; axis < M; ++axis) {
-                    amounts.emplace_back(std::make_pair(0, axis));
-                }
-                for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
-                    amounts[closestDirection[i]].first += 1; //bounds.pMax[closestDirection[i]] - bounds.pMin[closestDirection[i]];
-                }
-
-                std::sort(amounts.begin(), amounts.end());
-                for (uint32_t axis = 0; axis < axisSelectionAmount; ++axis) {
-                    directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
-                }
-            } else if (axisSelectionType == 3) {
-                Float f = depth * 1.0f / maxDepth;
-                if (f < 0.2) {
-                    for (uint32_t axis = 0; axis < M; ++axis)
-                        directionsToUse.emplace_back(axis);
-                } else {
-                    std::vector<std::pair<Float, uint32_t>> amounts;
-                    for (uint32_t axis = 0; axis < M; ++axis) {
-                        amounts.emplace_back(std::make_pair(0, axis));
-                    }
-                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
-                        amounts[closestDirection[i]].first += 1;
-                    }
-
-                    std::sort(amounts.begin(), amounts.end());
-                    uint32_t after = 0, before = 0;
-                    if (f <= 0.6) {
-                        after = std::max((axisSelectionAmount > 1) ? 1u : 0u,
-                                         (uint32_t) std::floor(f * axisSelectionAmount));
-                        before = axisSelectionAmount - after;
-                        CHECK(before >= after);
-                    } else {
-                        before = std::max((axisSelectionAmount > 1) ? 1u : 0u,
-                                          (uint32_t) std::floor((1 - f) * axisSelectionAmount));
-                        after = axisSelectionAmount - before;
-                        CHECK(after >= before);
-                    }
-
-                    for (uint32_t axis = 0; axis < before; ++axis) {
-                        directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
-                    }
-                    for (uint32_t axis = 0; axis < after; ++axis) {
-                        directionsToUse.emplace_back(amounts[axis].second);
-                    }
-                }
-            } else if (axisSelectionType == 4) {
-                Float f = depth * 1.0f / maxDepth;
-                if (f < 0.2 || f > 0.8) {
-                    for (uint32_t axis = 0; axis < M; ++axis)
-                        directionsToUse.emplace_back(axis);
-                } else {
-                    std::vector<std::pair<Float, uint32_t>> amounts;
-                    for (uint32_t axis = 0; axis < M; ++axis) {
-                        amounts.emplace_back(std::make_pair(0, axis));
-                    }
-                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
-                        amounts[closestDirection[i]].first += 1;
-                    }
-
-                    std::sort(amounts.begin(), amounts.end());
-                    uint32_t after = 0, before = 0;
-                    if (f <= 0.5) {
-                        after = std::max((axisSelectionAmount > 1) ? 1u : 0u,
-                                         (uint32_t) std::floor(f * axisSelectionAmount));
-                        before = axisSelectionAmount - after;
-                        CHECK(before >= after);
-                    } else if (f <= 0.8) {
-                        before = std::max((axisSelectionAmount > 1) ? 1u : 0u,
-                                          (uint32_t) std::floor((1 - f) * axisSelectionAmount));
-                        after = axisSelectionAmount - before;
-                        CHECK(after >= before);
-                    }
-
-                    for (uint32_t axis = 0; axis < before; ++axis) {
-                        directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
-                    }
-                    for (uint32_t axis = 0; axis < after; ++axis) {
-                        directionsToUse.emplace_back(amounts[axis].second);
-                    }
-                }
-            } else if (axisSelectionType == 5) {
-                Float f = depth * 1.0f / maxDepth;
-                if (f < 0.2 || f > 0.8) {
-                    uint32_t amount = std::min(2 * axisSelectionAmount, (uint32_t) std::ceil(M * std::max(1 - f, f)));
-                    for (uint32_t axis = 0; axis < amount; ++axis)
-                        directionsToUse.emplace_back(axis);
-                } else {
-                    std::vector<std::pair<Float, uint32_t>> amounts;
-                    for (uint32_t axis = 0; axis < M; ++axis) {
-                        amounts.emplace_back(std::make_pair(0, axis));
-                    }
-                    for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
-                        amounts[closestDirection[i]].first += 1;
-                    }
-
-                    std::sort(amounts.begin(), amounts.end());
-                    uint32_t after = 0, before = 0;
-                    if (f <= 0.5) {
-                        after = std::max((axisSelectionAmount > 1) ? 1u : 0u,
-                                         (uint32_t) std::floor(f * axisSelectionAmount));
-                        before = axisSelectionAmount - after;
-                        CHECK(before >= after);
-                    } else if (f <= 0.8) {
-                        before = std::max((axisSelectionAmount > 1) ? 1u : 0u,
-                                          (uint32_t) std::floor((1 - f) * axisSelectionAmount));
-                        after = axisSelectionAmount - before;
-                        CHECK(after >= before);
-                    }
-
-                    for (uint32_t axis = 0; axis < before; ++axis) {
-                        directionsToUse.emplace_back(amounts[amounts.size() - 1 - axis].second);
-                    }
-                    for (uint32_t axis = 0; axis < after; ++axis) {
-                        directionsToUse.emplace_back(amounts[axis].second);
-                    }
-                }
-            }
 
 
-            for (auto d: directionsToUse) {
+            for (uint32_t d = 0; d < statParamnbDirections; ++d) {
                 //for (uint32_t d = 0; d < M; ++d) {
                 /*if(nodeNum == 31 || nodeNum == 308)
                     Warning("Val %d", d);*/
@@ -444,7 +267,7 @@ namespace pbrt {
                     const Float edgeT = edges[d][i].t;
 
                     if (edgeT > currentBuildNode.nodeBounds[d].min &&
-                        edgeT < currentBuildNode.nodeBounds[d].max && angleMatrix[d][edges[d][i].primNum]) {
+                        edgeT < currentBuildNode.nodeBounds[d].max) {
                         statNbSplitTests += 1;
                         // Compute cost for split at _i_th edge
 
