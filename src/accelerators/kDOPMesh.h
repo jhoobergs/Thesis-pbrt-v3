@@ -265,5 +265,17 @@ namespace pbrt {
         std::vector<Vector3f> directions;
     };
 
+    struct KDOPMesh : KDOPMeshBase {
+        KDOPMesh() : KDOPMeshBase() {};
+
+        std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, Float t, const Vector3f &direction, const uint32_t directionId) {
+            return KDOPCut<KDOPMesh>(edges, M, t, direction, directionId);
+        }
+
+        Float SurfaceArea(const std::vector<Vector3f> &directions) {
+            return KDOPSurfaceArea(edges, directions);
+        }
+    };
+
 }
 #endif //PBRT_V3_KDOPMESH_H
