@@ -68,7 +68,7 @@ namespace pbrt {
 
     inline std::vector<Vector3f> getDirections(uint32_t N) {
         std::vector<Vector3f> directions;
-        if (N >= 100) {
+        if (N >= 100) { // Not used
             N -= 100;
             const auto a = (Float) (2 * M_PI / N);
             const auto d = (Float) std::sqrt(a);
