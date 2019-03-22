@@ -19,20 +19,40 @@ if [ "$ty" == "prim" ]
 then
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-primitiveIntersections.txt" #& 
 fi
+if [ "$ty" == "primp" ]
+then
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-primitiveIntersectionsP.txt" #&
+fi
 if [ "$ty" == "kd" ]
 then
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-kdTreeNodeTraversals.txt" #&
+fi
+if [ "$ty" == "kdp" ]
+then
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-kdTreeNodeTraversalsP.txt" #&
 fi
 if [ "$ty" == "bvh" ]
 then
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-bvhTreeNodeTraversals.txt" #&
 fi
+if [ "$ty" == "bvhp" ]
+then
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-bvhTreeNodeTraversalsP.txt" #&
+fi
 if [ "$ty" == "bsp" ]
 then
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-bspTreeNodeTraversals.txt" #&
 fi
+if [ "$ty" == "bspp" ]
+then
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-bspTreeNodeTraversalsP.txt" #&
+fi
 if [ "$ty" == "leaf" ]
 then
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-leafNodeTraversals.txt" #&
+fi
+if [ "$ty" == "leafp" ]
+then
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-leafNodeTraversalsP.txt" #&
 fi
 done
