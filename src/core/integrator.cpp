@@ -374,9 +374,10 @@ Spectrum SamplerIntegrator::SpecularReflect(
             rd.ryDirection =
                 wi - dwody + 2.f * Vector3f(Dot(wo, ns) * dndy + dDNdy * ns);
         }
-        ray.stats += rd.stats;
-        return f * Li(rd, scene, sampler, arena, depth + 1) * AbsDot(wi, ns) /
+        auto res = f * Li(rd, scene, sampler, arena, depth + 1) * AbsDot(wi, ns) /
                pdf;
+        ray.stats += rd.stats;
+        return res;
     } else
         return Spectrum(0.f);
 }
@@ -425,8 +426,8 @@ Spectrum SamplerIntegrator::SpecularTransmit(
             rd.ryDirection =
                 wi + eta * dwody - Vector3f(mu * dndy + dmudy * ns);
         }
-        ray.stats += rd.stats;
         L = f * Li(rd, scene, sampler, arena, depth + 1) * AbsDot(wi, ns) / pdf;
+        ray.stats += rd.stats;
     }
     return L;
 }

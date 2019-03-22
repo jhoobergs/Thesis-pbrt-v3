@@ -107,7 +107,10 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         }
 
         // Terminate path if ray escaped or _maxDepth_ was reached
-        if (!foundIntersection || bounces >= maxDepth) break;
+        if (!foundIntersection || bounces >= maxDepth){
+            r.stats += ray.stats;
+            break;
+        }
 
         // Compute scattering functions and skip over medium boundaries
         isect.ComputeScatteringFunctions(ray, arena, true);
@@ -141,7 +144,10 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         Spectrum f = isect.bsdf->Sample_f(wo, &wi, sampler.Get2D(), &pdf,
                                           BSDF_ALL, &flags);
         VLOG(2) << "Sampled BSDF, f = " << f << ", pdf = " << pdf;
-        if (f.IsBlack() || pdf == 0.f) break;
+        if (f.IsBlack() || pdf == 0.f) {
+            r.stats += ray.stats;
+            break;
+        }
         beta *= f * AbsDot(wi, isect.shading.n) / pdf;
         VLOG(2) << "Updated beta = " << beta;
         CHECK_GE(beta.y(), 0.f);

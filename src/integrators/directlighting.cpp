@@ -75,7 +75,7 @@ Spectrum DirectLightingIntegrator::Li(const RayDifferential &ray,
     isect.ComputeScatteringFunctions(ray, arena);
     if (!isect.bsdf) {
         auto r = isect.SpawnRay(ray.d);
-        auto res= Li(r, scene, sampler, arena, depth);
+        auto res = Li(r, scene, sampler, arena, depth);
         ray.stats += r.stats;
         return res;
     }

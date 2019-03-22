@@ -58,9 +58,9 @@ Light::~Light() {}
 
 bool VisibilityTester::Unoccluded(const Scene &scene, GeneralStats& stats) const {
     auto r = p0.SpawnRayTo(p1);
-    r.stats.rays = 0;
+    auto res = !scene.IntersectP(r);
     stats += r.stats;
-    return !scene.IntersectP(r);
+    return res;
 }
 
 Spectrum VisibilityTester::Tr(const Scene &scene, Sampler &sampler, GeneralStats& stats) const {
