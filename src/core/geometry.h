@@ -1079,15 +1079,16 @@ namespace pbrt {
     public:
         GeneralStats(uint64_t rays, uint64_t triangleIntersections, uint64_t triangleIntersectionsP,
                      uint64_t kdTreeNodeTraversals, uint64_t kdTreeNodeTraversalsP, uint64_t rBSPTreeNodeTraversals,
-                     uint64_t rBSPTreeNodeTraversalsP,
+                     uint64_t rBSPTreeNodeTraversalsP, uint64_t leafNodeTraversals, uint64_t leafNodeTraversalsP,
                      uint64_t bvhTreeNodeTraversals, uint64_t bvhTreeNodeTraversalsP) :
                 rays(rays), primitiveIntersections(triangleIntersections),
                 primitiveIntersectionsP(triangleIntersectionsP),
                 kdTreeNodeTraversals(kdTreeNodeTraversals), kdTreeNodeTraversalsP(kdTreeNodeTraversalsP),
-                rBSPTreeNodeTraversals(rBSPTreeNodeTraversals), rBSPTreeNodeTraversalsP(rBSPTreeNodeTraversalsP),
+                bspTreeNodeTraversals(rBSPTreeNodeTraversals), bspTreeNodeTraversalsP(rBSPTreeNodeTraversalsP),
+                leafNodeTraversals(leafNodeTraversals), leafNodeTraversalsP(leafNodeTraversalsP),
                 bvhTreeNodeTraversals(bvhTreeNodeTraversals), bvhTreeNodeTraversalsP(bvhTreeNodeTraversalsP) {}
 
-        GeneralStats() : GeneralStats(0, 0, 0, 0, 0, 0, 0, 0, 0) {}
+        GeneralStats() : GeneralStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) {}
 
         friend GeneralStats operator+(const GeneralStats &a, const GeneralStats &b) {
             auto stats = GeneralStats(a.rays + b.rays,
@@ -1095,8 +1096,10 @@ namespace pbrt {
                                 a.primitiveIntersectionsP + b.primitiveIntersectionsP,
                                 a.kdTreeNodeTraversals + b.kdTreeNodeTraversals,
                                 a.kdTreeNodeTraversalsP + b.kdTreeNodeTraversalsP,
-                                a.rBSPTreeNodeTraversals + b.rBSPTreeNodeTraversals,
-                                a.rBSPTreeNodeTraversalsP + b.rBSPTreeNodeTraversalsP,
+                                a.bspTreeNodeTraversals + b.bspTreeNodeTraversals,
+                                a.bspTreeNodeTraversalsP + b.bspTreeNodeTraversalsP,
+                                a.leafNodeTraversals + b.leafNodeTraversals,
+                                a.leafNodeTraversalsP + b.leafNodeTraversalsP,
                                 a.bvhTreeNodeTraversals + b.bvhTreeNodeTraversals,
                                 a.bvhTreeNodeTraversalsP + b.bvhTreeNodeTraversalsP);
             for(const auto &myPair : a.leafNodeIntersectionsByAmount){
@@ -1120,8 +1123,10 @@ namespace pbrt {
             this->primitiveIntersectionsP += rhs.primitiveIntersectionsP;
             this->kdTreeNodeTraversals += rhs.kdTreeNodeTraversals;
             this->kdTreeNodeTraversalsP += rhs.kdTreeNodeTraversalsP;
-            this->rBSPTreeNodeTraversals += rhs.rBSPTreeNodeTraversals;
-            this->rBSPTreeNodeTraversalsP += rhs.rBSPTreeNodeTraversalsP;
+            this->bspTreeNodeTraversals += rhs.bspTreeNodeTraversals;
+            this->bspTreeNodeTraversalsP += rhs.bspTreeNodeTraversalsP;
+            this->leafNodeTraversals += rhs.leafNodeTraversals;
+            this->leafNodeTraversalsP += rhs.leafNodeTraversalsP;
             this->bvhTreeNodeTraversals += rhs.bvhTreeNodeTraversals;
             this->bvhTreeNodeTraversalsP += rhs.bvhTreeNodeTraversalsP;
             for(const auto &myPair : rhs.leafNodeIntersectionsByAmount){
@@ -1154,8 +1159,10 @@ namespace pbrt {
         uint64_t primitiveIntersectionsP;
         uint64_t kdTreeNodeTraversals;
         uint64_t kdTreeNodeTraversalsP;
-        uint64_t rBSPTreeNodeTraversals;
-        uint64_t rBSPTreeNodeTraversalsP;
+        uint64_t bspTreeNodeTraversals;
+        uint64_t bspTreeNodeTraversalsP;
+        uint64_t leafNodeTraversals;
+        uint64_t leafNodeTraversalsP;
         uint64_t bvhTreeNodeTraversals;
         uint64_t bvhTreeNodeTraversalsP;
         std::map<uint32_t, uint32_t> leafNodeIntersectionsByAmount;

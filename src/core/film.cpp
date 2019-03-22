@@ -174,8 +174,10 @@ void Film::WriteGeneralStats(){
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.primitiveIntersectionsP; },"primitiveIntersectionsP");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.kdTreeNodeTraversals; },"kdTreeNodeTraversals");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.kdTreeNodeTraversalsP; },"kdTreeNodeTraversalsP");
-    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rBSPTreeNodeTraversals; },"rBSPTreeNodeTraversals");
-    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rBSPTreeNodeTraversalsP; },"rBSPTreeNodeTraversalsP");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bspTreeNodeTraversals; },"bspTreeNodeTraversals");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bspTreeNodeTraversalsP; },"bspTreeNodeTraversalsP");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.leafNodeTraversals; },"leafNodeTraversals");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.leafNodeTraversalsP; },"leafNodeTraversalsP");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversals; },"bvhTreeNodeTraversals");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversalsP; },"bvhTreeNodeTraversalsP");
     WriteGeneralStatMapImage([](GeneralStats &stats) {return stats.leafNodeIntersectionsByAmount; }, "leafNodeIntersectionMeanAmount");
