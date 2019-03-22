@@ -8,6 +8,7 @@
 #include "accelerators/rbsp.h"
 #include <shapes/triangle.h>
 #include <random>
+#include "accelerators/RBSPShared.h"
 
 namespace pbrt {
 
@@ -82,6 +83,72 @@ namespace pbrt {
             return ss.str();
         }
 
+        std::pair<Float, bool> intersectInterior(uint32_t M, const std::vector<Vector3f> &directions, const Ray &ray, const Vector3f &invDir) const {
+            uint32_t axis = this->SplitAxis(M);
+            if(axis < 3){
+                Float tPlane = planeDistance(this->SplitPos(), ray, invDir, axis);
+
+                // Get node children pointers for ray
+                bool belowFirst =
+                        (ray.o[axis] < this->SplitPos()) ||
+                        (ray.o[axis] == this->SplitPos() && ray.d[axis] <= 0);
+                return std::make_pair(tPlane, belowFirst);
+            }
+            else {
+                Float projectedO, inverseProjectedD;
+                const Float tPlane = planeDistance(directions[axis], this->SplitPos(), ray, projectedO,
+                                                   inverseProjectedD);
+
+                // Get node children pointers for ray
+                const bool belowFirst =
+                        (projectedO < this->SplitPos()) ||
+                        (projectedO == this->SplitPos() && inverseProjectedD <= 0);
+
+                return std::make_pair(tPlane, belowFirst);
+            }
+        }
+
+        bool intersectLeaf(uint32_t M, const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices, SurfaceInteraction *isect) const {
+            bool hit = false;
+            const uint32_t nPrimitives = this->nPrimitives(M);
+            ray.stats.insertLeafNodeIntersection(nPrimitives);
+            if (nPrimitives == 1) {
+                const std::shared_ptr<Primitive> &p =
+                        primitives[this->onePrimitive];
+                // Check one primitive inside leaf node
+                if (p->Intersect(ray, isect)) hit = true;
+            } else {
+                for (uint32_t i = 0; i < nPrimitives; ++i) {
+                    const uint32_t index =
+                            primitiveIndices[this->primitiveIndicesOffset + i];
+                    const std::shared_ptr<Primitive> &p = primitives[index];
+                    // Check one primitive inside leaf node
+                    if (p->Intersect(ray, isect)) hit = true;
+                }
+            }
+            return hit;
+        }
+
+        bool intersectPLeaf(uint32_t M, const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices) const {
+            const uint32_t nPrimitives = this->nPrimitives(M);
+            ray.stats.insertLeafNodeIntersectionP(nPrimitives); // Important: not all of these are always tested
+            if (nPrimitives == 1) {
+                const std::shared_ptr<Primitive> &p =
+                        primitives[this->onePrimitive];
+                if (p->IntersectP(ray)) return true;
+
+            } else {
+                for (uint32_t i = 0; i < nPrimitives; ++i) {
+                    const uint32_t primitiveIndex =
+                            primitiveIndices[this->primitiveIndicesOffset + i];
+                    const std::shared_ptr<Primitive> &prim =
+                            primitives[primitiveIndex];
+                    if (prim->IntersectP(ray)) return true;
+                }
+            }
+            return false;
+        }
+
         union {
             Float split;                 // Interior
             uint32_t onePrimitive;            // Leaf
@@ -133,7 +200,7 @@ namespace pbrt {
 
         directions = getDirections(nbDirections);
 
-        // Start recursive construction of RBSP-tree
+        // Start construction of RBSP-tree
         buildTree();
     }
 
@@ -243,9 +310,6 @@ namespace pbrt {
 
 
             for (uint32_t d = 0; d < statParamnbDirections; ++d) {
-                //for (uint32_t d = 0; d < M; ++d) {
-                /*if(nodeNum == 31 || nodeNum == 308)
-                    Warning("Val %d", d);*/
                 // Sort _edges_ for _axis_
                 for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
                     const uint32_t pn = currentBuildNode.primNums[i];
@@ -272,34 +336,14 @@ namespace pbrt {
                         // Compute cost for split at _i_th edge
 
                         // Compute child surface areas for split at _edgeT_
-                        //if(nodeNum == 31)
-                        //    Warning("cutting");
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
                                 (uint32_t) directions.size(), edgeT, directions[d], d);
-                        /* if(nodeNum == 235771)
-                            Warning("Cutted %d into %d and %d", i, splittedKDOPs.first.edges.size(), splittedKDOPs.second.edges.size());
-                        if(nodeNum == 235771){
-                            Warning("Current with t %f, M %d and directions %d = [%f,%f,%f]", edgeT, M, d, directions[d].x, directions[d].y, directions[d].z);
-                            for(auto &edge : currentBuildNode.kDOPMesh.edges){
-                                Warning("Point3f v%d = Point3f(%f,%f,%f)", edge.v1, edge.v1->x, edge.v1->y, edge.v1->z);
-                                Warning("Point3f v%d = Point3f(%f,%f,%f)", edge.v2, edge.v2->x, edge.v2->y, edge.v2->z);
-                                Warning("kDOPMesh.addEdge(KDOPEdge(&v%d, &v%d, %d, %d));", edge.v1, edge.v2, edge.faceId1, edge.faceId2);
-                            }
-                            Warning("First");
-                            for(auto &edge : splittedKDOPs.first.edges){
-                                Warning("[[%f,%f,%f],[%f,%f,%f]]", edge.v1->x, edge.v1->y, edge.v1->z, edge.v2->x, edge.v2->y, edge.v2->z);
-                            }
-                            Warning("Second");
-                            for(auto &edge : splittedKDOPs.second.edges){
-                                Warning("[[%f,%f,%f],[%f,%f,%f]]", edge.v1->x, edge.v1->y, edge.v1->z, edge.v2->x, edge.v2->y, edge.v2->z);
-                            }
-                        } */
+
                         const Float areaBelow = splittedKDOPs.first.SurfaceArea(directions);
                         const Float areaAbove = splittedKDOPs.second.SurfaceArea(directions);
                         const Float pBelow = areaBelow * invTotalSA;
                         const Float pAbove = areaAbove * invTotalSA;
-                        //if(nodeNum == 31)
-                        //    Warning("Calculated SA %d", i);
+
                         const Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
                         const Float cost =
                                 traversalCost +
@@ -344,8 +388,6 @@ namespace pbrt {
 
             // Add child nodes to stack
             const Float tSplit = edges[bestD][bestOffset].t;
-            //BoundsMf bounds0 = currentBuildNode.nodeBounds, bounds1 = currentBuildNode.nodeBounds;
-            //bounds0[bestD].max = bounds1[bestD].min = tSplit;
             BoundsMf bounds0, bounds1;
             for (auto &d: directions) { // TODO ? memory ok ?
                 bounds0.emplace_back(Boundsf());
@@ -368,18 +410,6 @@ namespace pbrt {
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
             nodes[nodeNum].InitInterior(bestD, tSplit);
 
-            //CHECK(bestSplittedKDOPs.first.edges.size() == 12 && bestSplittedKDOPs.second.edges.size() == 12);
-            // TODO: wat by splitten volgens vlak ?
-            // TODO: plotten via python als dingen vreemd zijn
-            //Float newSASUM = bestSplittedKDOPs.first.SurfaceArea(directions) + bestSplittedKDOPs.second.SurfaceArea(directions);
-            //Float oldSASUM = currentBuildNode.kDOPMesh.SurfaceArea(directions)
-            //                 + 2 * currentBuildNode.nodeBounds[(bestD + 1) % 3].Diagonal() * currentBuildNode.nodeBounds[(bestD + 2) % 3].Diagonal();
-            //Float SASUMDIFF = std::abs(newSASUM - oldSASUM);
-            //Float relativeSASUMDIFF = SASUMDIFF / oldSASUM;
-            //Warning("Diff %f and rel %f", SASUMDIFF, relativeSASUMDIFF);
-            //CHECK(relativeSASUMDIFF < 0.1);
-            //if(relativeSASUMDIFF > 0.1)
-            //    relativeSASUMDIFF = 4;
             stack.emplace_back(
                     currentBuildNode.depth - 1, n1, currentBuildNode.badRefines, bounds1,
                     bestSplittedKDOPs.second, bestSplittedKDOPAreas.second, prims1, nodeNum);
@@ -405,6 +435,7 @@ namespace pbrt {
         }
 
         // Prepare to traverse rbsp-tree for ray
+        Vector3f invDir(1 / ray.d.x, 1 / ray.d.y, 1 / ray.d.z);
         PBRT_CONSTEXPR uint32_t maxTodo = 64u;
         BSPToDo<RBSPNode> todo[maxTodo];
         uint32_t todoPos = 0;
@@ -421,16 +452,12 @@ namespace pbrt {
                 // Process rbsp-tree interior node
 
                 // Compute parametric distance along ray to split plane
-                const uint32_t axis = node->SplitAxis(M);
-                Float projectedO, inverseProjectedD;
-                const Float tPlane = planeDistance(directions[axis], node->SplitPos(), ray, projectedO,
-                                                   inverseProjectedD);
+                const std::pair<Float, bool> intersection = node->intersectInterior(M, directions, ray, invDir);
+                const Float tPlane = intersection.first;
+                const bool belowFirst = intersection.second;
 
                 // Get node children pointers for ray
                 const RBSPNode *firstChild, *secondChild;
-                const bool belowFirst =
-                        (projectedO < node->SplitPos()) ||
-                        (projectedO == node->SplitPos() && inverseProjectedD <= 0);
                 if (belowFirst) {
                     firstChild = node + 1;
                     secondChild = &nodes[node->AboveChild(M)];
@@ -455,23 +482,8 @@ namespace pbrt {
                 }
             } else {
                 // Check for intersections inside leaf node
-                const uint32_t nPrimitives = node->nPrimitives(M);
-                ray.stats.insertLeafNodeIntersection(nPrimitives);
-                if (nPrimitives == 1) {
-                    const std::shared_ptr<Primitive> &p =
-                            primitives[node->onePrimitive];
-                    // Check one primitive inside leaf node
-                    if (p->Intersect(ray, isect)) hit = true;
-                } else {
-                    for (uint32_t i = 0; i < nPrimitives; ++i) {
-                        const uint32_t index =
-                                primitiveIndices[node->primitiveIndicesOffset + i];
-                        const std::shared_ptr<Primitive> &p = primitives[index];
-                        // Check one primitive inside leaf node
-                        if (p->Intersect(ray, isect)) hit = true;
-                    }
-                }
-
+                if(node->intersectLeaf(M, ray, primitives, primitiveIndices, isect))
+                    hit = true;
 
                 // Grab next node to process from todo list
                 if (todoPos > 0) {
@@ -496,6 +508,7 @@ namespace pbrt {
         }
 
         // Prepare to traverse rbsp-tree for ray
+        Vector3f invDir(1 / ray.d.x, 1 / ray.d.y, 1 / ray.d.z);
         PBRT_CONSTEXPR uint32_t maxTodo = 64;
         BSPToDo<RBSPNode> todo[maxTodo];
         uint32_t todoPos = 0;
@@ -505,25 +518,8 @@ namespace pbrt {
             ray.stats.rBSPTreeNodeTraversalsP++;
             if (node->IsLeaf(M)) {
                 // Check for shadow ray intersections inside leaf node
-                const uint32_t nPrimitives = node->nPrimitives(M);
-                ray.stats.insertLeafNodeIntersectionP(nPrimitives);
-                if (nPrimitives == 1) {
-                    const std::shared_ptr<Primitive> &p =
-                            primitives[node->onePrimitive];
-                    if (p->IntersectP(ray)) {
-                        return true;
-                    }
-                } else {
-                    for (uint32_t i = 0; i < nPrimitives; ++i) {
-                        const uint32_t primitiveIndex =
-                                primitiveIndices[node->primitiveIndicesOffset + i];
-                        const std::shared_ptr<Primitive> &prim =
-                                primitives[primitiveIndex];
-                        if (prim->IntersectP(ray)) {
-                            return true;
-                        }
-                    }
-                }
+                if (node->intersectPLeaf(M, ray, primitives, primitiveIndices))
+                    return true;
 
                 // Grab next node to process from todo list
                 if (todoPos > 0) {
@@ -538,16 +534,12 @@ namespace pbrt {
                 // Process rbsp-tree interior node
 
                 // Compute parametric distance along ray to split plane
-                const uint32_t axis = node->SplitAxis(M);
-                Float projectedO, inverseProjectedD;
-                const Float tPlane = planeDistance(directions[axis], node->SplitPos(), ray, projectedO,
-                                                   inverseProjectedD);
+                const std::pair<Float, bool> intersection = node->intersectInterior(M, directions, ray, invDir);
+                const Float tPlane = intersection.first;
+                const bool belowFirst = intersection.second;
 
                 // Get node children pointers for ray
                 const RBSPNode *firstChild, *secondChild;
-                const bool belowFirst =
-                        (projectedO < node->SplitPos()) ||
-                        (projectedO == node->SplitPos() && inverseProjectedD <= 0);
                 if (belowFirst) {
                     firstChild = node + 1;
                     secondChild = &nodes[node->AboveChild(M)];
