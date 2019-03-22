@@ -416,9 +416,9 @@ namespace pbrt {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
             nbNodeTraversals++;
-            ray.stats.kdTreeNodeTraversals++;
             if (!node->IsLeaf()) {
                 // Process kd-tree interior node
+                ray.stats.kdTreeNodeTraversals++;
 
                 // Compute parametric distance along ray to split plane
                 const std::pair<Float, bool> intersection = node->intersectInterior(ray, invDir);
@@ -450,6 +450,7 @@ namespace pbrt {
                     tMax = tPlane;
                 }
             } else {
+                ray.stats.leafNodeTraversals++;
                 // Check for intersections inside leaf node
                 if(node->intersectLeaf(ray, primitives, primitiveIndices, isect))
                     hit = true;
@@ -483,8 +484,8 @@ namespace pbrt {
         const KdAccelNode *node = &nodes[0];
         while (node != nullptr) {
             nbNodeTraversalsP++;
-            ray.stats.kdTreeNodeTraversalsP++;
             if (node->IsLeaf()) {
+                ray.stats.leafNodeTraversalsP++;
                 // Check for shadow ray intersections inside leaf node
                 if(node->intersectPLeaf(ray, primitives, primitiveIndices))
                     return true;
@@ -500,6 +501,7 @@ namespace pbrt {
                 }
             } else {
                 // Process kd-tree interior node
+                ray.stats.kdTreeNodeTraversalsP++;
 
                 // Compute parametric distance along ray to split plane
                 const std::pair<Float, bool> intersection = node->intersectInterior(ray, invDir);

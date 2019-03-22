@@ -12,7 +12,7 @@ echo $RESULTS_DIR
 
 for VAR in 1 2 3 4 5 6 7 8 9 10
 do
-echo prim kd bvh or rbsp
+echo prim kd bvh bsp or leaf
 read ty 
 echo $ty
 if [ "$ty" == "prim" ]
@@ -27,8 +27,12 @@ if [ "$ty" == "bvh" ]
 then
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-bvhTreeNodeTraversals.txt" #&
 fi
-if [ "$ty" == "rbsp" ]
+if [ "$ty" == "bsp" ]
 then
-python ../../plots/heatmap_single.py $RESULTS_DIR"/output-rBSPTreeNodeTraversals.txt" #&
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-bspTreeNodeTraversals.txt" #&
+fi
+if [ "$ty" == "leaf" ]
+then
+python ../../plots/heatmap_single.py $RESULTS_DIR"/output-leafNodeTraversals.txt" #&
 fi
 done

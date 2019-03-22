@@ -39,13 +39,12 @@ namespace pbrt {
         while (node != nullptr) {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
-            if(node->isKdNode())
-                ray.stats.kdTreeNodeTraversals++;
-            else
-                ray.stats.rBSPTreeNodeTraversals++;
             if (!node->isLeaf()) {
                 // Process rbsp-tree interior node
-
+                if(node->isKdNode())
+                    ray.stats.kdTreeNodeTraversals++;
+                else
+                    ray.stats.bspTreeNodeTraversals++;
                 // Compute parametric distance along ray to split plane
                 const std::pair<Float, bool> intersection = node->intersectInterior(ray, invDir);
                 const Float tPlane = intersection.first;
@@ -76,6 +75,7 @@ namespace pbrt {
                     tMax = tPlane;
                 }
             } else {
+                ray.stats.leafNodeTraversals++;
                 // Check for intersections inside leaf node
                 if(node->intersectLeaf(ray, primitives, primitiveIndices, isect))
                     hit = true;
@@ -108,11 +108,8 @@ namespace pbrt {
         uint32_t todoPos = 0;
         const BSPKdNode *node = &nodes[0];
         while (node != nullptr) {
-            if(node->isKdNode())
-                ray.stats.kdTreeNodeTraversalsP++;
-            else
-                ray.stats.rBSPTreeNodeTraversalsP++;
             if (node->isLeaf()) {
+                ray.stats.leafNodeTraversalsP++;
                 // Check for shadow ray intersections inside leaf node
                 if (node->intersectPLeaf(ray, primitives, primitiveIndices))
                     return true;
@@ -128,6 +125,10 @@ namespace pbrt {
                 }
             } else {
                 // Process rbsp-tree interior node
+                if(node->isKdNode())
+                    ray.stats.kdTreeNodeTraversalsP++;
+                else
+                    ray.stats.bspTreeNodeTraversalsP++;
 
                 // Compute parametric distance along ray to split plane
                 const std::pair<Float, bool> intersection = node->intersectInterior(ray, invDir);

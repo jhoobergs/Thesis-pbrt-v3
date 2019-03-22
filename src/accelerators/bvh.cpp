@@ -362,11 +362,12 @@ namespace pbrt {
         int nodesToVisit[64];
         while (true) {
             const LinearBVHNode *node = &nodes[currentNodeIndex];
-            nbNodeTraversals++;
-            ray.stats.bvhTreeNodeTraversals++;
+
             // Check ray against BVH node
             if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
+                nbNodeTraversals++;
                 if (node->IsLeaf()) {
+                    ray.stats.leafNodeTraversals++;
                     // Intersect ray with primitives in leaf BVH node
                     for (int i = 0; i < node->nPrimitives(); ++i)
                         if (primitives[node->primitivesOffset + i]->Intersect(
@@ -375,6 +376,7 @@ namespace pbrt {
                     if (toVisitOffset == 0) break;
                     currentNodeIndex = nodesToVisit[--toVisitOffset];
                 } else {
+                    ray.stats.bvhTreeNodeTraversals++;
                     // Put far BVH node on _nodesToVisit_ stack, advance to near
                     // node
                     if (dirIsNeg[node->SplitAxis()]) {
@@ -402,11 +404,11 @@ namespace pbrt {
         int toVisitOffset = 0, currentNodeIndex = 0;
         while (true) {
             const LinearBVHNode *node = &nodes[currentNodeIndex];
-            nbNodeTraversalsP++;
-            ray.stats.bvhTreeNodeTraversalsP++;
             if (node->bounds.IntersectP(ray, invDir, dirIsNeg)) {
+                nbNodeTraversalsP++;
                 // Process BVH node _node_ for traversal
                 if (node->IsLeaf()) {
+                    ray.stats.leafNodeTraversalsP++;
                     for (int i = 0; i < node->nPrimitives(); ++i) {
                         if (primitives[node->primitivesOffset + i]->IntersectP(
                                 ray)) {
@@ -416,6 +418,7 @@ namespace pbrt {
                     if (toVisitOffset == 0) break;
                     currentNodeIndex = nodesToVisit[--toVisitOffset];
                 } else {
+                    ray.stats.bvhTreeNodeTraversalsP++;
                     if (dirIsNeg[node->SplitAxis()]) {
                         /// second child first
                         nodesToVisit[toVisitOffset++] = currentNodeIndex + 1;
