@@ -60,8 +60,12 @@ Spectrum WhittedIntegrator::Li(const RayDifferential &ray, const Scene &scene,
 
     // Compute scattering functions for surface interaction
     isect.ComputeScatteringFunctions(ray, arena);
-    if (!isect.bsdf)
-        return Li(isect.SpawnRay(ray.d), scene, sampler, arena, depth);
+    if (!isect.bsdf) {
+        auto rayNew = isect.SpawnRay(ray.d);
+        auto res = Li(rayNew, scene, sampler, arena, depth);
+        ray.stats += rayNew.stats;
+        return res;
+    }
 
     // Compute emitted light if ray hit an area light source
     L += isect.Le(wo);
