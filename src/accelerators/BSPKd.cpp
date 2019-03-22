@@ -4,7 +4,10 @@
 
 #include "BSPKd.h"
 
+
 namespace pbrt {
+    STAT_COUNTER("Accelerator/BSPKd-tree node traversals during intersect", nbNodeTraversals);
+    STAT_COUNTER("Accelerator/BSPKd-tree node traversals during intersectP", nbNodeTraversalsP);
 
     BSPKd::BSPKd(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
                            uint32_t traversalCost,
@@ -39,6 +42,7 @@ namespace pbrt {
         while (node != nullptr) {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
+            ++nbNodeTraversals;
             if (!node->isLeaf()) {
                 // Process rbsp-tree interior node
                 if(node->isKdNode())
@@ -108,6 +112,7 @@ namespace pbrt {
         uint32_t todoPos = 0;
         const BSPKdNode *node = &nodes[0];
         while (node != nullptr) {
+            ++nbNodeTraversalsP;
             if (node->isLeaf()) {
                 ray.stats.leafNodeTraversalsP++;
                 // Check for shadow ray intersections inside leaf node
