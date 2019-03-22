@@ -101,7 +101,7 @@ namespace pbrt {
             return false;
         }
 
-        // Prepare to traverse rbsp-tree for ray
+        // Prepare to traverse bspKd-tree for ray
         Vector3f invDir(1 / ray.d.x, 1 / ray.d.y, 1 / ray.d.z);
         PBRT_CONSTEXPR uint32_t maxTodo = 64;
         BSPToDo<BSPKdNode> todo[maxTodo];
