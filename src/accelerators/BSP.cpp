@@ -58,9 +58,9 @@ namespace pbrt {
         while (node != nullptr) {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
-            ray.stats.rBSPTreeNodeTraversals++;
             if (!treeIsLeaf(node)) {
-                // Process rbsp-tree interior node
+                // Process bsp-tree interior node
+                ray.stats.bspTreeNodeTraversals++;
 
                 // Compute parametric distance along ray to split plane
                 const std::pair<Float, bool> intersection = treeIntersectInterior(node, ray, Vector3f(0,0,0));
@@ -92,6 +92,7 @@ namespace pbrt {
                     tMax = tPlane;
                 }
             } else {
+                ray.stats.leafNodeTraversals++;
                 // Check for intersections inside leaf node
                 if(treeIntersectLeaf(node, ray, primitives, primitiveIndices, isect))
                     hit = true;
@@ -123,8 +124,8 @@ namespace pbrt {
         uint32_t todoPos = 0;
         const BSPNode *node = &nodes[0];
         while (node != nullptr) {
-            ray.stats.rBSPTreeNodeTraversalsP++;
             if (treeIsLeaf(node)) {
+                ray.stats.leafNodeTraversalsP++;
                 // Check for shadow ray intersections inside leaf node
                 if(treeIntersectPLeaf(node, ray, primitives, primitiveIndices))
                     return true;
@@ -139,7 +140,8 @@ namespace pbrt {
                     break;
                 }
             } else {
-                // Process rbsp-tree interior node
+                // Process bsp-tree interior node
+                ray.stats.bspTreeNodeTraversalsP++;
 
                 // Compute parametric distance along ray to split plane
                 const std::pair<Float, bool> intersection = treeIntersectInterior(node, ray, Vector3f(0,0,0));
