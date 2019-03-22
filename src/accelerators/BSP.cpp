@@ -10,20 +10,8 @@
 #include "geometry.h"
 
 namespace pbrt {
-    /*void BSPNode::InitLeaf(uint32_t *primNums, uint32_t np,
-                           std::vector<uint32_t> *primitiveIndices) {
-        flags = 1u;
-        nPrims |= (np << 1u);
-        // Store primitive ids for leaf node
-        if (np == 0)
-            onePrimitive = 0;
-        else if (np == 1u)
-            onePrimitive = primNums[0];
-        else {
-            primitiveIndicesOffset = primitiveIndices->size();
-            for (uint32_t i = 0; i < np; ++i) primitiveIndices->push_back(primNums[i]);
-        }
-    }*/
+    STAT_COUNTER("Accelerator/Results/0 BSP-tree node traversals during intersect", nbNodeTraversals);
+    STAT_COUNTER("Accelerator/Results/1 BSP-tree node traversals during intersectP", nbNodeTraversalsP);
 
     BSP::BSP(std::vector<std::shared_ptr<Primitive>> p,
              uint32_t isectCost, uint32_t traversalCost,
@@ -58,6 +46,7 @@ namespace pbrt {
         while (node != nullptr) {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
+            ++nbNodeTraversals;
             if (!treeIsLeaf(node)) {
                 // Process bsp-tree interior node
                 ray.stats.bspTreeNodeTraversals++;
@@ -124,6 +113,7 @@ namespace pbrt {
         uint32_t todoPos = 0;
         const BSPNode *node = &nodes[0];
         while (node != nullptr) {
+            ++nbNodeTraversalsP;
             if (treeIsLeaf(node)) {
                 ray.stats.leafNodeTraversalsP++;
                 // Check for shadow ray intersections inside leaf node

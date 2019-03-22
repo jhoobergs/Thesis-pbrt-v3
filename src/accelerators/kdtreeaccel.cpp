@@ -39,23 +39,23 @@
 
 namespace pbrt {
 
-    STAT_COUNTER("Accelerator/Kd-tree node traversals during intersect", nbNodeTraversals);
-    STAT_COUNTER("Accelerator/Kd-tree node traversals during intersectP", nbNodeTraversalsP);
-    STAT_COUNTER("Accelerator/Kd-tree nodes", nbNodes);
-    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:maxdepth", statParamMaxDepth);
+    STAT_COUNTER("Accelerator/Results/0 Kd-tree node traversals during intersect", nbNodeTraversals);
+    STAT_COUNTER("Accelerator/Results/1 Kd-tree node traversals during intersectP", nbNodeTraversalsP);
+    STAT_COUNTER("Accelerator/Results/2 Kd-tree nodes", nbNodes);
 
-    STAT_COUNTER("Accelerator/Kd-tree build: splitTests", statNbSplitTests);
-    STAT_COUNTER("Accelerator/Kd-tree param:intersectioncost", statParamIntersectCost);
-    STAT_COUNTER("Accelerator/Kd-tree param:axisSelectionType", statParamAxisSelectionType);
-    STAT_COUNTER("Accelerator/Kd-tree param:axisSelectionAmount", statParamAxisSelectionAmount);
-    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:emptybonus", statParamEmptyBonus);
+    STAT_COUNTER("Accelerator/Results/5 Kd-tree build: splitTests", statNbSplitTests);
+    STAT_COUNTER_DOUBLE("Accelerator/Results/6 Kd-tree SA-cost", totalSACost);
+    STAT_COUNTER("Accelerator/Results/7 Kd-tree Depth", statDepth);
+    STAT_COUNTER("Accelerator/Params/0 Kd-tree param:maxdepth", statParamMaxDepth);
+    STAT_COUNTER("Accelerator/Params/1 Kd-tree param:intersectioncost", statParamIntersectCost);
+    STAT_COUNTER("Accelerator/Params/2 Kd-tree param:axisSelectionType", statParamAxisSelectionType);
+    STAT_COUNTER("Accelerator/Params/3 Kd-tree param:axisSelectionAmount", statParamAxisSelectionAmount);
+    STAT_COUNTER_DOUBLE("Accelerator/Params/4 Kd-tree param:emptybonus", statParamEmptyBonus);
+    STAT_COUNTER("Accelerator/Params/5 Kd-tree param:traversalcost", statParamTraversalCost);
+    STAT_COUNTER("Accelerator/Params/6 Kd-tree param:maxprims", statParamMaxPrims);
+    STAT_COUNTER_DOUBLE("Accelerator/Params/7 Kd-tree param:splitalpha", statParamSplitAlpha);
+    STAT_COUNTER_DOUBLE("Accelerator/Params/8 Kd-tree param:alphatype", statParamAlphaType);
 
-    STAT_COUNTER("Accelerator/Kd-tree param:traversalcost", statParamTraversalCost);
-    STAT_COUNTER("Accelerator/Kd-tree param:maxprims", statParamMaxPrims);
-    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:splitalpha", statParamSplitAlpha);
-    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree param:alphatype", statParamAlphaType);
-    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree SA-cost", totalSACost);
-    STAT_COUNTER_DOUBLE("Accelerator/Kd-tree Depth", statDepth);
 
     // KdTreeAccel Local Declarations
     struct KdAccelNode {
@@ -415,7 +415,7 @@ namespace pbrt {
         while (node != nullptr) {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
-            nbNodeTraversals++;
+            ++nbNodeTraversals;
             if (!node->IsLeaf()) {
                 // Process kd-tree interior node
                 ray.stats.kdTreeNodeTraversals++;
@@ -483,7 +483,7 @@ namespace pbrt {
         uint32_t todoPos = 0;
         const KdAccelNode *node = &nodes[0];
         while (node != nullptr) {
-            nbNodeTraversalsP++;
+            ++nbNodeTraversalsP;
             if (node->IsLeaf()) {
                 ray.stats.leafNodeTraversalsP++;
                 // Check for shadow ray intersections inside leaf node
