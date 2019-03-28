@@ -39,24 +39,6 @@
 
 namespace pbrt {
 
-    STAT_COUNTER("Accelerator/Results/0 Kd-tree node traversals during intersect", nbNodeTraversals);
-    STAT_COUNTER("Accelerator/Results/1 Kd-tree node traversals during intersectP", nbNodeTraversalsP);
-    STAT_COUNTER("Accelerator/Results/2 Kd-tree nodes", nbNodes);
-
-    STAT_COUNTER("Accelerator/Results/5 Kd-tree build: splitTests", statNbSplitTests);
-    STAT_COUNTER_DOUBLE("Accelerator/Results/6 Kd-tree SA-cost", totalSACost);
-    STAT_COUNTER("Accelerator/Results/7 Kd-tree Depth", statDepth);
-    STAT_COUNTER("Accelerator/Params/0 Kd-tree param:maxdepth", statParamMaxDepth);
-    STAT_COUNTER("Accelerator/Params/1 Kd-tree param:intersectioncost", statParamIntersectCost);
-    STAT_COUNTER("Accelerator/Params/2 Kd-tree param:axisSelectionType", statParamAxisSelectionType);
-    STAT_COUNTER("Accelerator/Params/3 Kd-tree param:axisSelectionAmount", statParamAxisSelectionAmount);
-    STAT_COUNTER_DOUBLE("Accelerator/Params/4 Kd-tree param:emptybonus", statParamEmptyBonus);
-    STAT_COUNTER("Accelerator/Params/5 Kd-tree param:traversalcost", statParamTraversalCost);
-    STAT_COUNTER("Accelerator/Params/6 Kd-tree param:maxprims", statParamMaxPrims);
-    STAT_COUNTER_DOUBLE("Accelerator/Params/7 Kd-tree param:splitalpha", statParamSplitAlpha);
-    STAT_COUNTER_DOUBLE("Accelerator/Params/8 Kd-tree param:alphatype", statParamAlphaType);
-
-
     // KdTreeAccel Local Declarations
     struct KdAccelNode {
         // KdAccelNode Methods
@@ -186,21 +168,11 @@ namespace pbrt {
                          alphaType, axisSelectionType, axisSelectionAmount) {
         ProfilePhase _(Prof::AccelConstruction);
 
-        statParamMaxDepth = maxDepth;
-        statParamEmptyBonus = emptyBonus;
-        statParamIntersectCost = isectCost;
-        statParamTraversalCost = traversalCost;
-        statParamMaxPrims = maxPrims;
-        statNbSplitTests = 0;
-        statParamSplitAlpha = splitAlpha;
-        statParamAlphaType = alphaType;
-        statParamAxisSelectionType = axisSelectionType;
-        statParamAxisSelectionAmount = axisSelectionAmount;
-
         directions.emplace_back(Vector3f(1.0, 0.0, 0.0));
         directions.emplace_back(Vector3f(0.0, 1.0, 0.0));
         directions.emplace_back(Vector3f(0.0, 0.0, 1.0));
 
+        statParamnbDirections = 3;
         // Start recursive construction of kd-tree
         buildTree();
     }
@@ -322,7 +294,7 @@ namespace pbrt {
 
                     if (edgeT > currentBuildNode.nodeBounds.pMin[axis] &&
                         edgeT < currentBuildNode.nodeBounds.pMax[axis]) {
-                        statNbSplitTests += 1;
+                        ++statNbSplitTests;
                         // Compute cost for split at _i_th edge
 
                         // Compute child surface areas for split at _edgeT_
@@ -378,6 +350,7 @@ namespace pbrt {
             Bounds3f bounds0 = currentBuildNode.nodeBounds, bounds1 = currentBuildNode.nodeBounds;
             bounds0.pMax[bestAxis] = bounds1.pMin[bestAxis] = tSplit;
 
+            ++nbKdNodes;
             currentSACost += traversalCost * currentBuildNode.nodeBounds.SurfaceArea();
             nodes[nodeNum].InitInterior(bestAxis, tSplit);
 

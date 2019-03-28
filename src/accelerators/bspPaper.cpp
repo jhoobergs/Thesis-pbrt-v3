@@ -12,20 +12,6 @@
 
 namespace pbrt {
 
-    STAT_COUNTER("Accelerator/RBSP-tree nodes", nbNodes);
-    STAT_COUNTER("Accelerator/RBSP-tree Kd-nodes", nbKdNodes);
-    STAT_COUNTER("Accelerator/RBSP-tree BSP-nodes", nbBSPNodes);
-    STAT_COUNTER("Accelerator/RBSP-tree build: splitTests", statNbSplitTests);
-    STAT_COUNTER("Accelerator/RBSP-tree param:directions", statParamnbDirections);
-    STAT_COUNTER("Accelerator/RBSP-tree param:intersectioncost", statParamIntersectCost);
-
-    STAT_COUNTER("Accelerator/RBSP-tree param:traversalcost", statParamTraversalCost);
-    STAT_COUNTER("Accelerator/RBSP-tree param:maxprims", statParamMaxPrims);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:emptybonus", statParamEmptyBonus);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:maxdepth", statParamMaxDepth);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
-
     BSPPaper::BSPPaper(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
                        uint32_t traversalCost,
                        Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
@@ -34,12 +20,6 @@ namespace pbrt {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamnbDirections = nbDirections;
-        statParamMaxDepth = maxDepth;
-        statParamEmptyBonus = emptyBonus;
-        statParamIntersectCost = isectCost;
-        statParamTraversalCost = traversalCost;
-        statParamMaxPrims = maxPrims;
-        statNbSplitTests = 0;
 
         // Start recursive construction of RBSP-tree
         buildTree();
@@ -166,7 +146,7 @@ namespace pbrt {
 
                     if (edgeT > directionBounds.min &&
                         edgeT < directionBounds.max) {
-                        statNbSplitTests += 1;
+                        ++statNbSplitTests;
                         // Compute cost for split at _i_th edge
                         // Compute child surface areas for split at _edgeT_
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
@@ -217,6 +197,7 @@ namespace pbrt {
 
                     if (plane.t > directionBounds.min &&
                         plane.t < directionBounds.max) {
+                        ++statNbSplitTests;
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
                                 plane.t, plane.axis);
                         const Float areaBelow = splittedKDOPs.first.SurfaceArea();
@@ -261,7 +242,7 @@ namespace pbrt {
             uint32_t *prims1, *prims0;
             prims1 = currentBuildNode.primNums; // prims1 needs to be put in de array first, so it isn't overriden by child 0
             if (bestK != 33) {
-                nbKdNodes++;
+                ++nbKdNodes;
                 if (nbKdNodes % 10000 == 0)
                     Warning("KD nodes %d", nbKdNodes);
                 for (uint32_t i = bestOffset + 1; i < 2 * currentBuildNode.nPrimitives; ++i)
@@ -273,7 +254,7 @@ namespace pbrt {
                     if (edges[bestK][i].type == EdgeType::Start)
                         prims0[n0++] = edges[bestK][i].primNum;
             } else {
-                nbBSPNodes++;
+                ++nbBSPNodes;
                 if (nbBSPNodes % 10000 == 0)
                     Warning("BSP nodes %d", nbBSPNodes);
                 std::vector<uint32_t> left, right;

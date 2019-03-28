@@ -12,25 +12,7 @@
 
 namespace pbrt {
 
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:splitalpha", statParamSplitAlpha);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:alphatype", statParamAlphaType);
-    STAT_COUNTER("Accelerator/RBSP-tree node traversals during intersect", nbNodeTraversals);
-    STAT_COUNTER("Accelerator/RBSP-tree node traversals during intersectP", nbNodeTraversalsP);
-    STAT_COUNTER("Accelerator/RBSP-tree nodes", nbNodes);
-    STAT_COUNTER("Accelerator/RBSP-tree build: splitTests", statNbSplitTests);
-    STAT_COUNTER("Accelerator/RBSP-tree param:directions", statParamnbDirections);
-    STAT_COUNTER("Accelerator/RBSP-tree param:intersectioncost", statParamIntersectCost);
-    STAT_COUNTER("Accelerator/RBSP-tree param:axisSelectionType", statParamAxisSelectionType);
-    STAT_COUNTER("Accelerator/RBSP-tree param:axisSelectionAmount", statParamAxisSelectionAmount);
-
-    STAT_COUNTER("Accelerator/RBSP-tree param:traversalcost", statParamTraversalCost);
-    STAT_COUNTER("Accelerator/RBSP-tree param:maxprims", statParamMaxPrims);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:emptybonus", statParamEmptyBonus);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:maxdepth", statParamMaxDepth);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
-
-    struct RBSPNode {
+   struct RBSPNode {
         // BSPNode Methods
         void InitLeaf(uint32_t M, uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices);
 
@@ -176,16 +158,6 @@ namespace pbrt {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamnbDirections = nbDirections;
-        statParamMaxDepth = maxDepth;
-        statParamEmptyBonus = emptyBonus;
-        statParamIntersectCost = isectCost;
-        statParamTraversalCost = traversalCost;
-        statParamMaxPrims = maxPrims;
-        statNbSplitTests = 0;
-        statParamSplitAlpha = splitAlpha;
-        statParamAlphaType = alphaType;
-        statParamAxisSelectionType = axisSelectionType;
-        statParamAxisSelectionAmount = axisSelectionAmount;
 
         directions = getDirections(nbDirections);
 
@@ -321,7 +293,7 @@ namespace pbrt {
 
                     if (edgeT > currentBuildNode.nodeBounds[d].min &&
                         edgeT < currentBuildNode.nodeBounds[d].max) {
-                        statNbSplitTests += 1;
+                        ++statNbSplitTests;
                         // Compute cost for split at _i_th edge
 
                         // Compute child surface areas for split at _edgeT_
@@ -396,6 +368,10 @@ namespace pbrt {
                 }
             }
 
+            if(bestD < 3)
+                ++nbKdNodes;
+            else
+                ++nbBSPNodes;
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
             nodes[nodeNum].InitInterior(bestD, tSplit);
 
@@ -435,7 +411,7 @@ namespace pbrt {
         while (node != nullptr) {
             // Bail out if we found a hit closer than the current node
             if (ray.tMax < tMin) break;
-            nbNodeTraversals++;
+            ++nbNodeTraversals;
             if (!node->IsLeaf(M)) {
                 // Process rbsp-tree interior node
                 ray.stats.bspTreeNodeTraversals++;
@@ -504,7 +480,7 @@ namespace pbrt {
         uint32_t todoPos = 0;
         const RBSPNode *node = &nodes[0];
         while (node != nullptr) {
-            nbNodeTraversalsP++;
+            ++nbNodeTraversalsP;
             if (node->IsLeaf(M)) {
                 ray.stats.leafNodeTraversalsP++;
                 // Check for shadow ray intersections inside leaf node

@@ -10,9 +10,6 @@
 #include "geometry.h"
 
 namespace pbrt {
-    STAT_COUNTER("Accelerator/Results/0 BSP-tree node traversals during intersect", nbNodeTraversals);
-    STAT_COUNTER("Accelerator/Results/1 BSP-tree node traversals during intersectP", nbNodeTraversalsP);
-
     BSP::BSP(std::vector<std::shared_ptr<Primitive>> p,
              uint32_t isectCost, uint32_t traversalCost,
              Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections,

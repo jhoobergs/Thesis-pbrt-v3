@@ -14,65 +14,26 @@
 
 
 namespace pbrt {
-    /*struct TreeNodeInterface {
-        virtual bool IsLeaf() const = 0;
+    STAT_COUNTER("Accelerator/Results/0 BSP-tree node traversals during intersect", nbNodeTraversals);
+    STAT_COUNTER("Accelerator/Results/1 BSP-tree node traversals during intersectP", nbNodeTraversalsP);
+    STAT_COUNTER("Accelerator/Results/2 BSP-tree nodes", nbNodes);
+    STAT_COUNTER("Accelerator/Results/3 BSP-tree kd nodes", nbKdNodes);
+    STAT_COUNTER("Accelerator/Results/4 BSP-tree bsp nodes", nbBSPNodes);
+    STAT_COUNTER("Accelerator/Results/5 BSP-tree build: splitTests", statNbSplitTests);
+    STAT_COUNTER_DOUBLE("Accelerator/Results/6 BSP-tree SA-cost", totalSACost);
+    STAT_COUNTER("Accelerator/Results/7 BSP-tree Depth", statDepth);
 
-        virtual uint32_t AboveChild() const = 0;
+    STAT_COUNTER("Accelerator/Params/0 BSP-tree param:maxdepth", statParamMaxDepth);
+    STAT_COUNTER("Accelerator/Params/1 BSP-tree param:intersectioncost", statParamIntersectCost);
+    STAT_COUNTER("Accelerator/Params/2 BSP-tree param:traversalcost", statParamTraversalCost);
+    STAT_COUNTER_DOUBLE("Accelerator/Params/4 BSP-tree param:emptybonus", statParamEmptyBonus);
+    STAT_COUNTER("Accelerator/Params/5 BSP-tree param:maxprims", statParamMaxPrims);
+    STAT_COUNTER("Accelerator/Params/6 BSP-tree param:directions", statParamnbDirections);
+    STAT_COUNTER("Accelerator/Params/7 BSP-tree param:axisSelectionType", statParamAxisSelectionType);
+    STAT_COUNTER("Accelerator/Params/8 BSP-tree param:axisSelectionAmount", statParamAxisSelectionAmount);
+    STAT_COUNTER_DOUBLE("Accelerator/Params/9 BSP-tree param:splitalpha", statParamSplitAlpha);
+    STAT_COUNTER_DOUBLE("Accelerator/Params/10 BSP-tree param:alphatype", statParamAlphaType);
 
-        virtual std::string toString(const std::vector<uint32_t> &primitiveIndices) = 0;
-
-        virtual std::pair<Float, bool>intersectInterior(const Ray &ray, const Vector3f &invDir) const = 0;
-
-        virtual bool intersectLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices, SurfaceInteraction *isect) const = 0;
-
-        virtual bool intersectPLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices) const = 0;
-
-        virtual void setAboveChild(uint32_t ac) = 0;
-
-        virtual Float SplitPos() const = 0;
-
-        virtual uint32_t nPrimitives() const = 0;
-
-        virtual Vector3f SplitAxis() const = 0;
-
-        virtual void InitLeaf(uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices) = 0;
-
-        virtual void InitInterior(const Vector3f &axis, Float s) = 0;
-
-        virtual void InitInterior(uint32_t &axis, Float s) = 0;
-
-        virtual uint32_t depth(TreeNodeInterface *nodes, int id = 0) const = 0;
-    };*/
-
-    //struct TreeNode {
-        /*bool IsLeaf() const {return false;};
-
-        uint32_t AboveChild() const {return 0;};
-
-        std::string toString(const std::vector<uint32_t> &primitiveIndices) { return ""; };
-
-        std::pair<Float, bool>intersectInterior(const Ray &ray, const Vector3f &invDir) const { return std::make_pair(0,false); };
-
-        bool intersectLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices, SurfaceInteraction *isect) const { return false; };
-
-        bool intersectPLeaf(const Ray &ray, const std::vector<std::shared_ptr<Primitive>> &primitives, const std::vector<uint32_t> &primitiveIndices) const { return false; };
-
-        void setAboveChild(uint32_t ac) {};
-
-        Float SplitPos() const { return 0; };
-
-        uint32_t nPrimitives() const { return 0; };
-
-        Vector3f SplitAxis() const { Vector3f(0,0,0); };
-
-        void InitLeaf(uint32_t *primNums, uint32_t np, std::vector<uint32_t> *primitiveIndices) {};
-
-        virtual void InitInterior(const Vector3f &axis, Float s) {};
-
-        virtual void InitInterior(uint32_t &axis, Float s) {};
-
-        virtual uint32_t depth(TreeNodeInterface *nodes, int id = 0) const {return 0;};*/
-    //};
 
     enum class EdgeType {
         Start, End
@@ -114,6 +75,17 @@ namespace pbrt {
                 GenericBSP::axisSelectionAmount = nbDirections;
             else
                 GenericBSP::axisSelectionAmount = axisSelectionAmount;
+
+            statParamMaxDepth = maxDepth;
+            statParamEmptyBonus = emptyBonus;
+            statParamIntersectCost = isectCost;
+            statParamTraversalCost = traversalCost;
+            statParamMaxPrims = maxPrims;
+            statNbSplitTests = 0;
+            statParamSplitAlpha = splitAlpha;
+            statParamAlphaType = alphaType;
+            statParamAxisSelectionType = axisSelectionType;
+            statParamAxisSelectionAmount = axisSelectionAmount;
 
         }
 
