@@ -6,14 +6,15 @@
 
 
 namespace pbrt {
-    STAT_COUNTER("Accelerator/BSPKd-tree node traversals during intersect", nbNodeTraversals);
-    STAT_COUNTER("Accelerator/BSPKd-tree node traversals during intersectP", nbNodeTraversalsP);
+    STAT_COUNTER("Accelerator/Params/3 BSP-tree param:kdTraversalcost", statParamKdTraversalCost);
 
     BSPKd::BSPKd(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
                            uint32_t traversalCost,
                            Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, uint32_t kdTravCost)
             : GenericBSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
-                         0, 0, 0, 0), kdTraversalCost(kdTravCost) {}
+                         0, 0, 0, 0), kdTraversalCost(kdTravCost) {
+        statParamKdTraversalCost = kdTraversalCost;
+    }
 
     void BSPKd::printNodes(std::ofstream &os) const {
         for (int i = 0; i < nextFreeNode; i++) {

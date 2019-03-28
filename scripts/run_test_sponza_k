@@ -1,0 +1,7 @@
+for((K=2;K<=20;K+=1));
+do
+     $(dirname "$0")/run_simple.sh test_sponza_k "bspcluster-"$K
+     $(dirname "$0")/run_simple.sh test_sponza_k "bspclusterwithkd-"$K
+     $(dirname "$0")/run_simple.sh test_sponza_k "bspclusterfastkd-"$K
+done
+

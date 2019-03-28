@@ -13,20 +13,6 @@
 
 namespace pbrt {
 
-    STAT_COUNTER("Accelerator/RBSP-tree nodes", nbNodes);
-    STAT_COUNTER("Accelerator/RBSP-tree Kd-nodes", nbKdNodes);
-    STAT_COUNTER("Accelerator/RBSP-tree BSP-nodes", nbBSPNodes);
-    STAT_COUNTER("Accelerator/RBSP-tree build: splitTests", statNbSplitTests);
-    STAT_COUNTER("Accelerator/RBSP-tree param:directions", statParamnbDirections);
-    STAT_COUNTER("Accelerator/RBSP-tree param:intersectioncost", statParamIntersectCost);
-
-    STAT_COUNTER("Accelerator/RBSP-tree param:traversalcost", statParamTraversalCost);
-    STAT_COUNTER("Accelerator/RBSP-tree param:maxprims", statParamMaxPrims);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:emptybonus", statParamEmptyBonus);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree param:maxdepth", statParamMaxDepth);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree SA-cost", totalSACost);
-    STAT_COUNTER_DOUBLE("Accelerator/RBSP-tree Depth", statDepth);
-
     BSPClusterFastKd::BSPClusterFastKd(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
                                        uint32_t traversalCost,
                                        Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, uint32_t kdTravCost)
@@ -35,12 +21,6 @@ namespace pbrt {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamnbDirections = nbDirections;
-        statParamMaxDepth = maxDepth;
-        statParamEmptyBonus = emptyBonus;
-        statParamIntersectCost = isectCost;
-        statParamTraversalCost = traversalCost;
-        statParamMaxPrims = maxPrims;
-        statNbSplitTests = 0;
 
         K = nbDirections;
 
@@ -172,7 +152,7 @@ namespace pbrt {
 
                     if (edgeT > directionBounds.min &&
                         edgeT < directionBounds.max) {
-                        statNbSplitTests += 1;
+                        ++statNbSplitTests;
                         // Compute cost for split at _i_th edge
                         // Compute child surface areas for split at _edgeT_
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
@@ -244,7 +224,7 @@ namespace pbrt {
 
                     if (edgeT > directionBounds.min &&
                         edgeT < directionBounds.max) {
-                        statNbSplitTests += 1;
+                        ++statNbSplitTests;
                         // Compute cost for split at _i_th edge
                         // Compute child surface areas for split at _edgeT_
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
@@ -308,18 +288,18 @@ namespace pbrt {
             if(bestK != -1) {
                 if (bestK < 3) {
                     const Float tSplit = edges[bestK][bestOffset].t;
-                    nbKdNodes++;
+                    ++nbKdNodes;
                     currentSACost += kdTraversalCost * currentBuildNode.kdopMeshArea;
                     nodes[nodeNum].initInteriorKd(bestK, tSplit);
                 } else {
                     const Float tSplit = edges[bestK][bestOffset].t;
-                    nbBSPNodes++;
+                    ++nbBSPNodes;
                     currentSACost += (BSP_ALPHA * isectCost * (currentBuildNode.nPrimitives - 1) + kdTraversalCost) *
                                      currentBuildNode.kdopMeshArea;
                     nodes[nodeNum].initInterior(clusterMeans[bestK - 3], tSplit);
                 }
             } else {
-                nbBSPNodes++;
+                ++nbBSPNodes;
                 const Float tSplit = edges[bestKFixed][bestOffsetFixed].t;
                 currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum].initInterior(clusterMeans[bestKFixed - 3], tSplit);

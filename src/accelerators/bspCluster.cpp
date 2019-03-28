@@ -13,19 +13,7 @@
 
 namespace pbrt {
 
-    STAT_COUNTER("Accelerator/Results/2 BSP-tree nodes", nbNodes);
-    STAT_COUNTER("Accelerator/Results/5 BSP-tree build: splitTests", statNbSplitTests);
-    STAT_COUNTER_DOUBLE("Accelerator/Results/6 BSP-tree SA-cost", totalSACost);
-    STAT_COUNTER("Accelerator/Results/7 BSP-tree Depth", statDepth);
-
-    STAT_COUNTER("Accelerator/Params/0 BSP-tree param:maxdepth", statParamMaxDepth);
-    STAT_COUNTER("Accelerator/Params/1 BSP-tree param:intersectioncost", statParamIntersectCost);
-    STAT_COUNTER_DOUBLE("Accelerator/Params/4 BSP-tree param:emptybonus", statParamEmptyBonus);
-    STAT_COUNTER("Accelerator/Params/5 BSP-tree param:traversalcost", statParamTraversalCost);
-    STAT_COUNTER("Accelerator/Params/6 BSP-tree param:maxprims", statParamMaxPrims);
-    STAT_COUNTER("Accelerator/Params/9 BSP-tree param:directions", statParamnbDirections);
-
-    BSPCluster::BSPCluster(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
+      BSPCluster::BSPCluster(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
                            uint32_t traversalCost,
                            Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
             : BSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
@@ -33,12 +21,6 @@ namespace pbrt {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamnbDirections = nbDirections;
-        statParamMaxDepth = maxDepth;
-        statParamEmptyBonus = emptyBonus;
-        statParamIntersectCost = isectCost;
-        statParamTraversalCost = traversalCost;
-        statParamMaxPrims = maxPrims;
-        statNbSplitTests = 0;
 
         K = nbDirections;
 
@@ -162,7 +144,7 @@ namespace pbrt {
 
                     if (edgeT > directionBounds.min &&
                         edgeT < directionBounds.max) {
-                        statNbSplitTests += 1;
+                        ++statNbSplitTests;
                         // Compute cost for split at _i_th edge
                         // Compute child surface areas for split at _edgeT_
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
@@ -221,6 +203,7 @@ namespace pbrt {
 
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
             treeInitInterior(&nodes[nodeNum], clusterMeans[bestK], tSplit);
+            ++nbBSPNodes;
 
             stack.emplace_back(
                     currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
