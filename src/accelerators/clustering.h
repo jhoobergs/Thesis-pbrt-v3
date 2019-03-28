@@ -5,8 +5,6 @@
 #ifndef PBRT_V3_CLUSTERING_H
 #define PBRT_V3_CLUSTERING_H
 
-#endif //PBRT_V3_CLUSTERING_H
-
 namespace pbrt {
     inline uint32_t calculateIdOfClosestMean(Vector3f &normal, const std::vector<Vector3f> &means) {
         //Warning("calculateIdOfClosestMean");
@@ -112,3 +110,4 @@ namespace pbrt {
         return newClusterMeans;
     }
 }
+#endif //PBRT_V3_CLUSTERING_H
