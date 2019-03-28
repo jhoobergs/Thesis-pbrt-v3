@@ -1,0 +1,127 @@
+LookAt -0.7 0.45 0.05 0 0.25 0 0 1 0
+Camera "perspective" "float fov" [42]
+Film "image"  
+"integer xresolution" [700] "integer yresolution" [700] "string filename" "killeroo-simple.exr"
+
+# zoom in by feet
+# "integer xresolution" [1500] "integer yresolution" [1500]
+#	"float cropwindow" [ .34 .49  .67 .8 ]
+
+Sampler "halton" "integer pixelsamples" [64]
+Accelerator $acc "integer nbDirections" [$accnr] "float splitalpha" [$splitalpha] "integer alphatype" [$alphatype] "integer axisselectiontype" [$axisselectiontype] "integer axisselectionamount" [$axisselectionamount]
+
+Integrator "path" "integer maxdepth" [5]
+
+WorldBegin
+LightSource "point" "point from" [ 0 .5 0 ]
+#LightSource "point" "point from" [ -0.7 .45 0.05 ] "point to" [0 0.25 0]
+
+AttributeBegin
+  Texture "arch" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/arch.png"
+  Material "matte" "texture Kd" "arch"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/arch.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "bricks" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/bricks.png"
+  Material "matte" "texture Kd" "bricks"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/bricks.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "ceiling" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/ceiling.png"
+  Material "matte" "texture Kd" "ceiling"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/ceiling.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "column_a" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/column_a.png"
+  Material "matte" "texture Kd" "column_a"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/column_a.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "column_b" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/column_b.png"
+  Material "matte" "texture Kd" "column_b"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/column_b.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "column_c" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/column_c.png"
+  Material "matte" "texture Kd" "column_c"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/column_c.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "curtain_blue" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/curtain_blue.png"
+  Material "matte" "texture Kd" "curtain_blue"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/curtain_blue.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "curtain_green" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/curtain_green.png"
+  Material "matte" "texture Kd" "curtain_green"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/curtain_green.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "curtain_red" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/curtain_red.png"
+  Material "matte" "texture Kd" "curtain_red"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/curtain_red.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "decorations" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/decorations.png"
+  Material "matte" "texture Kd" "decorations"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/decorations.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "details" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/details.png"
+  Material "matte" "texture Kd" "details"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/details.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "fabric_blue" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/fabric_blue.png"
+  Material "matte" "texture Kd" "fabric_blue"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/fabric_blue.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "fabric_green" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/fabric_green.png"
+  Material "matte" "texture Kd" "fabric_green"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/fabric_green.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "fabric_red" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/fabric_red.png"
+  Material "matte" "texture Kd" "fabric_red"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/fabric_red.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "flagpole" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/flagpole.png"
+  Material "matte" "texture Kd" "flagpole"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/flagpole.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "floor" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/floor.png"
+  Material "matte" "texture Kd" "floor"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/floor.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "lionhead" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/lionhead.png"
+  Material "matte" "texture Kd" "lionhead"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/lionhead.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "roof" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/roof.png"
+  Material "matte" "texture Kd" "roof"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/roof.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "vase" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/vase.png"
+  Material "matte" "texture Kd" "vase"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/vase.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "vase_hanging" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/vase_hanging.png"
+  Material "matte" "texture Kd" "vase_hanging"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/vase_hanging.pbrt"
+AttributeEnd
+AttributeBegin
+  Texture "vase_round" "spectrum" "imagemap" "string filename" "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/vase_round.png"
+  Material "matte" "texture Kd" "vase_round"
+  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/sponza/vase_round.pbrt"
+AttributeEnd
+WorldEnd
+
+
+
