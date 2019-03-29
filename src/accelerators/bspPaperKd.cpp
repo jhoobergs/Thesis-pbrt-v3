@@ -289,8 +289,9 @@ namespace pbrt {
             if(bestK != -1) {
                 if(bestK == 33) {
                     ++nbBSPNodes;
-                    currentSACost += (BSP_ALPHA * isectCost * (currentBuildNode.nPrimitives - 1) + kdTraversalCost) *
-                                     currentBuildNode.kdopMeshArea;
+                    /*currentSACost += (BSP_ALPHA * isectCost * (currentBuildNode.nPrimitives - 1) + kdTraversalCost) *
+                                     currentBuildNode.kdopMeshArea;*/
+                    currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
                     nodes[nodeNum].initInterior(bestSplitAxis, bestSplitT);
                 }
                 else {
