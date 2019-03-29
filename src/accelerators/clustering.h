@@ -37,7 +37,7 @@ namespace pbrt {
     inline Float calculateMaxDifference(const std::vector<Vector3f> &oldMeans, const std::vector<Vector3f> &newMeans) {
         //Warning("calculateMaxDifference");
         Float maxDiff = 0;
-        for (uint32_t i = 1; i < oldMeans.size(); ++i) {
+        for (uint32_t i = 0; i < oldMeans.size(); ++i) {
             Vector3f diff = oldMeans[i] - newMeans[i];
             maxDiff = std::max(maxDiff, Dot(diff, diff));
         }
@@ -79,7 +79,7 @@ namespace pbrt {
         const uint32_t maxIterations = 500;
         uint32_t iterations = 0;
         while (iterations < maxIterations &&
-               (iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) > 0.001)) {
+               (iterations == 0 or calculateMaxDifference(clusterMeans, newClusterMeans) > 0.000001)) {
 
             ++iterations;
             clusterMeans = newClusterMeans;
@@ -93,10 +93,9 @@ namespace pbrt {
                     while (nIds.size() < K)
                         nIds.insert(random_int(gen, 0,np));
                     std::vector<uint32_t> v(nIds.begin(), nIds.end());
-
                     for (int ii = 0; ii < K; ++ii) {
                         auto id = v[ii];
-                        clusterMeans.emplace_back(normals[id]);
+                        newClusterMeans[ii] = normals[id];
                         clusters[ii].clear();
                     }
                     break;
@@ -106,6 +105,8 @@ namespace pbrt {
                 //Warning("Cleared");
             }
         }
+        if(iterations == 500)
+            Warning("iterations: %d", iterations);
 
         return newClusterMeans;
     }

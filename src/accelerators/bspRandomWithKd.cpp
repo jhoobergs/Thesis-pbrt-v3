@@ -1,21 +1,21 @@
 //
-// Created by jesse on 18.03.19.
+// Created by jesse on 28.03.19.
 //
 
-#include "bspClusterWithKd.h"
+#include "bspRandomWithKd.h"
 #include <core/stats.h>
 #include <core/progressreporter.h>
 #include <bits/random.h>
 #include "paramset.h"
 #include <set>
 #include <random>
-#include "clustering.h"
+#include "randomNormals.h"
 
 namespace pbrt {
 
-     BSPClusterWithKd::BSPClusterWithKd(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
-                           uint32_t traversalCost,
-                           Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
+    BSPRandomWithKd::BSPRandomWithKd(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
+                                       uint32_t traversalCost,
+                                       Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
             : BSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
                   0, 0, 0, 0) {
         ProfilePhase _(Prof::AccelConstruction);
@@ -28,7 +28,7 @@ namespace pbrt {
         buildTree();
     }
 
-    void BSPClusterWithKd::buildTree() {
+    void BSPRandomWithKd::buildTree() {
         std::random_device rd;  //Will be used to obtain a seed for the random number engine
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
 
@@ -110,18 +110,18 @@ namespace pbrt {
             std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> splittedKDOPs;
 
             const uint32_t Kmeans = K - 3;
-            std::vector<Vector3f> clusterMeans;
-            clusterMeans.emplace_back(1,0,0);
-            clusterMeans.emplace_back(0,1,0);
-            clusterMeans.emplace_back(0,0,1);
+            std::vector<Vector3f> randomNormals;
+            randomNormals.emplace_back(1,0,0);
+            randomNormals.emplace_back(0,1,0);
+            randomNormals.emplace_back(0,0,1);
             if(Kmeans > 0) {
-                auto generatatedClusterMeans = calculateClusterMeans(gen, Kmeans, primitives, currentBuildNode.primNums,
-                                                          currentBuildNode.nPrimitives);
-                clusterMeans.insert(clusterMeans.end(), generatatedClusterMeans.begin(), generatatedClusterMeans.end());
+                auto generatatedClusterMeans = createRandomNormals(gen, Kmeans, primitives, currentBuildNode.primNums,
+                                                                     currentBuildNode.nPrimitives);
+                randomNormals.insert(randomNormals.end(), generatatedClusterMeans.begin(), generatatedClusterMeans.end());
             }
 
-            for (uint32_t k = 0; k < clusterMeans.size(); ++k) {
-                auto d = clusterMeans[k];
+            for (uint32_t k = 0; k < randomNormals.size(); ++k) {
+                auto d = randomNormals[k];
 
                 Boundsf directionBounds = Boundsf();
                 for (auto &edge: currentBuildNode.kDOPMesh.edges) {
@@ -215,7 +215,7 @@ namespace pbrt {
                 ++nbBSPNodes;
 
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
-            treeInitInterior(&nodes[nodeNum], clusterMeans[bestK], tSplit);
+            treeInitInterior(&nodes[nodeNum], randomNormals[bestK], tSplit);
 
             stack.emplace_back(
                     currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
@@ -229,13 +229,13 @@ namespace pbrt {
         reporter.Done();
         Warning("Done building");
         statDepth = treeDepth(&nodes[0], nodes, 0);
-        Warning("END Done building");
+        Warning("END Done building RANDOMWITHKD");
 
         nbNodes = nodeNum;
         totalSACost = currentSACost / bounds.SurfaceArea();
     }
 
-    std::shared_ptr<BSPClusterWithKd> CreateBSPClusterWithKdTreeAccelerator(
+    std::shared_ptr<BSPRandomWithKd> CreateBSPRandomWithKdTreeAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps) {
         uint32_t isectCost = (uint32_t) ps.FindOneInt("intersectcost", 80);
         uint32_t travCost = (uint32_t) ps.FindOneInt("traversalcost", 5);
@@ -244,7 +244,7 @@ namespace pbrt {
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
         uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3);
 
-        return std::make_shared<BSPClusterWithKd>(std::move(prims), isectCost, travCost, emptyBonus,
-                                            maxPrims, maxDepth, nbDirections);
+        return std::make_shared<BSPRandomWithKd>(std::move(prims), isectCost, travCost, emptyBonus,
+                                                  maxPrims, maxDepth, nbDirections);
     }
 } // namespace pbrt
