@@ -23,6 +23,6 @@ AttributeBegin
   Translate -200 100 -100
   Material "plastic" "color Ks" [.3 .3 .3] "color Kd" [.4 .5 .4]
         "float roughness" [.15] 
-  Include "../../../scenes/geometry/killeroo.pbrt"
+  Include "../../../../scenes/geometry/killeroo.pbrt"
 AttributeEnd
 WorldEnd
