@@ -53,6 +53,9 @@
 #include "accelerators/bspArbitrary.h"
 #include "accelerators/bspArbitraryWithKd.h"
 #include "accelerators/bspArbitraryFastKd.h"
+#include <accelerators/bspRandom.h>
+#include <accelerators/bspRandomWithKd.h>
+#include <accelerators/bspRandomFastKd.h>
 #include "accelerators/bspPaper.h"
 #include "accelerators/bspPaperKd.h"
 #include "cameras/environment.h"
@@ -910,6 +913,48 @@ std::shared_ptr<Primitive> MakeAccelerator(
     }
     else if (name == "bsparbitraryfastkd") {
         std::shared_ptr<BSPArbitraryFastKd> bsp = CreateBSPArbitraryFastKdTreeAccelerator(std::move(prims), paramSet);
+        if(writeFile) {
+            std::string filename = PbrtOptions.imageFile;
+            std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(
+                    ".txt");
+            Warning("%s", textFile.c_str());
+            std::ofstream myfile;
+            myfile.open(textFile);
+            myfile << *bsp.get();
+            myfile.close();
+        }
+        accel = bsp;
+    }
+    else if (name == "bsprandom") {
+        std::shared_ptr<BSPRandom> bsp = CreateBSPRandomTreeAccelerator(std::move(prims), paramSet);
+        if(writeFile) {
+            std::string filename = PbrtOptions.imageFile;
+            std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(
+                    ".txt");
+            Warning("%s", textFile.c_str());
+            std::ofstream myfile;
+            myfile.open(textFile);
+            myfile << *bsp.get();
+            myfile.close();
+        }
+        accel = bsp;
+    }
+    else if (name == "bsprandomwithkd") {
+        std::shared_ptr<BSPRandomWithKd> bsp = CreateBSPRandomWithKdTreeAccelerator(std::move(prims), paramSet);
+        if(writeFile) {
+            std::string filename = PbrtOptions.imageFile;
+            std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(
+                    ".txt");
+            Warning("%s", textFile.c_str());
+            std::ofstream myfile;
+            myfile.open(textFile);
+            myfile << *bsp.get();
+            myfile.close();
+        }
+        accel = bsp;
+    }
+    else if (name == "bsprandomfastkd") {
+        std::shared_ptr<BSPRandomFastKd> bsp = CreateBSPRandomFastKdTreeAccelerator(std::move(prims), paramSet);
         if(writeFile) {
             std::string filename = PbrtOptions.imageFile;
             std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(
