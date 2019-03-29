@@ -12,7 +12,7 @@ esac
 
 export PBRT_PATH=$BASE"/"$BUILD_FOLDER"/"
 export SCENE_PATH=$BASE/"scenes/"$NAME
-export RESULTS_DIR=$BASE"/results/"$NAME
+export RESULTS_DIR=$BASE"/results/"$NAME"/"$HOSTNAME
 mkdir $RESULTS_DIR > /dev/null 2>&1 || true
 export NR=`ls -vl $RESULTS_DIR | sed 's/\s\s*/ /g' | cut -d' ' -f9 | cut -d'-' -f1 | tail -n 1`
 export RESULTS_DIR=$RESULTS_DIR"/"$(($NR + 1))"-"$ACC

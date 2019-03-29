@@ -17,34 +17,34 @@ LightSource "point" "point from" [ 0 .5 0 ]
 #LightSource "point" "point from" [ -0.7 .45 0.05 ] "point to" [0 0.25 0]
 
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/bone.pbrt"
+  Include "../../../../scenes/geometry/museum/bone.pbrt"
 AttributeEnd
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/brushedmetals.pbrt"
+  Include "../../../../scenes/geometry/museum/brushedmetals.pbrt"
 AttributeEnd
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/floor.pbrt"
+  Include "../../../../scenes/geometry/museum/floor.pbrt"
 AttributeEnd
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/glass.pbrt"
+  Include "../../../../scenes/geometry/museum/glass.pbrt"
 AttributeEnd
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/glasstranslucent.pbrt"
+  Include "../../../../scenes/geometry/museum/glasstranslucent.pbrt"
 AttributeEnd
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/painted.pbrt"
+  Include "../../../../scenes/geometry/museum/painted.pbrt"
 AttributeEnd
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/stone.pbrt"
+  Include "../../../../scenes/geometry/museum/stone.pbrt"
 AttributeEnd
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/stoneunfinished.pbrt"
+  Include "../../../../scenes/geometry/museum/stoneunfinished.pbrt"
 AttributeEnd
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/woodpainted.pbrt"
+  Include "../../../../scenes/geometry/museum/woodpainted.pbrt"
 AttributeEnd
 AttributeBegin
-  Include "/Programming/Thesis/pbrt-v3/scenes/geometry/museum/woodvarnished.pbrt"
+  Include "../../../../scenes/geometry/museum/woodvarnished.pbrt"
 AttributeEnd
 WorldEnd
 
