@@ -8,10 +8,10 @@
 #include "BSPKd.h"
 
 namespace pbrt {
-    class BSPRandomFastKd: public BSPKd {
+    class BSPArbitraryFastKd: public BSPKd {
     public:
 
-        BSPRandomFastKd(std::vector<std::shared_ptr<Primitive>> p,
+        BSPArbitraryFastKd(std::vector<std::shared_ptr<Primitive>> p,
                          uint32_t isectCost = 80, uint32_t traversalCost = 5,
                          Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3, uint32_t kdTravCost=1);
 
@@ -22,7 +22,7 @@ namespace pbrt {
         uint32_t K;
     };
 
-    std::shared_ptr<BSPRandomFastKd> CreateBSPRandomFastKdTreeAccelerator(
+    std::shared_ptr<BSPArbitraryFastKd> CreateBSPArbitraryFastKdTreeAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps);
 }
 
