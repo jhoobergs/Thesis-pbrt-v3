@@ -431,8 +431,9 @@ namespace pbrt {
                     currentSACost += kdTraversalCost * currentBuildNode.kdopMeshArea;
                 } else {
                     nbBSPNodes++;
-                    currentSACost += (BSP_ALPHA * isectCost * (currentBuildNode.nPrimitives - 1) + kdTraversalCost) *
-                                     currentBuildNode.kdopMeshArea;
+                    /*currentSACost += (BSP_ALPHA * isectCost * (currentBuildNode.nPrimitives - 1) + kdTraversalCost) *
+                                     currentBuildNode.kdopMeshArea;*/
+                    currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
                 }
             } else {
                 nbBSPNodes++;
