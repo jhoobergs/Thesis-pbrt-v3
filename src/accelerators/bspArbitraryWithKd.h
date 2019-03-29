@@ -8,10 +8,10 @@
 #include "BSP.h"
 
 namespace pbrt {
-    class BSPRandomWithKd: public BSP {
+    class BSPArbitraryWithKd: public BSP {
     public:
 
-        BSPRandomWithKd(std::vector<std::shared_ptr<Primitive>> p,
+        BSPArbitraryWithKd(std::vector<std::shared_ptr<Primitive>> p,
                          uint32_t isectCost = 80, uint32_t traversalCost = 5,
                          Float emptyBonus = 0.5, uint32_t maxPrims = 1, uint32_t maxDepth = -1, uint32_t nbDirections = 3);
 
@@ -22,7 +22,7 @@ namespace pbrt {
         uint32_t K;
     };
 
-    std::shared_ptr<BSPRandomWithKd> CreateBSPRandomWithKdTreeAccelerator(
+    std::shared_ptr<BSPArbitraryWithKd> CreateBSPArbitraryWithKdTreeAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps);
 }
 

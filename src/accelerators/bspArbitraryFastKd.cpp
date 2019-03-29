@@ -2,7 +2,7 @@
 // Created by jesse on 28.03.19.
 //
 
-#include "bspRandomWithKd.h"
+#include "bspArbitraryFastKd.h"
 #include <core/stats.h>
 #include <core/progressreporter.h>
 #include <bits/random.h>
@@ -13,11 +13,11 @@
 
 namespace pbrt {
 
-    BSPRandomWithKd::BSPRandomWithKd(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
+    BSPArbitraryFastKd::BSPArbitraryFastKd(std::vector<std::shared_ptr<pbrt::Primitive>> p, uint32_t isectCost,
                                        uint32_t traversalCost,
-                                       Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
-            : BSP(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
-                  0, 0, 0, 0) {
+                                       Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, uint32_t kdTravCost)
+            : BSPKd(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
+                    kdTravCost) {
         ProfilePhase _(Prof::AccelConstruction);
 
         statParamnbDirections = nbDirections;
@@ -28,18 +28,28 @@ namespace pbrt {
         buildTree();
     }
 
-    void BSPRandomWithKd::buildTree() {
+    void BSPArbitraryFastKd::buildTree() {
+        const Float BSP_ALPHA = 0.1;
         std::random_device rd;  //Will be used to obtain a seed for the random number engine
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
 
         //Initialize
         // Compute bounds for rbsp-tree construction: CANNOT PRECOMPUTE ALLPRIMBOUNDS
+        std::vector<Bounds3f> allPrimBounds;
+        allPrimBounds.reserve(primitives.size());
         for (const std::shared_ptr<Primitive> &prim : primitives) {
-            bounds = Union(bounds, prim->WorldBound());
+            Bounds3f b = prim->WorldBound();
+            bounds = Union(bounds, b);
+            allPrimBounds.push_back(b);
         }
 
         KDOPMeshWithDirections kDOPMesh;
         bounds.toKDOPMesh(kDOPMesh, kDOPMesh.directions);
+
+        std::vector<Vector3f> kdDirections;
+        kdDirections.emplace_back(1,0,0);
+        kdDirections.emplace_back(0,1,0);
+        kdDirections.emplace_back(0,0,1);
 
         // Building
         ProgressReporter reporter(2 * primitives.size() * maxDepth - 1, "Building");
@@ -72,16 +82,16 @@ namespace pbrt {
             CHECK_EQ(nodeNum, nextFreeNode);
 
             if (currentBuildNode.parentNum != -1)
-                treeSetAboveChild(&nodes[currentBuildNode.parentNum], (nodeNum));
+                nodes[currentBuildNode.parentNum].setAboveChild(nodeNum);
 
             maxPrimsOffset = std::max(maxPrimsOffset, (uint32_t) (currentBuildNode.primNums - &prims[0]));
 
             // Get next free node from _nodes_ array
             if (nextFreeNode == nAllocedNodes) {
                 uint32_t nNewAllocNodes = std::max(2u * nAllocedNodes, 512u);
-                auto *n = AllocAligned<BSPNode>(nNewAllocNodes);
+                auto *n = AllocAligned<BSPKdNode>(nNewAllocNodes);
                 if (nAllocedNodes > 0) {
-                    memcpy(n, nodes, nAllocedNodes * sizeof(BSPNode));
+                    memcpy(n, nodes, nAllocedNodes * sizeof(BSPKdNode));
                     FreeAligned(nodes);
                 }
                 nodes = n;
@@ -92,36 +102,26 @@ namespace pbrt {
             // Initialize leaf node if termination criteria met
             if (currentBuildNode.nPrimitives <= maxPrims || currentBuildNode.depth == 0) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
-                treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
-                             &primitiveIndices);
+                nodes[nodeNum++].initLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
+                                          &primitiveIndices);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
                 continue;
             }
 
             // Choose split axis position for interior node
-            uint32_t bestK = -1, bestOffset = -1;
-            std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> bestSplittedKDOPs;
-            std::pair<Float, Float> bestSplittedKDOPAreas = std::make_pair(0, 0);
-            Float bestCost = Infinity;
+            uint32_t bestK = -1, bestOffset = -1, bestKFixed = -1, bestOffsetFixed = -1;
+            std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> bestSplittedKDOPs, bestSplittedKDOPsFixed;
+            std::pair<Float, Float> bestSplittedKDOPAreas = std::make_pair(0, 0), bestSplittedKDOPAreasFixed = std::make_pair(0, 0);
+            Float bestCost = Infinity, bestCostFixed = Infinity;
             Float oldCost = isectCost * Float(currentBuildNode.nPrimitives);
             // Float totalSA = currentBuildNode.kDOPMesh.SurfaceArea(directions);
             const Float invTotalSA = 1 / currentBuildNode.kdopMeshArea;
             std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> splittedKDOPs;
 
-            const uint32_t Kmeans = K - 3;
-            std::vector<Vector3f> randomNormals;
-            randomNormals.emplace_back(1,0,0);
-            randomNormals.emplace_back(0,1,0);
-            randomNormals.emplace_back(0,0,1);
-            if(Kmeans > 0) {
-                auto generatatedClusterMeans = createRandomNormals(gen, Kmeans, primitives, currentBuildNode.primNums,
-                                                                     currentBuildNode.nPrimitives);
-                randomNormals.insert(randomNormals.end(), generatatedClusterMeans.begin(), generatatedClusterMeans.end());
-            }
-
-            for (uint32_t k = 0; k < randomNormals.size(); ++k) {
-                auto d = randomNormals[k];
+            // Sweep for kd directions
+            for (uint32_t k = 0; k < 3; ++k) {
+                auto d = kdDirections[k];
 
                 Boundsf directionBounds = Boundsf();
                 for (auto &edge: currentBuildNode.kDOPMesh.edges) {
@@ -132,11 +132,11 @@ namespace pbrt {
                 // Sort _edges_ for _axis_
                 for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
                     const uint32_t pn = currentBuildNode.primNums[i];
-                    const Boundsf &bounds = primitives[pn]->getBounds(d);
-                    edges[k][2 * i] = BoundEdge(bounds.min, pn, true);
-                    edges[k][2 * i + 1] = BoundEdge(bounds.max, pn, false);
-
+                    const Bounds3f &bounds = allPrimBounds[pn];
+                    edges[k][2 * i] = BoundEdge(bounds.pMin[k], pn, true);
+                    edges[k][2 * i + 1] = BoundEdge(bounds.pMax[k], pn, false);
                 }
+
                 std::sort(&edges[k][0], &edges[k][2 * currentBuildNode.nPrimitives],
                           [](const BoundEdge &e0, const BoundEdge &e1) -> bool {
                               if (e0.t == e1.t)
@@ -164,7 +164,7 @@ namespace pbrt {
 
                         const Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
                         const Float cost =
-                                traversalCost +
+                                kdTraversalCost +
                                 isectCost * (1 - eb) * (pBelow * nBelow + pAbove * nAbove);
 
                         // Update best split if this is lowest cost so far
@@ -182,15 +182,92 @@ namespace pbrt {
                 CHECK(nBelow == currentBuildNode.nPrimitives && nAbove == 0);
             }
 
+
+            const uint32_t Kmeans = K - 3;
+            std::vector<Vector3f> randomNormals;
+            if(Kmeans > 0) {
+                auto generatatedClusterMeans = createRandomNormals(gen, Kmeans, primitives, currentBuildNode.primNums,
+                                                                     currentBuildNode.nPrimitives);
+                randomNormals.insert(randomNormals.end(), generatatedClusterMeans.begin(), generatatedClusterMeans.end());
+            }
+
+            for (uint32_t k = 0; k < randomNormals.size(); ++k) {
+                auto d = randomNormals[k];
+                auto edgeK = k + 3;
+
+                Boundsf directionBounds = Boundsf();
+                for (auto &edge: currentBuildNode.kDOPMesh.edges) {
+                    Boundsf b = edge.getBounds(d);
+                    directionBounds = Union(directionBounds, b);
+                }
+
+                // Sort _edges_ for _axis_
+                for (uint32_t i = 0; i < currentBuildNode.nPrimitives; ++i) {
+                    const uint32_t pn = currentBuildNode.primNums[i];
+                    const Boundsf &bounds = primitives[pn]->getBounds(d);
+                    edges[edgeK][2 * i] = BoundEdge(bounds.min, pn, true);
+                    edges[edgeK][2 * i + 1] = BoundEdge(bounds.max, pn, false);
+
+                }
+                std::sort(&edges[edgeK][0], &edges[edgeK][2 * currentBuildNode.nPrimitives],
+                          [](const BoundEdge &e0, const BoundEdge &e1) -> bool {
+                              if (e0.t == e1.t)
+                                  return (int) e0.type < (int) e1.type;
+                              else
+                                  return e0.t < e1.t;
+                          });
+                // Compute cost of all splits for _axis_ to find best
+                uint32_t nBelow = 0, nAbove = currentBuildNode.nPrimitives;
+                for (uint32_t i = 0; i < 2 * currentBuildNode.nPrimitives; ++i) {
+                    if (edges[edgeK][i].type == EdgeType::End) --nAbove;
+                    const Float edgeT = edges[edgeK][i].t;
+
+                    if (edgeT > directionBounds.min &&
+                        edgeT < directionBounds.max) {
+                        ++statNbSplitTests;
+                        // Compute cost for split at _i_th edge
+                        // Compute child surface areas for split at _edgeT_
+                        splittedKDOPs = currentBuildNode.kDOPMesh.cut(
+                                edgeT, d);
+                        const Float areaBelow = splittedKDOPs.first.SurfaceArea();
+                        const Float areaAbove = splittedKDOPs.second.SurfaceArea();
+                        const Float pBelow = areaBelow * invTotalSA;
+                        const Float pAbove = areaAbove * invTotalSA;
+
+                        const Float eb = (nAbove == 0 || nBelow == 0) ? emptyBonus : 0;
+                        const Float costIntersection = isectCost * (1 - eb) * (pBelow * nBelow + pAbove * nAbove);
+                        const Float costFixed = traversalCost + costIntersection;
+                        const Float cost = BSP_ALPHA*isectCost*(currentBuildNode.nPrimitives - 1) + kdTraversalCost + costIntersection;
+                        // Update best split if this is lowest cost so far
+                        if (cost < bestCost) {
+                            bestCost = cost;
+                            bestK = edgeK;
+                            bestOffset = i;
+                            bestSplittedKDOPs = splittedKDOPs;
+                            bestSplittedKDOPAreas.first = areaBelow;
+                            bestSplittedKDOPAreas.second = areaAbove;
+                        }
+                        if(costFixed < bestCostFixed){
+                            bestCostFixed = costFixed;
+                            bestKFixed = edgeK;
+                            bestOffsetFixed = i;
+                            bestSplittedKDOPsFixed = splittedKDOPs;
+                            bestSplittedKDOPAreasFixed.first = areaBelow;
+                            bestSplittedKDOPAreasFixed.second = areaAbove;
+                        }
+                    }
+                    if (edges[edgeK][i].type == EdgeType::Start) ++nBelow;
+                }
+                CHECK(nBelow == currentBuildNode.nPrimitives && nAbove == 0);
+            }
+
             // Create leaf if no good splits were found
-            if (bestCost > oldCost) ++currentBuildNode.badRefines;
-            if ((bestCost > 4 * oldCost && currentBuildNode.nPrimitives < 16) || bestK == -1 ||
+            if (bestCost > oldCost  && bestCostFixed > oldCost) ++currentBuildNode.badRefines;
+            if ((bestCost > 4 * oldCost && bestCostFixed > 4 * oldCost && currentBuildNode.nPrimitives < 16) || (bestK == -1 && bestKFixed == -1) ||
                 currentBuildNode.badRefines == 3) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
-                treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
-                             &primitiveIndices);
-                /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
-                                          &primitiveIndices);*/
+                nodes[nodeNum++].initLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
+                                          &primitiveIndices);
                 continue;
             }
 
@@ -207,15 +284,26 @@ namespace pbrt {
                     prims0[n0++] = edges[bestK][i].primNum;
 
             // Add child nodes to stack
-            const Float tSplit = edges[bestK][bestOffset].t;
 
-            if(bestK < 3)
-                ++nbKdNodes;
-            else
+            if(bestK != -1) {
+                if (bestK < 3) {
+                    const Float tSplit = edges[bestK][bestOffset].t;
+                    ++nbKdNodes;
+                    currentSACost += kdTraversalCost * currentBuildNode.kdopMeshArea;
+                    nodes[nodeNum].initInteriorKd(bestK, tSplit);
+                } else {
+                    const Float tSplit = edges[bestK][bestOffset].t;
+                    ++nbBSPNodes;
+                    currentSACost += (BSP_ALPHA * isectCost * (currentBuildNode.nPrimitives - 1) + kdTraversalCost) *
+                                     currentBuildNode.kdopMeshArea;
+                    nodes[nodeNum].initInterior(randomNormals[bestK - 3], tSplit);
+                }
+            } else {
                 ++nbBSPNodes;
-
-            currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
-            treeInitInterior(&nodes[nodeNum], randomNormals[bestK], tSplit);
+                const Float tSplit = edges[bestKFixed][bestOffsetFixed].t;
+                currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
+                nodes[nodeNum].initInterior(randomNormals[bestKFixed - 3], tSplit);
+            }
 
             stack.emplace_back(
                     currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
@@ -228,23 +316,24 @@ namespace pbrt {
         }
         reporter.Done();
         Warning("Done building");
-        statDepth = treeDepth(&nodes[0], nodes, 0);
-        Warning("END Done building RANDOMWITHKD");
+        statDepth = nodes[0].depth(nodes, 0);
+        Warning("END Done building");
 
         nbNodes = nodeNum;
         totalSACost = currentSACost / bounds.SurfaceArea();
     }
 
-    std::shared_ptr<BSPRandomWithKd> CreateBSPRandomWithKdTreeAccelerator(
+    std::shared_ptr<BSPArbitraryFastKd> CreateBSPArbitraryFastKdTreeAccelerator(
             std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps) {
         uint32_t isectCost = (uint32_t) ps.FindOneInt("intersectcost", 80);
         uint32_t travCost = (uint32_t) ps.FindOneInt("traversalcost", 5);
+        uint32_t kdTravCost = (uint32_t) ps.FindOneInt("kdtraversalcost", 1);
         Float emptyBonus = ps.FindOneFloat("emptybonus", 0);
         uint32_t maxPrims = (uint32_t) ps.FindOneInt("maxprims", 1);
         uint32_t maxDepth = (uint32_t) ps.FindOneInt("maxdepth", -1);
         uint32_t nbDirections = (uint32_t) ps.FindOneInt("nbDirections", 3);
 
-        return std::make_shared<BSPRandomWithKd>(std::move(prims), isectCost, travCost, emptyBonus,
-                                                  maxPrims, maxDepth, nbDirections);
+        return std::make_shared<BSPArbitraryFastKd>(std::move(prims), isectCost, travCost, emptyBonus,
+                                                  maxPrims, maxDepth, nbDirections, kdTravCost);
     }
 } // namespace pbrt
