@@ -5,7 +5,11 @@ IFS='-' read -ra ACCINFO <<< "$2"
 export ACC=${ACCINFO[0]}
 export ACCNR=${ACCINFO[1]}
 echo $ACCNR
-export BASE="/Programming/Thesis/pbrt-v3"
+case $HOSTNAME in
+  (JHO) export BASE="/Programming/Thesis/pbrt-v3";;
+  (*)   export BASE="/home/r0588750/Thesis/pbrt-v3";;
+esac
+
 export PBRT_PATH=$BASE"/"$BUILD_FOLDER"/"
 export SCENE_PATH=$BASE/"scenes/"$NAME
 export RESULTS_DIR=$BASE"/results/"$NAME
