@@ -169,7 +169,7 @@ void Film::AddSplat(const Point2f &p, Spectrum v) {
 }
 
 void Film::WriteGeneralStats(){
-    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rays; },"rays");
+    //WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.rays; },"rays");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.primitiveIntersections; },"primitiveIntersections");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.primitiveIntersectionsP; },"primitiveIntersectionsP");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.kdTreeNodeTraversals; },"kdTreeNodeTraversals");
@@ -178,8 +178,8 @@ void Film::WriteGeneralStats(){
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bspTreeNodeTraversalsP; },"bspTreeNodeTraversalsP");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.leafNodeTraversals; },"leafNodeTraversals");
     WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.leafNodeTraversalsP; },"leafNodeTraversalsP");
-    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversals; },"bvhTreeNodeTraversals");
-    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversalsP; },"bvhTreeNodeTraversalsP");
+    //WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversals; },"bvhTreeNodeTraversals");
+    //WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.bvhTreeNodeTraversalsP; },"bvhTreeNodeTraversalsP");
     WriteGeneralStatMapImage([](GeneralStats &stats) {return stats.leafNodeIntersectionsByAmount; }, "leafNodeIntersectionMeanAmount");
     WriteGeneralStatMapImage([](GeneralStats &stats) {return stats.leafNodeIntersectionsPByAmount; }, "leafNodeIntersectionPMeanAmount");
     WriteGeneralStatMap([](GeneralStats &stats) {return stats.leafNodeIntersectionsByAmount; }, "leafNodeIntersectionAmountMap");
