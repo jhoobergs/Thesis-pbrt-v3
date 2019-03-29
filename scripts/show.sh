@@ -1,6 +1,5 @@
 #!/bin/bash
 NAME=$1
-BASE="/Programming/Thesis/pbrt-v3"
 PBRT_PATH=$BASE"/build/"
 SCENE_PATH=$BASE/"scenes/"$NAME
 RESULTS_DIR=$BASE"/results/"$NAME
