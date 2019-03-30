@@ -101,6 +101,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].initLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
                 continue;
@@ -266,6 +267,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].initLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 continue;
             }
 
@@ -289,6 +291,7 @@ namespace pbrt {
                     ++nbKdNodes;
                     currentSACost += kdTraversalCost * currentBuildNode.kdopMeshArea;
                     nodes[nodeNum].initInteriorKd(bestK, tSplit);
+                    addNodeDepth(NodeType::KD, maxDepth - currentBuildNode.depth);
                 } else {
                     const Float tSplit = edges[bestK][bestOffset].t;
                     ++nbBSPNodes;
@@ -296,12 +299,14 @@ namespace pbrt {
                                      currentBuildNode.kdopMeshArea;*/
                     currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
                     nodes[nodeNum].initInterior(nodeDirections[bestK - 3], tSplit);
+                    addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
                 }
             } else {
                 ++nbBSPNodes;
                 const Float tSplit = edges[bestKFixed][bestOffsetFixed].t;
                 currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum].initInterior(nodeDirections[bestKFixed - 3], tSplit);
+                addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
             }
 
             stack.emplace_back(

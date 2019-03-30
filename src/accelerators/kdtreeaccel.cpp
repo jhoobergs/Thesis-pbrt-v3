@@ -173,8 +173,15 @@ namespace pbrt {
         directions.emplace_back(Vector3f(0.0, 0.0, 1.0));
 
         statParamnbDirections = 3;
-        // Start recursive construction of kd-tree
+
+        std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
         buildTree();
+        std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+        buildTime =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start).count();
     }
 
     void KdAccelNode::InitLeaf(uint32_t *primNums, uint32_t np,
@@ -256,6 +263,7 @@ namespace pbrt {
             if (currentBuildNode.nPrimitives <= maxPrims || currentBuildNode.depth == 0) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.nodeBounds.SurfaceArea();
                 nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives, &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 continue;
             }
 
@@ -330,6 +338,7 @@ namespace pbrt {
                 currentBuildNode.badRefines == 3) {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.nodeBounds.SurfaceArea();
                 nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives, &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 continue;
             }
 
@@ -353,6 +362,7 @@ namespace pbrt {
             ++nbKdNodes;
             currentSACost += traversalCost * currentBuildNode.nodeBounds.SurfaceArea();
             nodes[nodeNum].InitInterior(bestAxis, tSplit);
+            addNodeDepth(NodeType::KD, maxDepth - currentBuildNode.depth);
 
             stack.emplace_back(
                     KdBuildNode(currentBuildNode.depth - 1, n1, currentBuildNode.badRefines, bounds1, prims1, nodeNum));

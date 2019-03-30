@@ -21,8 +21,14 @@ namespace pbrt {
 
         statParamnbDirections = nbDirections;
 
-        // Start recursive construction of RBSP-tree
+        std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
         buildTree();
+        std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+        buildTime =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start).count();
     }
 
     void BSPPaper::buildTree() {
@@ -97,6 +103,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
                 continue;
@@ -232,6 +239,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
                 continue;
@@ -243,6 +251,7 @@ namespace pbrt {
             prims1 = currentBuildNode.primNums; // prims1 needs to be put in de array first, so it isn't overriden by child 0
             if (bestK != 33) {
                 ++nbKdNodes;
+                addNodeDepth(NodeType::KD, maxDepth - currentBuildNode.depth);
                 if (nbKdNodes % 10000 == 0)
                     Warning("KD nodes %d", nbKdNodes);
                 for (uint32_t i = bestOffset + 1; i < 2 * currentBuildNode.nPrimitives; ++i)
@@ -255,6 +264,7 @@ namespace pbrt {
                         prims0[n0++] = edges[bestK][i].primNum;
             } else {
                 ++nbBSPNodes;
+                addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
                 if (nbBSPNodes % 10000 == 0)
                     Warning("BSP nodes %d", nbBSPNodes);
                 std::vector<uint32_t> left, right;
