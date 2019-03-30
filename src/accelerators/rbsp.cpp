@@ -161,8 +161,14 @@ namespace pbrt {
 
         directions = getDirections(nbDirections);
 
-        // Start construction of RBSP-tree
+        std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
         buildTree();
+        std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+        buildTime =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start).count();
     }
 
     void RBSP::printNodes(std::ofstream &os) const {
@@ -253,6 +259,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].InitLeaf(M, currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 continue;
             }
 
@@ -332,6 +339,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].InitLeaf(M, currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 continue;
             }
 
@@ -368,10 +376,14 @@ namespace pbrt {
                 }
             }
 
-            if(bestD < 3)
+            if(bestD < 3) {
+                addNodeDepth(NodeType::KD, maxDepth - currentBuildNode.depth);
                 ++nbKdNodes;
-            else
+            }
+            else {
+                addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
                 ++nbBSPNodes;
+            }
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
             nodes[nodeNum].InitInterior(bestD, tSplit);
 

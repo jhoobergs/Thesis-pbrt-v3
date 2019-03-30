@@ -18,7 +18,14 @@ namespace pbrt {
                                        Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections, uint32_t kdTravCost)
             : BSPNodeBasedFastKd(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections,
                     kdTravCost) {
+        std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
         buildTree();
+        std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+        buildTime =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start).count();
     }
 
     std::vector<Vector3f> BSPArbitraryFastKd::calculateDirections(std::mt19937 &gen, uint32_t K,

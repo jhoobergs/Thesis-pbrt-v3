@@ -21,8 +21,14 @@ namespace pbrt {
 
         statParamnbDirections = nbDirections;
 
-        // Start recursive construction of RBSP-tree
+        std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
         buildTree();
+        std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+        buildTime =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start).count();
     }
 
     void BSPPaperKd::buildTree() {
@@ -98,6 +104,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].initLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 continue;
             }
 
@@ -240,6 +247,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].initLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
                 continue;
@@ -292,11 +300,13 @@ namespace pbrt {
                     /*currentSACost += (BSP_ALPHA * isectCost * (currentBuildNode.nPrimitives - 1) + kdTraversalCost) *
                                      currentBuildNode.kdopMeshArea;*/
                     currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
+                    addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
                     nodes[nodeNum].initInterior(bestSplitAxis, bestSplitT);
                 }
                 else {
                     ++nbKdNodes;
                     currentSACost += kdTraversalCost * currentBuildNode.kdopMeshArea;
+                    addNodeDepth(NodeType::KD, maxDepth - currentBuildNode.depth);
                     nodes[nodeNum].initInteriorKd(bestK, bestSplitT);
                 }
                 stack.emplace_back(
@@ -308,6 +318,7 @@ namespace pbrt {
             } else {
                 ++nbBSPNodes;
                 currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
+                addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
                 nodes[nodeNum].initInterior(bestSplitAxisFixed, bestSplitTFixed);
                 stack.emplace_back(
                         currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,

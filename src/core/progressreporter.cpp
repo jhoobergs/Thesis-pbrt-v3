@@ -51,7 +51,7 @@ static int TerminalWidth();
 ProgressReporter::ProgressReporter(int64_t totalWork, const std::string &title)
     : totalWork(std::max((int64_t)1, totalWork)),
       title(title),
-      startTime(std::chrono::system_clock::now()) {
+      startTime(std::chrono::high_resolution_clock::now()) {
     workDone = 0;
     exitThread = false;
     // Launch thread to periodically update progress bar
@@ -133,15 +133,15 @@ void ProgressReporter::PrintBar() {
         fputs(buf.get(), stdout);
 
         // Update elapsed time and estimated time to completion
-        Float seconds = ElapsedMS() / 1000.f;
+        Float seconds = ElapsedMS() / 1000000000.f;
         Float estRemaining = seconds / percentDone - seconds;
         if (percentDone == 1.f)
-            printf(" (%.1fs)       ", seconds);
+            printf(" (%.9fs)       ", seconds);
         else if (!std::isinf(estRemaining))
             printf(" (%.1fs|%.1fs)  ", seconds,
                    std::max((Float)0., estRemaining));
         else
-            printf(" (%.1fs|?s)  ", seconds);
+            printf(" (%.9fs|?s)  ", seconds);
         fflush(stdout);
     }
 }

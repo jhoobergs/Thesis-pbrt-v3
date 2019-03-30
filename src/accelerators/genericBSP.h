@@ -34,6 +34,11 @@ namespace pbrt {
     STAT_COUNTER_DOUBLE("Accelerator/Params/9 BSP-tree param:splitalpha", statParamSplitAlpha);
     STAT_COUNTER_DOUBLE("Accelerator/Params/10 BSP-tree param:alphatype", statParamAlphaType);
 
+    STAT_COUNTER("Timings/Buildtime", buildTime);
+
+    enum class NodeType {
+        KD, BSP, LEAF
+    };
 
     enum class EdgeType {
         Start, End
@@ -124,9 +129,54 @@ namespace pbrt {
             return os;
         }
 
+        void writeNodeTypeDepthMaps(const std::string &filename){
+            int x = 0;
+
+            std::map<uint32_t, uint32_t> *depthMaps[3] = {&leafNodeDepths, &bspNodeDepths, &kdNodeDepths};
+            std::string names[3] = {"leafNodeDepths", "bspNodeDepths", "kdNodeDepths"};
+
+            for(int i = 0; i < 3; i++) {
+                const auto name = names[i];
+                std::string textFile = filename.substr(0, filename.find_last_of('.')).append("-").append(name).append(
+                        ".txt");
+                // Warning("%s", textFile.c_str());
+                std::ofstream myfile;
+                myfile.open(textFile);
+
+                for (auto &myPair: *depthMaps[i]) {
+                    myfile << myPair.first << " " << myPair.second << std::endl;
+                }
+
+                myfile.close();
+            }
+        }
+
+
     protected:
         // RBSP Private Methods
         virtual void buildTree() = 0;
+
+        void addNodeDepth(NodeType type, uint32_t depth){
+            if(type == NodeType::LEAF){
+                auto search = this->leafNodeDepths.find(depth);
+                if(search != this->leafNodeDepths.end())
+                    this->leafNodeDepths[depth] += 1;
+                else
+                    this->leafNodeDepths[depth] = 1;
+            } else if(type == NodeType::BSP){
+                auto search = this->bspNodeDepths.find(depth);
+                if(search != this->bspNodeDepths.end())
+                    this->bspNodeDepths[depth] += 1;
+                else
+                    this->bspNodeDepths[depth] = 1;
+            } else if(type == NodeType::KD){
+                auto search = this->kdNodeDepths.find(depth);
+                if(search != this->kdNodeDepths.end())
+                    this->kdNodeDepths[depth] += 1;
+                else
+                    this->kdNodeDepths[depth] = 1;
+            }
+        }
 
         // RBSPTreeAccel Private Data
         const uint32_t isectCost, traversalCost, maxPrims, alphaType, axisSelectionType;
@@ -137,6 +187,9 @@ namespace pbrt {
         uint32_t nAllocedNodes, nextFreeNode, maxDepth, axisSelectionAmount;
         Bounds3f bounds;
         std::vector<Vector3f> directions;
+        std::map<uint32_t, uint32_t> kdNodeDepths;
+        std::map<uint32_t, uint32_t> bspNodeDepths;
+        std::map<uint32_t, uint32_t> leafNodeDepths;
     };
 
     template<class nodeType>

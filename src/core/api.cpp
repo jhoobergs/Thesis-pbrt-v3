@@ -805,6 +805,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *kd.get();
             myfile.close();
         }
+        kd->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = kd;
     }
     else if (name == "kdtreeold")
@@ -821,8 +822,8 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *rbsp.get();
             myfile.close();
         }
+        rbsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = rbsp;
-
     }
     else if (name == "rbspkd") {
         std::shared_ptr<RBSPKd> rbsp = CreateRBSPKdTreeAccelerator(std::move(prims), paramSet);
@@ -836,6 +837,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *rbsp.get();
             myfile.close();
         }
+        rbsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = rbsp;
     }
     else if (name == "bspcluster") {
@@ -850,6 +852,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bspclusterwithkd") {
@@ -864,6 +867,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bspclusterfastkd") {
@@ -878,6 +882,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bsparbitrary") {
@@ -892,6 +897,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bsparbitrarywithkd") {
@@ -905,6 +911,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bsparbitraryfastkd") {
@@ -919,6 +926,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bsprandom") {
@@ -933,6 +941,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bsprandomwithkd") {
@@ -947,6 +956,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bsprandomfastkd") {
@@ -961,6 +971,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bsppaper") {
@@ -975,6 +986,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else if (name == "bsppaperkd") {
@@ -989,6 +1001,7 @@ std::shared_ptr<Primitive> MakeAccelerator(
             myfile << *bsp.get();
             myfile.close();
         }
+        bsp->writeNodeTypeDepthMaps(PbrtOptions.imageFile);
         accel = bsp;
     }
     else
@@ -1849,12 +1862,12 @@ void pbrtWorldEnd() {
     if (!PbrtOptions.cat && !PbrtOptions.toPly) {
         MergeWorkerThreadStats();
         ReportThreadStats();
-        if (!PbrtOptions.quiet) {
+        //if (!PbrtOptions.quiet) {
             PrintStats(stdout);
             ReportProfilerResults(stdout);
             ClearStats();
             ClearProfiler();
-        }
+        //}
     }
 
     for (int i = 0; i < MaxTransforms; ++i) curTransform[i] = Transform();

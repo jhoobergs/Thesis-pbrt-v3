@@ -174,8 +174,14 @@ namespace pbrt {
 
         directions = getDirections(nbDirections);
 
-        // Start construction of RBSP-tree
+        std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
         buildTree();
+        std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+        buildTime =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start).count();
     }
 
     void  RBSPKd::printNodes(std::ofstream &os) const {
@@ -267,6 +273,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].InitLeaf(M, currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 continue;
             }
 
@@ -407,6 +414,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum++].InitLeaf(M, currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 continue;
             }
 
@@ -428,9 +436,11 @@ namespace pbrt {
                 nodes[nodeNum].InitInterior(bestD, tSplit);
                 if (bestD < 3) {
                     nbKdNodes++;
+                    addNodeDepth(NodeType::KD, maxDepth - currentBuildNode.depth);
                     currentSACost += kdTraversalCost * currentBuildNode.kdopMeshArea;
                 } else {
                     nbBSPNodes++;
+                    addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
                     /*currentSACost += (BSP_ALPHA * isectCost * (currentBuildNode.nPrimitives - 1) + kdTraversalCost) *
                                      currentBuildNode.kdopMeshArea;*/
                     currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
@@ -438,6 +448,7 @@ namespace pbrt {
             } else {
                 nbBSPNodes++;
                 const Float tSplit = edges[bestDFixed][bestOffsetFixed].t;
+                addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
                 currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum].InitInterior(bestDFixed, tSplit);
             }

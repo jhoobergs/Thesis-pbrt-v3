@@ -91,6 +91,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
                 continue;
@@ -186,6 +187,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
                 continue;
@@ -206,10 +208,14 @@ namespace pbrt {
             // Add child nodes to stack
             const Float tSplit = edges[bestK][bestOffset].t;
 
-            if(bestK < 3)
+            if(bestK < 3) {
                 ++nbKdNodes;
-            else
+                addNodeDepth(NodeType::KD, maxDepth - currentBuildNode.depth);
+            }
+            else {
                 ++nbBSPNodes;
+                addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
+            }
 
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
             treeInitInterior(&nodes[nodeNum], nodeDirections[bestK], tSplit);

@@ -46,6 +46,7 @@
 namespace pbrt {
 
 STAT_COUNTER("Integrator/Camera rays traced", nCameraRays);
+STAT_COUNTER("Timings/Rendertime", renderTime);
 
 // Integrator Method Definitions
 Integrator::~Integrator() {}
@@ -238,6 +239,8 @@ void SamplerIntegrator::Render(const Scene &scene) {
                    (sampleExtent.y + tileSize - 1) / tileSize);
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
     {
+        std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
         ParallelFor2D([&](Point2i tile) {
             // Render section of image corresponding to _tile_
 
@@ -333,6 +336,12 @@ void SamplerIntegrator::Render(const Scene &scene) {
             camera->film->MergeFilmTile(std::move(filmTile));
             reporter.Update();
         }, nTiles);
+        std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+        renderTime =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start).count();
+
         reporter.Done();
     }
     LOG(INFO) << "Rendering finished";
