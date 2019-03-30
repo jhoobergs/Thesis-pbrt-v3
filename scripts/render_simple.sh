@@ -42,3 +42,6 @@ python ../../plots/heatmap_single.py $RESULTS_DIR"/output-leafNodeTraversalsP.tx
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-leafNodeTraversals.txt" $RESULTS_DIR"/heatmap-leafNodeTraversals.png"
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-leafNodeIntersectionPMeanAmount.txt" $RESULTS_DIR"/heatmap-leafNodeIntersectionPMeanAmount.png"
 python ../../plots/heatmap_single.py $RESULTS_DIR"/output-leafNodeIntersectionMeanAmount.txt" $RESULTS_DIR"/heatmap-leafNodeIntersectionMeanAmount.png"
+
+tar --transform 's/.*\///g' -czvf $RESULTS_DIR".tar.gz" $RESULTS_DIR
+rm -r $RESULTS_DIR
