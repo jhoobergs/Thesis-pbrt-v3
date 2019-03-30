@@ -477,7 +477,7 @@ void SPPMIntegrator::Render(const Scene &scene) {
                 }
                 fprintf(stderr,
                         "iterations: %d (%.2f s) radius range: %f - %f\n",
-                        iter + 1, progress.ElapsedMS() / 1000., minrad, maxrad);
+                        iter + 1, progress.ElapsedMS() / 1000000000., minrad, maxrad);
                 int offset = 0;
                 for (int y = pixelBounds.pMin.y; y < pixelBounds.pMax.y; ++y) {
                     for (int x = x0; x < x1; ++x) {

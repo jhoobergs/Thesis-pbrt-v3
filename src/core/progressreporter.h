@@ -57,10 +57,10 @@ class ProgressReporter {
         workDone += num;
     }
     Float ElapsedMS() const {
-        std::chrono::system_clock::time_point now =
-            std::chrono::system_clock::now();
+        std::chrono::high_resolution_clock::time_point now =
+            std::chrono::high_resolution_clock::now();
         int64_t elapsedMS =
-            std::chrono::duration_cast<std::chrono::milliseconds>(now -
+            std::chrono::duration_cast<std::chrono::nanoseconds>(now -
                                                                   startTime)
                 .count();
         return (Float)elapsedMS;
@@ -74,7 +74,7 @@ class ProgressReporter {
     // ProgressReporter Private Data
     const int64_t totalWork;
     const std::string title;
-    const std::chrono::system_clock::time_point startTime;
+    const std::chrono::high_resolution_clock::time_point startTime;
     std::atomic<int64_t> workDone;
     std::atomic<bool> exitThread;
     std::thread updateThread;

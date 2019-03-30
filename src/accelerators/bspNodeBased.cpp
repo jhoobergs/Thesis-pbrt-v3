@@ -22,8 +22,6 @@ namespace pbrt {
         statParamnbDirections = nbDirections;
 
         K = nbDirections;
-
-        //buildTree();
     }
 
     void BSPNodeBased::buildTree() {
@@ -92,6 +90,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
                 continue;
@@ -179,6 +178,7 @@ namespace pbrt {
                 currentSACost += currentBuildNode.nPrimitives * isectCost * currentBuildNode.kdopMeshArea;
                 treeInitLeaf(&nodes[nodeNum++], currentBuildNode.primNums, currentBuildNode.nPrimitives,
                              &primitiveIndices);
+                addNodeDepth(NodeType::LEAF, maxDepth - currentBuildNode.depth);
                 /*nodes[nodeNum++].InitLeaf(currentBuildNode.primNums, currentBuildNode.nPrimitives,
                                           &primitiveIndices);*/
                 continue;
@@ -201,6 +201,7 @@ namespace pbrt {
 
             currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
             treeInitInterior(&nodes[nodeNum], nodeDirections[bestK], tSplit);
+            addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
             ++nbBSPNodes;
 
             stack.emplace_back(

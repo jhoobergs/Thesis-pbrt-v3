@@ -17,7 +17,14 @@ namespace pbrt {
                                uint32_t traversalCost,
                                Float emptyBonus, uint32_t maxPrims, uint32_t maxDepth, uint32_t nbDirections)
             : BSPNodeBased(std::move(p), isectCost, traversalCost, emptyBonus, maxPrims, maxDepth, nbDirections) {
+        std::chrono::high_resolution_clock::time_point start =
+                std::chrono::high_resolution_clock::now();
         buildTree();
+        std::chrono::high_resolution_clock::time_point end =
+                std::chrono::high_resolution_clock::now();
+        buildTime =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(end -
+                                                                     start).count();
     }
 
     std::vector<Vector3f> BSPRandom::calculateDirections(std::mt19937 &gen, const uint32_t K,
