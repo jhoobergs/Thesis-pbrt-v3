@@ -183,6 +183,7 @@ void Film::WriteGeneralStats(){
     WriteGeneralStatMapImage([](GeneralStats &stats) {return stats.leafNodeIntersectionsPByAmount; }, "leafNodeIntersectionPMeanAmount");
     WriteGeneralStatMap([](GeneralStats &stats) {return stats.leafNodeIntersectionsByAmount; }, "leafNodeIntersectionAmountMap");
     WriteGeneralStatMap([](GeneralStats &stats) {return stats.leafNodeIntersectionsPByAmount; }, "leafNodeIntersectionPAmountMap");
+    WriteGeneralStatMatrix([](GeneralStats &stats) {return stats.renderTime; },"renderTime");
 
 }
 

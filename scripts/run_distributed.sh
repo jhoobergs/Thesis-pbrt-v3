@@ -39,6 +39,7 @@ echo "Running: "$COMMAND" on hosts: "${HOSTS[*]}
 for host in ${HOSTS[*]}
 do
   echo $host
-  ssh $USER"@"$host $COMMAND #'echo "test" > "/home/r0588750/"$HOSTNAME".txt"'
+  ssh $USER"@"$host $COMMAND
+  #'echo "test" > "/home/r0588750/"$HOSTNAME".txt"'
 done
 

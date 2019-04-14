@@ -265,6 +265,8 @@ void SamplerIntegrator::Render(const Scene &scene) {
 
             // Loop over pixels in tile to render them
             for (Point2i pixel : tileBounds) {
+                std::chrono::high_resolution_clock::time_point pixelStartTime =
+                        std::chrono::high_resolution_clock::now();
                 {
                     ProfilePhase pp(Prof::StartPixel);
                     tileSampler->StartPixel(pixel);
@@ -329,6 +331,12 @@ void SamplerIntegrator::Render(const Scene &scene) {
                     // value
                     arena.Reset();
                 } while (tileSampler->StartNextSample());
+
+                std::chrono::high_resolution_clock::time_point pixelEndTime =
+                        std::chrono::high_resolution_clock::now();
+                filmTile->GetPixel(pixel).stats.renderTime =
+                        std::chrono::duration_cast<std::chrono::nanoseconds>(pixelEndTime -
+                                                                             pixelStartTime).count();
             }
             LOG(INFO) << "Finished image tile " << tileBounds;
 
