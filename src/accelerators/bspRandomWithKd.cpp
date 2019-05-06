@@ -31,7 +31,7 @@ namespace pbrt {
     std::vector<Vector3f> BSPRandomWithKd::calculateDirections(std::mt19937 &gen, uint32_t K,
                                                                   const std::vector<std::shared_ptr<pbrt::Primitive>> &primitives,
                                                                   const uint32_t *primNums, uint32_t np) {
-        return chooseArbitraryNormals(gen, K, primitives, primNums, np);
+        return chooseRandomDirections(gen, K);
     }
 
     std::shared_ptr<BSPRandomWithKd> CreateBSPRandomWithKdTreeAccelerator(
