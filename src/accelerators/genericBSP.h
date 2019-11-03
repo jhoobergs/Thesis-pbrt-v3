@@ -199,21 +199,32 @@ namespace pbrt {
     };
 
     struct BSPBuildNode {
-        BSPBuildNode(uint32_t depth, uint32_t nPrimitives, uint32_t badRefines,
+        BSPBuildNode(uint8_t depth, uint32_t nPrimitives, uint8_t badRefines,
                      KDOPMeshWithDirections kdopMesh,
                      Float kdopMeshArea,
                      uint32_t *primNums, uint32_t parentNum = -1)
                 : depth(depth),
                   nPrimitives(nPrimitives), badRefines(badRefines),
                   kDOPMesh(std::move(kdopMesh)), kdopMeshArea(kdopMeshArea), primNums(primNums), parentNum(parentNum) {}
-
-        uint32_t depth;
+        uint8_t depth;
         uint32_t nPrimitives;
-        uint32_t badRefines;
+        uint8_t badRefines;
         KDOPMeshWithDirections kDOPMesh;
         Float kdopMeshArea;
         uint32_t *primNums;
         uint32_t parentNum;
+    };
+
+    struct BSPBuildNodeWithKd : BSPBuildNode {
+        BSPBuildNodeWithKd(uint8_t depth, uint32_t nPrimitives, uint8_t badRefines, bool hasNonKdSplit, Bounds3f kdBounds,
+                     KDOPMeshWithDirections kdopMesh,
+                     Float kdopMeshArea,
+                     uint32_t *primNums, uint32_t parentNum = -1)
+                : BSPBuildNode(depth, nPrimitives, badRefines, std::move(kdopMesh), kdopMeshArea, primNums, parentNum),
+                hasNonKdSplit(hasNonKdSplit), kdBounds(std::move(kdBounds)) {}
+
+        bool hasNonKdSplit;
+        Bounds3f kdBounds;
     };
 }
 #endif //PBRT_V3_GENERIC_RBSP_H

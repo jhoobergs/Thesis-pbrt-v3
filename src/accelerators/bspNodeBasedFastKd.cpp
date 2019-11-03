@@ -66,15 +66,14 @@ namespace pbrt {
         uint32_t maxPrimsOffset = 0;
         double currentSACost = 0;
 
-        std::vector<BSPBuildNode> stack;
-        stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, kDOPMesh,
+        std::vector<BSPBuildNodeWithKd> stack;
+        stack.emplace_back((uint8_t) maxDepth, (uint32_t) primitives.size(), 0u, false, bounds, kDOPMesh,
                            kDOPMesh.SurfaceArea(), &prims[0]);
-        // Warning("Building RBSP: Lets loop");
         while (!stack.empty()) { // || nodeNum > 235000 || nodeNum > 1400000
             if (nodeNum % 10000 == 0) // 100000
                 Warning("Nodenum %d", nodeNum);
             reporter.Update();
-            BSPBuildNode currentBuildNode = stack.back();
+            BSPBuildNodeWithKd currentBuildNode = stack.back();
             stack.pop_back();
             CHECK_EQ(nodeNum, nextFreeNode);
 
@@ -118,6 +117,7 @@ namespace pbrt {
             std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> splittedKDOPs;
 
             // Sweep for kd directions
+            const Vector3f diagonal = currentBuildNode.kdBounds.pMax - currentBuildNode.kdBounds.pMin;
             for (uint32_t k = 0; k < 3; ++k) {
                 auto d = kdDirections[k];
 
@@ -153,10 +153,28 @@ namespace pbrt {
                         ++statNbSplitTests;
                         // Compute cost for split at _i_th edge
                         // Compute child surface areas for split at _edgeT_
-                        splittedKDOPs = currentBuildNode.kDOPMesh.cut(
-                                edgeT, d);
-                        const Float areaBelow = splittedKDOPs.first.SurfaceArea();
-                        const Float areaAbove = splittedKDOPs.second.SurfaceArea();
+                        Float areaBelow, areaAbove;
+                        if(currentBuildNode.hasNonKdSplit) {
+                            splittedKDOPs = currentBuildNode.kDOPMesh.cut(
+                                    edgeT, d);
+                            areaBelow = splittedKDOPs.first.SurfaceArea();
+                            areaAbove = splittedKDOPs.second.SurfaceArea();
+                        } else {
+//                            Warning("%f %f %f %f %f %f", currentBuildNode.kdBounds.pMin.x, currentBuildNode.kdBounds.pMin.y, currentBuildNode.kdBounds.pMin.z,
+//                                    currentBuildNode.kdBounds.pMax.x, currentBuildNode.kdBounds.pMax.y, currentBuildNode.kdBounds.pMax.z);
+                            const uint32_t otherAxis0 = (k + 1) % 3, otherAxis1 = (k + 2) % 3;
+                            areaBelow = 2 * (diagonal[otherAxis0] * diagonal[otherAxis1] +
+                                                       (edgeT - currentBuildNode.kdBounds.pMin[k]) *
+                                                       (diagonal[otherAxis0] + diagonal[otherAxis1]));
+                            areaAbove = 2 * (diagonal[otherAxis0] * diagonal[otherAxis1] +
+                                                       (currentBuildNode.kdBounds.pMax[k] - edgeT) *
+                                                       (diagonal[otherAxis0] + diagonal[otherAxis1]));
+//                            Warning("%f vs %f", areaBelow, currentBuildNode.kDOPMesh.cut(
+//                                    edgeT, d).first.SurfaceArea());
+//                            Warning("%f vs %f", areaAbove, currentBuildNode.kDOPMesh.cut(
+//                                    edgeT, d).second.SurfaceArea());
+                        }
+
                         const Float pBelow = areaBelow * invTotalSA;
                         const Float pAbove = areaAbove * invTotalSA;
 
@@ -284,7 +302,8 @@ namespace pbrt {
                     prims0[n0++] = edges[bestK][i].primNum;
 
             // Add child nodes to stack
-
+            auto hasNonKdSplit = true;
+            Bounds3f bounds0 = currentBuildNode.kdBounds, bounds1 = currentBuildNode.kdBounds;
             if(bestK != -1) {
                 if (bestK < 3) {
                     const Float tSplit = edges[bestK][bestOffset].t;
@@ -292,6 +311,15 @@ namespace pbrt {
                     currentSACost += kdTraversalCost * currentBuildNode.kdopMeshArea;
                     nodes[nodeNum].initInteriorKd(bestK, tSplit);
                     addNodeDepth(NodeType::KD, maxDepth - currentBuildNode.depth);
+                    hasNonKdSplit = currentBuildNode.hasNonKdSplit;
+                    bounds0.pMax[bestK] = bounds1.pMin[bestK] = edges[bestK][bestOffset].t;
+                    if(!hasNonKdSplit) {
+                        KDOPMeshWithDirections kDOPMesh1, kDOPMesh0;
+                        bounds1.toKDOPMesh(kDOPMesh1, kDOPMesh1.directions);
+                        bounds0.toKDOPMesh(kDOPMesh0, kDOPMesh0.directions);
+                        bestSplittedKDOPs.second = kDOPMesh1;
+                        bestSplittedKDOPs.first = kDOPMesh0;
+                    }
                 } else {
                     const Float tSplit = edges[bestK][bestOffset].t;
                     ++nbBSPNodes;
@@ -312,10 +340,10 @@ namespace pbrt {
             }
 
             stack.emplace_back(
-                    currentBuildNode.depth - 1, n1, currentBuildNode.badRefines,
+                    currentBuildNode.depth - 1, n1, currentBuildNode.badRefines, hasNonKdSplit, bounds1,
                     bestSplittedKDOPs.second, bestSplittedKDOPAreas.second, prims1, nodeNum);
             stack.emplace_back(
-                    currentBuildNode.depth - 1, n0, currentBuildNode.badRefines,
+                    currentBuildNode.depth - 1, n0, currentBuildNode.badRefines, hasNonKdSplit, bounds0,
                     bestSplittedKDOPs.first, bestSplittedKDOPAreas.first, prims0);
 
             ++nodeNum;
@@ -324,7 +352,7 @@ namespace pbrt {
         Warning("Done building");
         statDepth = nodes[0].depth(nodes, 0);
         Warning("END Done building");
-
+        Warning("%d nodes", nodeNum);
         nbNodes = nodeNum;
         totalSACost = currentSACost / bounds.SurfaceArea();
     }
