@@ -1,0 +1,52 @@
+LookAt -0.4 0.06 0.05 0.2 0.1 -0.05 0 1 0
+Rotate 180 0 1 0
+Camera "perspective" "float fov" [60]
+Film "image" "integer xresolution" [700] "integer yresolution" [700] "string filename" "killeroo-simple.exr"
+
+# zoom in by feet
+# "integer xresolution" [1500] "integer yresolution" [1500]
+#	"float cropwindow" [ .34 .49  .67 .8 ]
+
+Sampler "halton" "integer pixelsamples" [64]
+Accelerator $acc "integer nbDirections" [$accnr] "float splitalpha" [$splitalpha] "integer alphatype" [$alphatype] "integer axisselectiontype" [$axisselectiontype] "integer axisselectionamount" [$axisselectionamount]
+
+Integrator "path" "integer maxdepth" [1]
+
+WorldBegin
+LightSource "point" "point from" [ 0 .5 0 ]
+#LightSource "point" "point from" [ -0.7 .45 0.05 ] "point to" [0 0.25 0]
+
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/bone.pbrt"
+AttributeEnd
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/brushedmetals.pbrt"
+AttributeEnd
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/floor.pbrt"
+AttributeEnd
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/glass.pbrt"
+AttributeEnd
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/glasstranslucent.pbrt"
+AttributeEnd
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/painted.pbrt"
+AttributeEnd
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/stone.pbrt"
+AttributeEnd
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/stoneunfinished.pbrt"
+AttributeEnd
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/woodpainted.pbrt"
+AttributeEnd
+AttributeBegin
+  Include "../../../../scenes/geometry/museum/woodvarnished.pbrt"
+AttributeEnd
+WorldEnd
+
+
+
