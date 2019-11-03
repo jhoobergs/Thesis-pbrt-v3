@@ -307,6 +307,8 @@ namespace pbrt {
                 currentSACost += traversalCost * currentBuildNode.kdopMeshArea;
                 nodes[nodeNum].initInterior(nodeDirections[bestKFixed - 3], tSplit);
                 addNodeDepth(NodeType::BSP, maxDepth - currentBuildNode.depth);
+                bestSplittedKDOPAreas = bestSplittedKDOPAreasFixed; // Make sure right ones are used
+                bestSplittedKDOPs = bestSplittedKDOPsFixed;
             }
 
             stack.emplace_back(
