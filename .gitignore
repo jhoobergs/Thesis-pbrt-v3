@@ -4,6 +4,7 @@ src/bin
 src/objs
 .sconsign.dblite
 build
+build_debug
 debug
 cmake-build-debug
 *.obj

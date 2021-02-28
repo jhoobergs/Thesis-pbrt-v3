@@ -6,14 +6,14 @@ export ACC=${ACCINFO[0]}
 export ACCNR=${ACCINFO[1]}
 echo $ACCNR
 case $HOSTNAME in
-  (JHO) export BASE="/Programming/Thesis/pbrt-v3";;
+  (JHO) export BASE="/Programming/Thesis-pbrt-v3";;
   (*)   export BASE="/home/r0588750/Thesis/pbrt-v3";;
 esac
 
 export PBRT_PATH=$BASE"/"$BUILD_FOLDER"/"
 export SCENE_PATH=$BASE/"scenes/"$NAME
 export RESULTS_DIR=$BASE"/results/"$NAME"/"$HOSTNAME
-mkdir $RESULTS_DIR > /dev/null 2>&1 || true
+mkdir -p $RESULTS_DIR > /dev/null 2>&1 || true
 export NR=`ls -vl $RESULTS_DIR | sed 's/\s\s*/ /g' | cut -d' ' -f9 | cut -d'-' -f1 | tail -n 1`
 export RESULTS_DIR=$RESULTS_DIR"/"$(($NR + 1))"-"$ACC
 export FILE_NAME='output.png'
