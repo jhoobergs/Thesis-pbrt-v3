@@ -171,10 +171,17 @@ namespace pbrt {
         return std::make_pair(left, right);
     }
 
-    inline Float KDOPSurfaceArea(std::vector<KDOPEdge> &edges, const std::vector<Vector3f> &directions) {
-        std::vector<std::vector<KDOPEdge *>> faces;
-        for (size_t i = 0; i < 2 * directions.size(); ++i) {
-            faces.emplace_back(std::vector<KDOPEdge *>());
+    inline Float KDOPSurfaceArea(std::vector<KDOPEdge> &edges, const std::vector<Vector3f> &directions, std::vector<std::vector<KDOPEdge *>> &faces) {
+        faces.reserve(directions.size());
+        if(faces.size() != 2 * directions.size()){
+            faces.clear();
+            for (size_t i = 0; i < 2 * directions.size(); ++i) {
+                faces.emplace_back(std::vector<KDOPEdge *>());
+            }
+        } else {
+            for (size_t i = 0; i < 2 * directions.size(); ++i) {
+                faces[i].clear();
+            }
         }
 
         for (auto &edge: edges) {
@@ -258,8 +265,8 @@ namespace pbrt {
             return cut;
         }
 
-        Float SurfaceArea() {
-            return KDOPSurfaceArea(edges, directions);
+        Float SurfaceArea(std::vector<std::vector<KDOPEdge *>> &faces) {
+            return KDOPSurfaceArea(edges, directions, faces);
         }
 
         std::vector<Vector3f> directions;
@@ -272,8 +279,8 @@ namespace pbrt {
             return KDOPCut<KDOPMesh>(edges, M, t, direction, directionId);
         }
 
-        Float SurfaceArea(const std::vector<Vector3f> &directions) {
-            return KDOPSurfaceArea(edges, directions);
+        Float SurfaceArea(const std::vector<Vector3f> &directions, std::vector<std::vector<KDOPEdge *>> &faces) {
+            return KDOPSurfaceArea(edges, directions, faces);
         }
     };
 

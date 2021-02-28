@@ -69,8 +69,9 @@ namespace pbrt {
         double currentSACost = 0;
 
         std::vector<BSPBuildNode> stack;
+        std::vector<std::vector<KDOPEdge *>> faces_cache;
         stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, kDOPMesh,
-                           kDOPMesh.SurfaceArea(), &prims[0]);
+                           kDOPMesh.SurfaceArea(faces_cache), &prims[0]);
         // Warning("Building RBSP: Lets loop");
         while (!stack.empty()) { // || nodeNum > 235000 || nodeNum > 1400000
             if (nodeNum % 10000 == 0) // 100000
@@ -158,8 +159,8 @@ namespace pbrt {
                         // Compute child surface areas for split at _edgeT_
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
                                 edgeT, d);
-                        const Float areaBelow = splittedKDOPs.first.SurfaceArea();
-                        const Float areaAbove = splittedKDOPs.second.SurfaceArea();
+                        const Float areaBelow = splittedKDOPs.first.SurfaceArea(faces_cache);
+                        const Float areaAbove = splittedKDOPs.second.SurfaceArea(faces_cache);
                         const Float pBelow = areaBelow * invTotalSA;
                         const Float pAbove = areaAbove * invTotalSA;
 
@@ -207,8 +208,8 @@ namespace pbrt {
                         ++statNbSplitTests;
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
                                 plane.t, plane.axis);
-                        const Float areaBelow = splittedKDOPs.first.SurfaceArea();
-                        const Float areaAbove = splittedKDOPs.second.SurfaceArea();
+                        const Float areaBelow = splittedKDOPs.first.SurfaceArea(faces_cache);
+                        const Float areaAbove = splittedKDOPs.second.SurfaceArea(faces_cache);
                         const Float pBelow = areaBelow * invTotalSA;
                         const Float pAbove = areaAbove * invTotalSA;
                         auto lr = bvh.getAmountToLeftAndRight(plane);

@@ -239,8 +239,9 @@ namespace pbrt {
         double currentSACost = 0;
 
         std::vector<RBSPBuildNode> stack;
+        std::vector<std::vector<KDOPEdge *>> faces_cache;
         stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, rootNodeMBounds, kDOPMesh,
-                           kDOPMesh.SurfaceArea(directions), &prims[0]);
+                           kDOPMesh.SurfaceArea(directions, faces_cache), &prims[0]);
         // Warning("Building RBSP: Lets loop");
         while (!stack.empty()) { // || nodeNum > 235000 || nodeNum > 1400000
             if (nodeNum % 100000 == 0)
@@ -319,8 +320,8 @@ namespace pbrt {
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
                                 (uint32_t) directions.size(), edgeT, directions[d], d);
 
-                        const Float areaBelow = splittedKDOPs.first.SurfaceArea(directions);
-                        const Float areaAbove = splittedKDOPs.second.SurfaceArea(directions);
+                        const Float areaBelow = splittedKDOPs.first.SurfaceArea(directions, faces_cache);
+                        const Float areaAbove = splittedKDOPs.second.SurfaceArea(directions, faces_cache);
                         const Float pBelow = areaBelow * invTotalSA;
                         const Float pAbove = areaAbove * invTotalSA;
 
@@ -374,8 +375,8 @@ namespace pbrt {
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
                                 (uint32_t) directions.size(), edgeT, directions[d], d);
 
-                        const Float areaBelow = splittedKDOPs.first.SurfaceArea(directions);
-                        const Float areaAbove = splittedKDOPs.second.SurfaceArea(directions);
+                        const Float areaBelow = splittedKDOPs.first.SurfaceArea(directions, faces_cache);
+                        const Float areaAbove = splittedKDOPs.second.SurfaceArea(directions, faces_cache);
                         const Float pBelow = areaBelow * invTotalSA;
                         const Float pAbove = areaAbove * invTotalSA;
 

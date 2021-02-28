@@ -42,7 +42,8 @@ TEST(kDOP, Area) {
     kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
     kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
 
-    EXPECT_FLOAT_EQ(2 * 8.5 * (1 + 22) + 2 * 1 * 22, kDOPMesh.SurfaceArea(directions));
+    std::vector<std::vector<KDOPEdge *>> faces_cache;
+    EXPECT_FLOAT_EQ(2 * 8.5 * (1 + 22) + 2 * 1 * 22, kDOPMesh.SurfaceArea(directions, faces_cache));
 }
 
 TEST(kDOP, AreaFloat) {
@@ -76,8 +77,9 @@ TEST(kDOP, AreaFloat) {
     kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
     kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
 
-    EXPECT_FLOAT_EQ(2 * 8.5 * (1.3 + 22) + 2 * 1.3 * 22, kDOPMesh.SurfaceArea(directions));
-    EXPECT_FLOAT_EQ(2 * 8.5 * (1.3 + 22) + 2 * 1.3 * 22, kDOPMesh.SurfaceArea(directions));
+    std::vector<std::vector<KDOPEdge *>> faces_cache;
+    EXPECT_FLOAT_EQ(2 * 8.5 * (1.3 + 22) + 2 * 1.3 * 22, kDOPMesh.SurfaceArea(directions, faces_cache));
+    EXPECT_FLOAT_EQ(2 * 8.5 * (1.3 + 22) + 2 * 1.3 * 22, kDOPMesh.SurfaceArea(directions, faces_cache));
 }
 
 TEST(kDOP, Cut) {
@@ -118,15 +120,16 @@ TEST(kDOP, Cut) {
                 edge.v2.x, edge.v2.y, edge.v2.z);
     }
 
-    EXPECT_FLOAT_EQ(result.first.SurfaceArea(directions), 2 * 5 * (1 + 22) + 2 * 1 * 22);
-    EXPECT_FLOAT_EQ(result.second.SurfaceArea(directions), 2 * 3.5 * (1 + 22) + 2 * 1 * 22);
+    std::vector<std::vector<KDOPEdge *>> faces_cache;
+    EXPECT_FLOAT_EQ(result.first.SurfaceArea(directions, faces_cache), 2 * 5 * (1 + 22) + 2 * 1 * 22);
+    EXPECT_FLOAT_EQ(result.second.SurfaceArea(directions, faces_cache), 2 * 3.5 * (1 + 22) + 2 * 1 * 22);
 
     std::pair<KDOPMesh, KDOPMesh> result2 = result.first.cut(directions.size(), 2.5,
                                                              directions[1], 1);
     EXPECT_EQ(12, result2.first.edges.size());
     EXPECT_EQ(12, result2.second.edges.size());
-    EXPECT_FLOAT_EQ(2 * 5 * (0.5 + 22) + 2 * 0.5 * 22, result2.first.SurfaceArea(directions));
-    EXPECT_FLOAT_EQ(2 * 5 * (0.5 + 22) + 2 * 0.5 * 22, result2.second.SurfaceArea(directions));
+    EXPECT_FLOAT_EQ(2 * 5 * (0.5 + 22) + 2 * 0.5 * 22, result2.first.SurfaceArea(directions, faces_cache));
+    EXPECT_FLOAT_EQ(2 * 5 * (0.5 + 22) + 2 * 0.5 * 22, result2.second.SurfaceArea(directions, faces_cache));
 }
 
 TEST(kDOP, CutDiag) {
@@ -243,10 +246,11 @@ TEST(kDOP, CutDiag) {
     EXPECT_EQ(9, result.second.edges.size());
 
 
+    std::vector<std::vector<KDOPEdge *>> faces_cache;
     EXPECT_FLOAT_EQ(8.5 * 22 + 22 * 1 + 8.5 * 1 + 1 * (float) std::sqrt(22 * 22 + 8.5 * 8.5),
-                    result.first.SurfaceArea(directions));
+                    result.first.SurfaceArea(directions, faces_cache));
     EXPECT_FLOAT_EQ(8.5 * 22 + 22 * 1 + 8.5 * 1 + 1 * (float) std::sqrt(22 * 22 + 8.5 * 8.5),
-                    result.second.SurfaceArea(directions));
+                    result.second.SurfaceArea(directions, faces_cache));
 }
 
 
@@ -299,18 +303,19 @@ TEST(kDOP, CutArb) {
     EXPECT_EQ(15, result.first.edges.size());
     EXPECT_EQ(9, result.second.edges.size());
 
+    std::vector<std::vector<KDOPEdge *>> faces_cache;
     EXPECT_FLOAT_EQ(2 * 7.6 * (22 + 1) + 22 + 0.9 * (22 + 2 * 0.1) + 0.1 * 22 + 0.9 * 0.9 + 0.9 * std::sqrt(2) * 22,
-                    result.first.SurfaceArea(directions));
-    EXPECT_FLOAT_EQ(2 * 0.9 * 22 + 0.9 * 0.9 + 0.9 * std::sqrt(2) * 22, result.second.SurfaceArea(directions));
+                    result.first.SurfaceArea(directions, faces_cache));
+    EXPECT_FLOAT_EQ(2 * 0.9 * 22 + 0.9 * 0.9 + 0.9 * std::sqrt(2) * 22, result.second.SurfaceArea(directions, faces_cache));
 
     std::pair<KDOPMesh, KDOPMesh> result2 = result.first.cut(directions.size(), 2.8 * (float) std::sqrt(2),
                                                              directions[4], 4);
     EXPECT_EQ(15, result2.first.edges.size());
     EXPECT_EQ(15, result2.second.edges.size());
-    Warning("FIRSTAREA: %f, SECONDAREA: %f, SUM: %f, ALMOST SUM %f", result2.first.SurfaceArea(directions),
-            result2.second.SurfaceArea(directions),
-            result2.first.SurfaceArea(directions) + result2.second.SurfaceArea(directions),
-            2 * 8.41 / std::sqrt(2) + result.first.SurfaceArea(directions));
+    Warning("FIRSTAREA: %f, SECONDAREA: %f, SUM: %f, ALMOST SUM %f", result2.first.SurfaceArea(directions, faces_cache),
+            result2.second.SurfaceArea(directions, faces_cache),
+            result2.first.SurfaceArea(directions, faces_cache) + result2.second.SurfaceArea(directions, faces_cache),
+            2 * 8.41 / std::sqrt(2) + result.first.SurfaceArea(directions, faces_cache));
 }
 
 TEST(kDOP, CutFailing) {
@@ -370,8 +375,9 @@ TEST(kDOP, CutFailing) {
                 edge.v2.x, edge.v2.y, edge.v2.z);
     }
 
-    EXPECT_GT(result.first.SurfaceArea(directions) + result.first.SurfaceArea(directions),
-              kDOPMesh.SurfaceArea(directions));
+    std::vector<std::vector<KDOPEdge *>> faces_cache;
+    EXPECT_GT(result.first.SurfaceArea(directions, faces_cache) + result.first.SurfaceArea(directions, faces_cache),
+              kDOPMesh.SurfaceArea(directions, faces_cache));
 
     EXPECT_EQ(12, result.first.edges.size());
     //EXPECT_EQ(0, result.second.edges.size());
@@ -451,11 +457,12 @@ TEST(kDOP, AreaAfterInPlaneCut) {
     kDOPMesh.addEdge(KDOPEdge(v1567831488, v1567831200, 5, 2));
     kDOPMesh.addEdge(KDOPEdge(v1567831232, v1567831200, 6, 2));
 
-    Warning("SA old %f", kDOPMesh.SurfaceArea(directions));
+    std::vector<std::vector<KDOPEdge *>> faces_cache;
+    Warning("SA old %f", kDOPMesh.SurfaceArea(directions, faces_cache));
 
     std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 64.433624f, directions[3], 3);
-    Warning("SA first %f", result.first.SurfaceArea(directions));
-    Warning("SA second %f", result.second.SurfaceArea(directions));
+    Warning("SA first %f", result.first.SurfaceArea(directions, faces_cache));
+    Warning("SA second %f", result.second.SurfaceArea(directions, faces_cache));
 }
 
 TEST(BVH, amountLeftAndRight1) {
