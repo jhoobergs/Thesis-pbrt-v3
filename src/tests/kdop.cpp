@@ -113,7 +113,9 @@ TEST(kDOP, Cut) {
     kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
     kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
 
-    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 0, directions[0], 0);
+    std::vector<std::vector<Point3f>> faceVerticesCache;
+    std::vector<KDOPEdge> coincidentEdgesCache;
+    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 0, directions[0], 0, faceVerticesCache, coincidentEdgesCache);
 
     for (auto &edge: result.first.edges) {
         Warning("%d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1.x, edge.v1.y, edge.v1.z,
@@ -125,7 +127,7 @@ TEST(kDOP, Cut) {
     EXPECT_FLOAT_EQ(result.second.SurfaceArea(directions, faces_cache), 2 * 3.5 * (1 + 22) + 2 * 1 * 22);
 
     std::pair<KDOPMesh, KDOPMesh> result2 = result.first.cut(directions.size(), 2.5,
-                                                             directions[1], 1);
+                                                             directions[1], 1, faceVerticesCache, coincidentEdgesCache);
     EXPECT_EQ(12, result2.first.edges.size());
     EXPECT_EQ(12, result2.second.edges.size());
     EXPECT_FLOAT_EQ(2 * 5 * (0.5 + 22) + 2 * 0.5 * 22, result2.first.SurfaceArea(directions, faces_cache));
@@ -165,9 +167,11 @@ TEST(kDOP, CutDiag) {
     kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
     kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
 
+    std::vector<std::vector<Point3f>> faceVerticesCache;
+    std::vector<KDOPEdge> coincidentEdgesCache;
     std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(),
                                                         -110 / (float) std::sqrt(22 * 22 + 8.5 * 8.5),
-                                                        directions[3], 3);
+                                                        directions[3], 3, faceVerticesCache, coincidentEdgesCache);
     const float eps = 0.001;
     for (auto &edge: result.first.edges) {
         Warning("%d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1.x, edge.v1.y, edge.v1.z,
@@ -287,8 +291,10 @@ TEST(kDOP, CutArb) {
     kDOPMesh.addEdge(KDOPEdge(v6, v8, 0, 4));
     kDOPMesh.addEdge(KDOPEdge(v7, v8, 0, 2));
 
+    std::vector<std::vector<Point3f>> faceVerticesCache;
+    std::vector<KDOPEdge> coincidentEdgesCache;
     std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 2.8 * (float) std::sqrt(2),
-                                                        directions[3], 3);
+                                                        directions[3], 3, faceVerticesCache, coincidentEdgesCache);
     for (auto &edge: result.first.edges) {
         Warning("FIRST: %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1.x, edge.v1.y,
                 edge.v1.z,
@@ -309,7 +315,7 @@ TEST(kDOP, CutArb) {
     EXPECT_FLOAT_EQ(2 * 0.9 * 22 + 0.9 * 0.9 + 0.9 * std::sqrt(2) * 22, result.second.SurfaceArea(directions, faces_cache));
 
     std::pair<KDOPMesh, KDOPMesh> result2 = result.first.cut(directions.size(), 2.8 * (float) std::sqrt(2),
-                                                             directions[4], 4);
+                                                             directions[4], 4, faceVerticesCache, coincidentEdgesCache);
     EXPECT_EQ(15, result2.first.edges.size());
     EXPECT_EQ(15, result2.second.edges.size());
     Warning("FIRSTAREA: %f, SECONDAREA: %f, SUM: %f, ALMOST SUM %f", result2.first.SurfaceArea(directions, faces_cache),
@@ -361,7 +367,9 @@ TEST(kDOP, CutFailing) {
     kDOPMesh.addEdge(KDOPEdge(v4, v7, 5, 0));
     kDOPMesh.addEdge(KDOPEdge(v6, v8, 4, 0));
 
-    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 0.353553414, directions[7], 7);
+    std::vector<std::vector<Point3f>> faceVerticesCache;
+    std::vector<KDOPEdge> coincidentEdgesCache;
+    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 0.353553414, directions[7], 7, faceVerticesCache, coincidentEdgesCache);
 
     for (auto &edge: result.first.edges) {
         Warning("First %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1.x, edge.v1.y,
@@ -382,7 +390,7 @@ TEST(kDOP, CutFailing) {
     EXPECT_EQ(12, result.first.edges.size());
     //EXPECT_EQ(0, result.second.edges.size());
 
-    result = kDOPMesh.cut(directions.size(), Dot(Vector3f(v1.x, v1.y, v1.z), directions[7]), directions[7], 7);
+    result = kDOPMesh.cut(directions.size(), Dot(Vector3f(v1.x, v1.y, v1.z), directions[7]), directions[7], 7, faceVerticesCache, coincidentEdgesCache);
 
     for (auto &edge: result.first.edges) {
         Warning("First %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1.x, edge.v1.y,
@@ -399,7 +407,7 @@ TEST(kDOP, CutFailing) {
     //EXPECT_EQ(0, result.first.edges.size());
     EXPECT_EQ(12, result.second.edges.size());
 
-    result = kDOPMesh.cut(directions.size(), 0, directions[7], 7);
+    result = kDOPMesh.cut(directions.size(), 0, directions[7], 7, faceVerticesCache, coincidentEdgesCache);
 
     for (auto &edge: result.first.edges) {
         Warning("First %d and %d: (%f,%f,%f) to (%f,%f,%f)", edge.faceId1, edge.faceId2, edge.v1.x, edge.v1.y,
@@ -460,7 +468,9 @@ TEST(kDOP, AreaAfterInPlaneCut) {
     std::vector<std::vector<KDOPEdge *>> faces_cache;
     Warning("SA old %f", kDOPMesh.SurfaceArea(directions, faces_cache));
 
-    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 64.433624f, directions[3], 3);
+    std::vector<std::vector<Point3f>> faceVerticesCache;
+    std::vector<KDOPEdge> coincidentEdgesCache;
+    std::pair<KDOPMesh, KDOPMesh> result = kDOPMesh.cut(directions.size(), 64.433624f, directions[3], 3, faceVerticesCache, coincidentEdgesCache);
     Warning("SA first %f", result.first.SurfaceArea(directions, faces_cache));
     Warning("SA second %f", result.second.SurfaceArea(directions, faces_cache));
 }

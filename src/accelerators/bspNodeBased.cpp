@@ -57,6 +57,8 @@ namespace pbrt {
 
         std::vector<BSPBuildNode> stack;
         std::vector<std::vector<KDOPEdge *>> faces_cache;
+        std::vector<std::vector<Point3f>> faceVerticesCache;
+        std::vector<KDOPEdge> coincidentEdgesCache;
         stack.emplace_back(maxDepth, (uint32_t) primitives.size(), 0u, kDOPMesh,
                            kDOPMesh.SurfaceArea(faces_cache), &prims[0]);
         // Warning("Building RBSP: Lets loop");
@@ -146,7 +148,7 @@ namespace pbrt {
                         // Compute cost for split at _i_th edge
                         // Compute child surface areas for split at _edgeT_
                         splittedKDOPs = currentBuildNode.kDOPMesh.cut(
-                                edgeT, d);
+                                edgeT, d, faceVerticesCache, coincidentEdgesCache);
                         const Float areaBelow = splittedKDOPs.first.SurfaceArea(faces_cache);
                         const Float areaAbove = splittedKDOPs.second.SurfaceArea(faces_cache);
                         const Float pBelow = areaBelow * invTotalSA;

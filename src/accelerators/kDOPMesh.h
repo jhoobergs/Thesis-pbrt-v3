@@ -91,15 +91,17 @@ namespace pbrt {
     template<class T>
     inline std::pair<T, T>
     KDOPCut(const std::vector<KDOPEdge> &edges, uint32_t M, Float t, const Vector3f &direction,
-            const uint32_t directionId) {
+            const uint32_t directionId, std::vector<std::vector<Point3f>> &faceVertices, std::vector<KDOPEdge> &coincidentEdges) {
         //Warning("t %f", t);
         T left; // TODO: ? Allocate right ? Use unique pointers and shared pointers
         T right;
-        std::vector<std::vector<Point3f>> faceVertices;
-        for (size_t i = 0; i < 2 * M; ++i) {
+        for (size_t i = faceVertices.size(); i < 2 * M; ++i) {
             faceVertices.emplace_back(std::vector<Point3f>());
         }
-        std::vector<KDOPEdge> coincidentEdges;
+        for (size_t i = 0; i < 2 * M; ++i) {
+            faceVertices[i].clear();
+        }
+        coincidentEdges.clear();
         Float t1, t2;
         for (auto &edge: edges) {
             t1 = Dot(direction, edge.v1);
@@ -245,7 +247,7 @@ namespace pbrt {
     struct KDOPMeshWithDirections : KDOPMeshBase {
         KDOPMeshWithDirections() : KDOPMeshBase() {};
 
-        std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> cut(Float t, const Vector3f &direction) {
+        std::pair<KDOPMeshWithDirections, KDOPMeshWithDirections> cut(Float t, const Vector3f &direction, std::vector<std::vector<Point3f>> &faceVertices, std::vector<KDOPEdge> &coincidentEdges) {
             auto directionId = (uint32_t) directions.size();
             //Warning("SIZE %d", directionId);
             for (uint32_t i = 0; i < directions.size(); i++) {
@@ -255,7 +257,7 @@ namespace pbrt {
                     break;
                 }
             }
-            auto cut = KDOPCut<KDOPMeshWithDirections>(edges, directions.size(), t, direction, directionId);
+            auto cut = KDOPCut<KDOPMeshWithDirections>(edges, directions.size(), t, direction, directionId, faceVertices, coincidentEdges);
             cut.first.directions = directions;
             cut.second.directions = directions;
             if (directionId == directions.size()) {
@@ -275,8 +277,8 @@ namespace pbrt {
     struct KDOPMesh : KDOPMeshBase {
         KDOPMesh() : KDOPMeshBase() {};
 
-        std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, Float t, const Vector3f &direction, const uint32_t directionId) {
-            return KDOPCut<KDOPMesh>(edges, M, t, direction, directionId);
+        std::pair<KDOPMesh, KDOPMesh> cut(uint32_t M, Float t, const Vector3f &direction, const uint32_t directionId, std::vector<std::vector<Point3f>> &faceVertices, std::vector<KDOPEdge> &coincidentEdges) {
+            return KDOPCut<KDOPMesh>(edges, M, t, direction, directionId, faceVertices, coincidentEdges);
         }
 
         Float SurfaceArea(const std::vector<Vector3f> &directions, std::vector<std::vector<KDOPEdge *>> &faces) {
